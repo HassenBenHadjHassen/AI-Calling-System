@@ -1,0 +1,70 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  phone      String
+  name       String?
+  status     LeadStatus @default(NEW)
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String? @db.ObjectId
+  callHistories CallHistory[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum LeadStatus {
+  NEW
+  CALLED
+  INTERESTED
+  TRANSFERRED
+  FAILED
+}
+
+model Campaign {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  status    CampaignStatus @default(STOPPED)
+  leads     Lead[]
+  callHistories CallHistory[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CampaignStatus {
+  RUNNING
+  STOPPED
+}
+
+model CallHistory {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  lead       Lead     @relation(fields: [leadId], references: [id])
+  leadId     String @db.ObjectId
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String? @db.ObjectId
+  status     CallStatus
+  startedAt  DateTime
+  endedAt    DateTime?
+  transferredToHuman Boolean @default(false)
+  createdAt  DateTime @default(now())
+}
+
+enum CallStatus {
+  INITIATED
+  COMPLETED
+  TRANSFERRED
+  FAILED
+}

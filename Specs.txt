@@ -1,0 +1,103 @@
+Cahier des Charges – MVP AI Calling System
+
+1. Objective
+Develop a Minimum Viable Product (MVP) of an AI calling platform that:
+
+Allows uploading of prospect phone numbers via dashboard.
+
+Calls prospects using an AI voice agent through a +33 06 or +33 01 or +33 09 (French) number.
+
+Transfers the call to a human agent based on conversation triggers (e.g., interest or specific keywords).
+
+Provides basic reporting on call status.
+
+2. Target Audience
+French-speaking prospects in France.
+
+All calls must be made using +33 numbers.
+
+3. Features and Functional Scope
+3.1 Frontend (React Interface):
+Authentication (basic login)
+
+Excel File Upload:
+
+Upload list of phone numbers with basic lead info.
+
+Dashboard:
+
+View uploaded leads and their status (New, Called, Interested, Transferred, Failed).
+
+Start/Stop campaigns.
+
+Simple real-time monitoring of call activity (basic list view).
+
+Basic Stats Section:
+
+Number of calls made, successful calls, transfers, conversion rate.
+
+3.2 Backend (NodeJS + Express):
+API for:
+
+Lead management (upload, status update).
+
+Campaign control (start, stop).
+
+Connecting with Vapi.ai SDK.
+
+Database (MongoDB):
+
+Leads, campaigns, call history.
+
+Webhook endpoints to receive call status updates from Vapi.ai.
+
+3.3 AI Calling Logic (Vapi.ai Integration):
+AI agent with a simple script:
+
+Greeting, brief pitch, basic Q&A.
+
+Keyword detection for transfer (e.g., "Interested", "Yes", "More info").
+
+Transfer call to human agent queue if criteria met.
+
+Use Twilio numbers starting with +33 for calls.
+
+Real-time webhook for call events (completed, transferred, failed).
+
+4. Technical Stack
+
+Frontend: ReactJS
+
+Backend: NodeJS + Express
+
+AI Calling: Vapi.ai (or equivalent)
+
+Telephony: Twilio (+33 numbers)
+
+Database: MongoDB (MVP), future-ready for upgrade.
+
+Deployment: Local Dev + Cloud-ready (custom VPS)
+
+5. Constraints
+GDPR Compliance:
+
+Include opt-out in the script.
+
+Store minimal personal data.
+
+No tone/emotion detection, only keyword triggers for MVP.
+
+System should be scalable to +50 simultaneous calls, but MVP can be limited to 5-10 simultaneous calls for testing purposes.
+
+6. Deliverables
+Fully functional MVP web app:
+
+Working AI call flow,
+
+Upload & manage leads,
+
+Basic real-time dashboard,
+
+Simple stats.
+
+Deployment-ready codebase with README.
