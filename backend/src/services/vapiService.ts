@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { env } from '../config/env';
+import axios from "axios";
+import { env } from "../config/env";
 
 interface VapiCallRequest {
   phoneNumber: string;
@@ -18,7 +18,7 @@ interface VapiCallResponse {
 }
 
 class VapiService {
-  private baseURL = 'https://api.vapi.ai';
+  private baseURL = "https://api.vapi.ai";
   private apiKey: string;
 
   constructor() {
@@ -26,17 +26,15 @@ class VapiService {
   }
 
   async createCall(callRequest: VapiCallRequest): Promise<VapiCallResponse> {
-    try {      
+    try {
       // Get or create assistant
-      const assistantId = callRequest.assistantId || await this.getOrCreateAssistant();
-      
+      const assistantId =
+        callRequest.assistantId || (await this.getOrCreateAssistant());
+
       const callPayload = {
-        phoneNumber: {
-          twilioPhoneNumber: env.TWILIO_FROM_NUMBER, // Your Twilio number (caller ID)
-          twilioAccountSid: env.TWILIO_ACCOUNT_SID
-        },
+        phoneNumberId: "70abd1ad-2217-4954-bb34-4be3ed004ac9",
         customer: {
-          number: callRequest.phoneNumber // The client's number (who to call)
+          number: callRequest.phoneNumber, // The client's number (who to call)
         },
         assistantId: assistantId,
         name: callRequest.name,
@@ -46,46 +44,51 @@ class VapiService {
           customer_phonenumber: callRequest.phoneNumber,
           lead_id: callRequest.leadId,
           campaign_id: callRequest.campaignId,
-          call_timestamp: new Date().toISOString()
-        }
+          call_timestamp: new Date().toISOString(),
+        },
       };
-      
-      const response = await axios.post(
-        `${this.baseURL}/call`,
-        callPayload,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000, // 10 second timeout
-        }
-      );
 
-      console.log('Vapi.ai call created successfully:', response.data);
+      const response = await axios.post(`${this.baseURL}/call`, callPayload, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000, // 10 second timeout
+      });
+
+      console.log("Vapi.ai call created successfully:", response.data);
       return response.data;
     } catch (error: any) {
-      console.error('Error creating Vapi call:', {
+      console.error("Error creating Vapi call:", {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
         config: {
           url: error.config?.url,
           method: error.config?.method,
-          headers: error.config?.headers
-        }
+          headers: error.config?.headers,
+        },
       });
-      
+
       if (error.response?.status === 401) {
-        throw new Error('Vapi.ai API key is invalid or expired');
+        throw new Error("Vapi.ai API key is invalid or expired");
       } else if (error.response?.status === 400) {
-        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-        console.error('Messages detail:', error.response.data.message);
-        throw new Error(`Vapi.ai API error: ${error.response.data?.message || 'Invalid request parameters'}`);
-      } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        throw new Error('Cannot connect to Vapi.ai API - check your internet connection');
+        console.error(
+          "Response data:",
+          JSON.stringify(error.response.data, null, 2)
+        );
+        console.error("Messages detail:", error.response.data.message);
+        throw new Error(
+          `Vapi.ai API error: ${
+            error.response.data?.message || "Invalid request parameters"
+          }`
+        );
+      } else if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+        throw new Error(
+          "Cannot connect to Vapi.ai API - check your internet connection"
+        );
       } else {
-        console.error('Unknown error:', error);
+        console.error("Unknown error:", error);
       }
       throw new Error(`Failed to create call with Vapi.ai: ${error.message}`);
     }
@@ -93,19 +96,16 @@ class VapiService {
 
   async getCall(callId: string): Promise<VapiCallResponse> {
     try {
-      const response = await axios.get(
-        `${this.baseURL}/call/${callId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
+      const response = await axios.get(`${this.baseURL}/call/${callId}`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
 
       return response.data;
     } catch (error) {
-      console.error('Error fetching Vapi call:', error);
-      throw new Error('Failed to fetch call from Vapi.ai');
+      console.error("Error fetching Vapi call:", error);
+      throw new Error("Failed to fetch call from Vapi.ai");
     }
   }
 
@@ -113,17 +113,17 @@ class VapiService {
     try {
       await axios.patch(
         `${this.baseURL}/call/${callId}`,
-        { status: 'ended' },
+        { status: "ended" },
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
           },
         }
       );
     } catch (error) {
-      console.error('Error ending Vapi call:', error);
-      throw new Error('Failed to end call');
+      console.error("Error ending Vapi call:", error);
+      throw new Error("Failed to end call");
     }
   }
 
@@ -132,73 +132,78 @@ class VapiService {
 
   async getOrCreateAssistant(): Promise<string> {
     if (this.assistantId) {
-      console.log('Using cached assistant ID:', this.assistantId);
+      console.log("Using cached assistant ID:", this.assistantId);
       return this.assistantId;
     }
-    
+
     try {
-      console.log('Checking for existing assistants...');
-      
+      console.log("Checking for existing assistants...");
+
       // First, validate API key by making a simple request
       await this.validateApiKey();
-      
+
       // Try to get existing assistant first
       const assistants = await this.listAssistants();
       console.log(`Found ${assistants.length} existing assistants`);
-      
-      const existingAssistant = assistants.find((a: any) => a.name === 'French AI Sales Agent');
-      
+
+      const existingAssistant = assistants.find(
+        (a: any) => a.name === "French AI Sales Agent"
+      );
+
       if (existingAssistant) {
-        console.log('Found existing assistant:', existingAssistant.id);
+        console.log("Found existing assistant:", existingAssistant.id);
         this.assistantId = existingAssistant.id;
         return this.assistantId!;
       }
-      
+
       // Create new assistant if none exists
-      console.log('No existing assistant found, creating new one...');
+      console.log("No existing assistant found, creating new one...");
       this.assistantId = await this.createAssistant();
-      console.log('Successfully created new assistant:', this.assistantId);
+      console.log("Successfully created new assistant:", this.assistantId);
       return this.assistantId;
     } catch (error: any) {
-      console.error('Error getting or creating assistant:', {
+      console.error("Error getting or creating assistant:", {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
       });
-      
+
       if (error.response?.status === 401) {
-        throw new Error('Vapi.ai API key is invalid. Please check your VAPI_API_KEY environment variable.');
+        throw new Error(
+          "Vapi.ai API key is invalid. Please check your VAPI_API_KEY environment variable."
+        );
       } else if (error.response?.status === 403) {
-        throw new Error('Vapi.ai API key does not have permission to create assistants.');
+        throw new Error(
+          "Vapi.ai API key does not have permission to create assistants."
+        );
       } else {
-        throw new Error(`Failed to get or create Vapi.ai assistant: ${error.message}`);
+        throw new Error(
+          `Failed to get or create Vapi.ai assistant: ${error.message}`
+        );
       }
     }
   }
 
   async validateApiKey(): Promise<void> {
     try {
-      console.log('Validating Vapi.ai API key...');
-      const response = await axios.get(
-        `${this.baseURL}/assistant`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-          timeout: 5000
-        }
-      );
-      console.log('API key validation successful');
-    } catch (error: any) {
-      console.error('API key validation failed:', {
-        status: error.response?.status,
-        message: error.message
+      console.log("Validating Vapi.ai API key...");
+      const response = await axios.get(`${this.baseURL}/assistant`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        timeout: 5000,
       });
-      
+      console.log("API key validation successful");
+    } catch (error: any) {
+      console.error("API key validation failed:", {
+        status: error.response?.status,
+        message: error.message,
+      });
+
       if (error.response?.status === 401) {
-        throw new Error('Invalid Vapi.ai API key');
-      } else if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-        throw new Error('Cannot connect to Vapi.ai API');
+        throw new Error("Invalid Vapi.ai API key");
+      } else if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+        throw new Error("Cannot connect to Vapi.ai API");
       } else {
         throw error;
       }
@@ -207,36 +212,33 @@ class VapiService {
 
   async listAssistants(): Promise<any[]> {
     try {
-      const response = await axios.get(
-        `${this.baseURL}/assistant`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
+      const response = await axios.get(`${this.baseURL}/assistant`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
       return response.data || [];
     } catch (error) {
-      console.error('Error listing assistants:', error);
+      console.error("Error listing assistants:", error);
       return [];
     }
   }
 
   async createAssistant(): Promise<string> {
     try {
-      console.log('Creating Vapi.ai assistant with complete configuration...');
-      
+      console.log("Creating Vapi.ai assistant with complete configuration...");
+
       const assistantConfig = {
-        name: 'French AI Sales Agent',
+        name: "French AI Sales Agent",
         transcriber: {
-          provider: 'deepgram',
-          model: 'nova-2',
-          language: 'fr',
-          smartFormat: false
+          provider: "deepgram",
+          model: "nova-2",
+          language: "fr",
+          smartFormat: false,
         },
         model: {
-          provider: 'openai',
-          model: 'gpt-3.5-turbo',
+          provider: "openai",
+          model: "gpt-3.5-turbo",
           temperature: 0.7,
           messages: [
             {
@@ -258,51 +260,51 @@ Tu peux poser des questions comme:
 - "Souhaiteriez-vous en savoir plus?"
 
 Si tu détectes de l'intérêt, utilise immédiatement la fonction transfer_to_human.`,
-              role: 'system'
-            }
-          ]
+              role: "system",
+            },
+          ],
         },
         voice: {
-          provider: '11labs',
-          voiceId: 'pNInz6obpgDQGcFmaJgB',
+          provider: "11labs",
+          voiceId: "pNInz6obpgDQGcFmaJgB",
           stability: 0.5,
           similarityBoost: 0.8,
           style: 0,
-          useSpeakerBoost: true
+          useSpeakerBoost: true,
         },
-        firstMessage: '',
-        backgroundSound: 'off',
+        firstMessage: "",
+        backgroundSound: "off",
         backgroundSpeechDenoisingPlan: {
           smartDenoisingPlan: {
-            enabled: true
-          }
+            enabled: true,
+          },
         },
         modelOutputInMessagesEnabled: false,
-        endCallMessage: 'Merci beaucoup pour votre temps. Bonne journée !',
+        endCallMessage: "Merci beaucoup pour votre temps. Bonne journée !",
         endCallPhrases: [
-          'au revoir',
-          'raccrocher',
-          'terminer',
-          'stop',
-          'arrêter'
+          "au revoir",
+          "raccrocher",
+          "terminer",
+          "stop",
+          "arrêter",
         ],
         metadata: {},
         firstMessageInterruptionsEnabled: false,
         firstMessageMode: null,
         voicemailDetection: {
-          provider: 'google'
+          provider: "google",
         },
         clientMessages: null,
         serverMessages: null,
         maxDurationSeconds: 20,
         transportConfigurations: [],
         observabilityPlan: {
-          provider: 'langfuse',
-          tags: []
+          provider: "langfuse",
+          tags: [],
         },
         credentials: [],
         hooks: [],
-        voicemailMessage: '',
+        voicemailMessage: "",
         compliancePlan: {},
         analysisPlan: {},
         artifactPlan: {},
@@ -313,26 +315,29 @@ Si tu détectes de l'intérêt, utilise immédiatement la fonction transfer_to_h
         credentialIds: [],
         server: {},
         keypadInputPlan: {},
-        backgroundDenoisingEnabled: false
+        backgroundDenoisingEnabled: false,
       };
-      
-      console.log('Assistant config prepared:', JSON.stringify(assistantConfig, null, 2));
+
+      console.log(
+        "Assistant config prepared:",
+        JSON.stringify(assistantConfig, null, 2)
+      );
 
       const response = await axios.post(
         `${this.baseURL}/assistant`,
         assistantConfig,
         {
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
           },
         }
       );
 
       return response.data.id;
     } catch (error) {
-      console.error('Error creating Vapi assistant:', error);
-      throw new Error('Failed to create assistant');
+      console.error("Error creating Vapi assistant:", error);
+      throw new Error("Failed to create assistant");
     }
   }
 
@@ -342,34 +347,31 @@ Si tu détectes de l'intérêt, utilise immédiatement la fonction transfer_to_h
     try {
       return await this.createAssistant();
     } catch (error) {
-      throw new Error('Failed to get default assistant');
+      throw new Error("Failed to get default assistant");
     }
   }
 
   private async getFrenchPhoneNumberId(): Promise<string> {
     try {
-      const response = await axios.get(
-        `${this.baseURL}/phone-number`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-          },
-        }
-      );
+      const response = await axios.get(`${this.baseURL}/phone-number`, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      });
 
       // Find a French number (+33)
-      const frenchNumber = response.data.find((number: any) => 
-        number.number.startsWith('+33')
+      const frenchNumber = response.data.find((number: any) =>
+        number.number.startsWith("+33")
       );
 
       if (!frenchNumber) {
-        throw new Error('No French phone number found in Vapi account');
+        throw new Error("No French phone number found in Vapi account");
       }
 
       return frenchNumber.id;
     } catch (error) {
-      console.error('Error fetching French phone number:', error);
-      throw new Error('Failed to get French phone number');
+      console.error("Error fetching French phone number:", error);
+      throw new Error("Failed to get French phone number");
     }
   }
 }
