@@ -19,3 +19,12 @@ export const stopCampaignDB = async (campaignId: string) => {
 export const getCampaigns = async () => {
   return prisma.campaign.findMany();
 };
+
+export const getCampaignById = async (campaignId: string) => {
+  return prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: {
+      leads: true,
+    },
+  });
+};

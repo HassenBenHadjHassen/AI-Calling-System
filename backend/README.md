@@ -1,71 +1,150 @@
-# AI Calling System Backend (MVP)
+# AI Calling System Backend
 
-## Features
-- Lead management (upload, list, update status)
-- Campaign control (start, stop, list)
-- Call handling (trigger, webhook, status update) with Twilio and Vapi.ai integration
-- Basic stats/reporting
-- MongoDB with Prisma ORM
+MVP backend for AI-powered calling platform with French phone numbers, Vapi.ai integration, and automated prospect management.
 
-## Setup
+## 🚀 Features
 
-1. **Install dependencies**
-   ```sh
-   pnpm install
-   ```
+- **Lead Management**: Upload via Excel/CSV or JSON API
+- **Campaign Control**: Start/stop calling campaigns
+- **AI Calling**: Vapi.ai integration with French conversations
+- **Authentication**: JWT-based secure access
+- **File Upload**: Excel (.xlsx, .xls) and CSV support
+- **GDPR Compliance**: Built-in data protection
+- **Real-time Webhooks**: Live call status updates
 
-2. **Configure environment**
-   - Copy `.env.example` to `.env` and set your MongoDB and integration credentials:
-     ```sh
-     cp .env.example .env
-     # Edit .env to set DATABASE_URL and the following:
-     # Twilio
-     TWILIO_ACCOUNT_SID=your_twilio_account_sid
-     TWILIO_AUTH_TOKEN=your_twilio_auth_token
-     TWILIO_FROM_NUMBER=+33xxxxxxxxx
-     TWILIO_TWIML_URL=https://your-server.com/api/calls/twiml
-     # Vapi.ai
-     VAPI_API_KEY=your_vapi_api_key
-     VAPI_DEFAULT_SCRIPT=your_vapi_script_or_scenario_id
-     ```
+## 🛠 Tech Stack
 
-3. **Generate Prisma client**
-   ```sh
-   npx prisma db push
-   ```
+- Node.js + Express + TypeScript
+- MongoDB + Prisma ORM
+- Vapi.ai SDK + Twilio
+- JWT Authentication
+- File processing (XLSX)
 
-4. **Run the server**
-   ```sh
-   pnpm dev
-   ```
+## ⚡ Quick Start
 
-## API Endpoints
+1. **Install dependencies:**
+```bash
+npm install
+# or
+pnpm install
+```
 
-- `POST /api/leads/upload` — Upload leads (array of `{ phone, name? }`)
-- `GET /api/leads` — List all leads
-- `PATCH /api/leads/:id/status` — Update lead status
-- `POST /api/campaigns/:id/start` — Start campaign
-- `POST /api/campaigns/:id/stop` — Stop campaign
-- `GET /api/campaigns` — List campaigns
-- `POST /api/calls/trigger` — Trigger a call (Twilio + Vapi.ai integration)
-- `POST /api/calls/webhook` — Webhook for call status updates
-- `GET /api/stats` — Get call statistics
-- `GET /api/health` — Health check
+2. **Configure environment:**
+```bash
+cp .env.example .env
+# Edit .env with your API keys
+```
 
-## Call Flow
-- When a call is triggered, the backend:
-  1. Places a call using Twilio (from a +33 number)
-  2. Initiates the AI agent via Vapi.ai, passing the Twilio call SID
-  3. Logs the call as INITIATED in the database
-  4. Handles status updates via webhook endpoints
+3. **Setup database:**
+```bash
+npx prisma generate
+npx prisma db push
+```
 
-## Project Structure
-- `src/controllers/` — API request handlers
-- `src/services/` — Business logic (including Twilio/Vapi.ai integration)
-- `src/repositories/` — Database logic
-- `src/routes/` — Express routes
+4. **Start server:**
+```bash
+npm run dev
+```
 
-## Notes
-- Make sure your Twilio number is a valid +33 (France) number.
-- Integrate your own Vapi.ai script/scenario as needed.
-- Add authentication and GDPR/opt-out logic as required. 
+Server starts at `http://localhost:4000`
+
+## 🔑 Environment Variables
+
+```env
+DATABASE_URL=mongodb://localhost:27017/ai-calling-system
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_token
+TWILIO_FROM_NUMBER=+33xxxxxxxxx
+VAPI_API_KEY=your_vapi_key
+JWT_SECRET=your-secret-key
+```
+
+## 📚 API Endpoints
+
+### Authentication
+```http
+POST /api/auth/login
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+```
+
+### Lead Management
+```http
+# Upload JSON
+POST /api/leads/upload
+Authorization: Bearer <token>
+
+# Upload File
+POST /api/leads/upload/file
+Content-Type: multipart/form-data
+
+# List with pagination
+GET /api/leads?page=1&limit=50&status=NEW
+
+# Get statistics
+GET /api/leads/stats
+```
+
+### Call Management
+```http
+# Trigger call
+POST /api/calls/trigger
+{
+  "leadId": "id",
+  "phoneNumber": "+33123456789"
+}
+
+# Webhook (for Vapi.ai)
+POST /api/calls/webhook
+```
+
+## 📊 Database Models
+
+**Lead**: phone, name, email, status (NEW/CALLED/INTERESTED/TRANSFERRED/FAILED)
+**Campaign**: name, status (RUNNING/STOPPED), leads
+**CallHistory**: lead, campaign, status, timestamps, transfer info
+
+## 🔒 Security Features
+
+- JWT authentication on all endpoints
+- File upload validation (5MB limit)
+- French phone number validation
+- GDPR-compliant AI scripts
+- Environment variable validation
+
+## 🚀 Development
+
+```bash
+npm run dev          # Start with nodemon
+npm run build        # Build TypeScript
+npm run lint         # Run ESLint
+npm run db:generate  # Generate Prisma client
+npm run db:studio    # Open Prisma Studio
+```
+
+## 📁 Project Structure
+
+```
+src/
+├── config/          # Environment validation
+├── controllers/     # Request handlers
+├── middleware/      # Auth & file upload
+├── repositories/    # Data access layer
+├── routes/          # API routes
+├── services/        # Business logic
+└── app.ts           # Express setup
+```
+
+## 🐛 Troubleshooting
+
+1. **Missing dependencies**: Run `npm install`
+2. **Prisma errors**: Run `npx prisma generate`
+3. **Auth issues**: Check JWT_SECRET in .env
+4. **File upload**: Ensure uploads/ directory exists
+5. **Vapi.ai**: Verify API key and French phone numbers
+
+## 📞 Support
+
+Check error logs, verify .env configuration, and ensure all dependencies are installed.
