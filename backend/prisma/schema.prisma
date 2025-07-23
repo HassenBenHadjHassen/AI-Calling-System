@@ -55,6 +55,7 @@ model CallHistory {
   leadId     String @db.ObjectId
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
   campaignId String? @db.ObjectId
+  vapiCallId String?
   status     CallStatus
   startedAt  DateTime
   endedAt    DateTime?

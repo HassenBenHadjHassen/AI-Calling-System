@@ -264,6 +264,25 @@ Si tu détectes de l'intérêt, utilise immédiatement la fonction transfer_to_h
             },
           ],
         },
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "transfer_to_human",
+              description: "Transfer the call to a human agent when the prospect shows interest",
+              parameters: {
+                type: "object",
+                properties: {
+                  reason: {
+                    type: "string",
+                    description: "Reason for the transfer (e.g., 'prospect_interested', 'needs_more_info')"
+                  }
+                },
+                required: ["reason"]
+              }
+            }
+          }
+        ],
         voice: {
           provider: "11labs",
           voiceId: "pNInz6obpgDQGcFmaJgB",
