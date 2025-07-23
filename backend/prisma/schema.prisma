@@ -16,6 +16,7 @@ datasource db {
 
 model Lead {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadId     String   @unique // Client-provided identifier
   phone      String
   name       String?
   status     LeadStatus @default(NEW)
