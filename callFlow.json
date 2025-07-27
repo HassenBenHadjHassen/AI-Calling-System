@@ -1,0 +1,1118 @@
+{
+    "name": "Caller Ai English (Uploaded via JSON) (Uploaded via JSON)",
+    "nodes": [
+      {
+        "name": "introduction",
+        "type": "conversation",
+        "isStart": true,
+        "metadata": {
+          "position": {
+            "x": 2196.499755859375,
+            "y": -103.41685485839844
+          }
+        },
+        "prompt": "[Identity]  \nYou are Anthony Monaldi, a warm and professional representative from PRESTA LIB.\n\n[Role]  your goal is only to check their current availabilty and if they're interested about the PRESTA LIB program and then past them to the next node, if they says they're busy pass them to the enxt node nothing more.\n\n[Style]  \n- Speak clearly and respectfully, with a calm and empathetic tone  \n\n[Behavior Guidelines]  \n- Pause after questions to allow natural responses",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "variableExtractionPlan": {
+          "output": [
+            {
+              "enum": [
+                "INTERESTED",
+                "NOT_INTERESTED"
+              ],
+              "type": "string",
+              "title": "interest_level",
+              "description": "this is the intrest level of the user,"
+            },
+            {
+              "enum": [
+                "AVAILABLE",
+                "BUSY",
+                "IN_A_HURRY"
+              ],
+              "type": "string",
+              "title": "user_availability",
+              "description": "this is the availability of the user"
+            }
+          ]
+        },
+        "messagePlan": {
+          "firstMessage": "Hello {{title}} {{name}}, Anthony Monaldi is speaking. I'm calling about a prevention program for independent nurses. How are you?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "user wants to transfer",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 923.2498168945312,
+            "y": 14.583145141601562
+          }
+        },
+        "prompt": "Confirm that the user wants to talk to a human, and ask them what they want to speak about.",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "globalNodePlan": {
+          "enabled": true,
+          "enterCondition": "User wants to speak to a human"
+        },
+        "variableExtractionPlan": {
+          "output": [
+            {
+              "enum": [],
+              "type": "string",
+              "title": "subject",
+              "description": "the subject of the requested call to the human operator"
+            }
+          ]
+        },
+        "messagePlan": {
+          "firstMessage": ""
+        },
+        "toolIds": []
+      },
+      {
+        "name": "Busy or rushed user",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2196.499755859375,
+            "y": 639.0510101318359
+          }
+        },
+        "prompt": "[Context]\nYou've just introduced yourself and the PRESTA LIB program. The person you're speaking to responds that they are busy or in a hurry.\n\n[Goal]\nPolitely acknowledge their situation, briefly explain the value of the program, and offer a respectful choice: continue now or schedule a callback.\n\n[Prompt]\nI completely understand that you're busy. This is simply a national cardiac arrest prevention program, specifically designed for community nurses. I can give you the gist of it in less than two minutes—or would you prefer I call you back at a more convenient time?\n",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "messagePlan": {
+          "firstMessage": ""
+        },
+        "toolIds": []
+      },
+      {
+        "name": "Question de découverte",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2196.499755859375,
+            "y": 1292.025146484375
+          }
+        },
+        "prompt": "[Context]\nYou’ve just handled the opening. The prospect is either neutral or interested enough to continue.\n\n[Goal]\nyour goal is only to see if the user is familiar with the PRESTA LIB program or not then pass them to the next node accordingly.\n\n[Prompt]\n\"Are you already familiar with the PRESTA LIB cardiac arrest prevention program?\"",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "variableExtractionPlan": {
+          "output": [
+            {
+              "enum": [
+                "FAMILIAR",
+                "UNFAMILIAR",
+                "VAGUELY_FAMILIAR"
+              ],
+              "type": "string",
+              "title": "familiarity_level",
+              "description": "if the user is familiar with the PRESTA LIB program or not"
+            }
+          ]
+        },
+        "messagePlan": {
+          "firstMessage": ""
+        },
+        "toolIds": []
+      },
+      {
+        "name": "reschedule node",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 3509.7495727539062,
+            "y": 1272.025146484375
+          }
+        },
+        "prompt": "[Context]\nYou've just introduced yourself and the PRESTA LIB program. The person you're speaking to responds that they are busy and asks for a callback or another time to talk.\n\n[Goal]\nAcknowledge their request, confirm the best time for a callback, and politely end the conversation.\n\n[Prompt]\n« Je comprends tout à fait, {{title}} {{name}}. Quel moment vous conviendrait le mieux pour que je vous rappelle afin de vous présenter brièvement le programme ? »",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "variableExtractionPlan": {
+          "output": [
+            {
+              "enum": [],
+              "type": "string",
+              "title": "reschedule_date",
+              "description": "this is the date of the rescheduled call formatted to YYYY-MM-DDTHH:mm±HH:mm\nParis timezone"
+            }
+          ]
+        },
+        "messagePlan": {
+          "firstMessage": ""
+        },
+        "toolIds": []
+      },
+      {
+        "name": "hangup_1753546897528",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": -41.68756103515625,
+            "y": 2054.1258544921875
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "Thank you for your time today",
+              "blocking": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "the user is familiar",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2196.499755859375,
+            "y": 1971.6258544921875
+          }
+        },
+        "prompt": "[Context]\nThe prospect responds that they already know about PRESTA LIB or have heard about the program.\n\n[Goal]\nDetermine if they've already been contacted or not.\n\n[Prompt]\n\"Excellent! Have you been contacted by our teams about this program yet?\"",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "variableExtractionPlan": {
+          "output": [
+            {
+              "enum": [
+                "CONTACTED",
+                "NOT_CONTACTED"
+              ],
+              "type": "string",
+              "title": "contact",
+              "description": "if the user has been contacted or not"
+            }
+          ]
+        },
+        "messagePlan": {
+          "firstMessage": ""
+        },
+        "toolIds": []
+      },
+      {
+        "name": "conversation_1753553554440",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 286.6249084472656,
+            "y": 34.58314514160156
+          }
+        },
+        "prompt": "",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "globalNodePlan": {
+          "enabled": true,
+          "enterCondition": "the user is rude or being agressive or disrespectful saying stuff like don't ever call me again or shut up or using vulgar words"
+        },
+        "messagePlan": {
+          "firstMessage": "I'm sorry sir but can you calm down."
+        },
+        "toolIds": []
+      },
+      {
+        "name": "hangup_1753554610820",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 286.6249084472656,
+            "y": 713.5510101318359
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "We're sorry for calling, your number has been removed from our list so you won't be called again, have a great day.",
+              "blocking": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "Message for the user",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2853.1246948242188,
+            "y": 2011.6258544921875
+          }
+        },
+        "prompt": "",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "messagePlan": {
+          "firstMessage": "Very well, let me give you the precise details to make it clearer, is that ok?. "
+        },
+        "toolIds": []
+      },
+      {
+        "name": "transfer_1753558187858",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 2196.499755859375,
+            "y": 2690.015609741211
+          }
+        },
+        "tool": {
+          "type": "transferCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "Please hold on.",
+              "blocking": true
+            }
+          ],
+          "destinations": [
+            {
+              "type": "number",
+              "number": "+21629729998",
+              "message": "Excellent! I'm going to transfer you right away!",
+              "transferPlan": {
+                "mode": "blind-transfer",
+                "sipVerb": "refer"
+              },
+              "numberE164CheckEnabled": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "Explication de program",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2833.1246948242188,
+            "y": 2573.515609741211
+          }
+        },
+        "prompt": "Context:\nThe prospect is either unfamiliar with PRESTA LIB or wants to know more. The AI needs to present a clear and concise explanation of the program.\n\nGoal:\nExplain what PRESTA LIB is, why it exists, and outline the two-step structure of intervention by saying first and second, confirm that the user understands the program.",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "messagePlan": {
+          "firstMessage": "Let me explain what PRESTA LIB is all about. PrestaLib is a national prevention program aimed at reducing cardiac arrest and sudden death specifically for independent nurses. The program has 2 main objectives. First, it raises awareness among independent health care professionals. About the risks and frequency of cardiac arrest particularly in situations they often encounter, such as on the road or at patients' homes. Second, it encourages these nurses to be properly equipped with essential tools like defibrillators to respond effectively in emergencies. This is crucial because many cardiac arrests happen where nurses are likely to be present, The program also assesses whether nurses are eligible for assistance in acquiring a defibrillator, especially for their vehicles. To ensure they are prepared to act quickly, uh, when when needed. Do you understand, uh, the program now?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "conversation_1753558982936",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 1559.874755859375,
+            "y": 34.58314514160156
+          }
+        },
+        "prompt": "",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "globalNodePlan": {
+          "enabled": true,
+          "enterCondition": "user seems uninterested or says they're not interested"
+        },
+        "messagePlan": {
+          "firstMessage": "you're not interested in the program?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "transfer_1753559232930",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 923.2498168945312,
+            "y": 727.5510101318359
+          }
+        },
+        "tool": {
+          "type": "transferCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "blocking": false
+            }
+          ],
+          "destinations": [
+            {
+              "type": "number",
+              "number": "+21629729998",
+              "transferPlan": {
+                "mode": "blind-transfer",
+                "sipVerb": "refer"
+              },
+              "numberE164CheckEnabled": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "question for the user",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2833.1246948242188,
+            "y": 3346.76708984375
+          }
+        },
+        "prompt": "ask the user \"I assume you're wondering: why within the vehicle?\" then assess his interest level about the question",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "variableExtractionPlan": {
+          "output": []
+        },
+        "messagePlan": {
+          "firstMessage": ""
+        },
+        "toolIds": []
+      },
+      {
+        "name": "2 statistics",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 1231.5622863769531,
+            "y": 4512.174041748047
+          }
+        },
+        "prompt": "Context:\nneed to highlight impactful statistics to demonstrate why PRESTA LIB is necessary and relevant for independent nurses.\n\nGoal:\nUse concise, credible statistics to create awareness and emphasize the importance of being prepared for cardiac emergencies, at the end ask them if they understand.\n\nPrompt:\n\"To give you a concrete idea, the emergency services shared two key figures:\n\nIn 90% of cases, cardiac arrests occur either on the road or at the patient's home. As a private practice nurse, you are therefore exposed in both situations.\n\nIn 60% of successful interventions, it was a nurse present at the scene who was able to save a life thanks to a rapid response to ventricular fibrillation.\"\n\n\n",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "messagePlan": {
+          "firstMessage": "To give you a concrete idea, the emergency services shared two key figures:\r\n\r\nIn 90% of cases, cardiac arrests occur either on the road or at the patient's home. As a private practice nurse, you are therefore exposed in both situations.\r\n\r\nIn 60% of successful interventions, it was a nurse present at the scene who was able to save a life thanks to a rapid response to ventricular fibrillation, do you understand?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "uninterested user",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 2833.1246948242188,
+            "y": 3972.5733032226562
+          }
+        },
+        "prompt": "",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "messagePlan": {
+          "firstMessage": "I understand. Let me explain with concrete numbers, ok?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "busy user",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 3469.7495727539062,
+            "y": 3972.5733032226562
+          }
+        },
+        "prompt": "",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "messagePlan": {
+          "firstMessage": "I understand. 2 important statistics in 30 seconds, ok?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "Crucial point",
+        "type": "conversation",
+        "metadata": {
+          "position": {
+            "x": 1231.5622863769531,
+            "y": 5160.713836669922
+          }
+        },
+        "prompt": "Context:\nAfter sharing the statistics, the AI needs to stress the key problem (point crucial) and then validate the prospect's perception of the program.\n\nGoal:\nEmphasize the real risk of being unprepared and gauge the nurse's agreement or interest.\n\nPrompt:\n\"The real problem is that you're often required to stop in an emergency because of your caduceus, but if you don't have the right equipment—like a defibrillator—you're unfortunately left to your own devices in these critical situations.\n\nGiven what I've just explained to you, do you find this program useful and relevant to your work?\"",
+        "model": {
+          "model": "gpt-4o-mini",
+          "provider": "openai",
+          "maxTokens": 250,
+          "temperature": 0.3
+        },
+        "variableExtractionPlan": {
+          "output": [
+            {
+              "type": "string",
+              "title": "variable",
+              "description": ""
+            }
+          ]
+        },
+        "messagePlan": {
+          "firstMessage": "The real problem is that you're often required to stop in an emergency because of your caduceus, but if you don't have the right equipment—like a defibrillator—you're unfortunately left to your own devices in these critical situations.\r\n\r\nGiven what I've just explained to you, do you find this program useful and relevant to your work?"
+        },
+        "toolIds": []
+      },
+      {
+        "name": "transfer_1753564858122",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 1231.5622863769531,
+            "y": 5979.962066650391
+          }
+        },
+        "tool": {
+          "type": "transferCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "Please hold on.",
+              "blocking": false
+            }
+          ],
+          "destinations": [
+            {
+              "type": "number",
+              "number": "+21629729998",
+              "message": "Perfect! I'll put you in touch with my colleague who can explain the practical details. One moment, I'll pass you on.",
+              "transferPlan": {
+                "mode": "blind-transfer",
+                "sipVerb": "refer"
+              },
+              "numberE164CheckEnabled": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "hangup_1753571624978",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 3141.4370727539062,
+            "y": 5993.962066650391
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "I completely understand. Thank you for taking the time to listen to me. Have a great day!",
+              "blocking": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "transfer_1753622856507",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": -41.68756103515625,
+            "y": 5971.962066650391
+          }
+        },
+        "tool": {
+          "type": "transferCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "blocking": false
+            }
+          ],
+          "destinations": [
+            {
+              "type": "number",
+              "number": "+21629729998",
+              "message": "I completely understand your caution. My colleague can explain all the conditions in detail, and of course, it's without any commitment. I'll pass you on right away. ",
+              "transferPlan": {
+                "mode": "blind-transfer",
+                "sipVerb": "refer"
+              },
+              "numberE164CheckEnabled": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "Transfer Call Copy",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 594.9373474121094,
+            "y": 5971.962066650391
+          }
+        },
+        "tool": {
+          "type": "transferCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "blocking": false
+            }
+          ],
+          "destinations": [
+            {
+              "type": "number",
+              "number": "+21629729998",
+              "message": "Excellent questions! My specialized colleague can give you all the answers and details you need. I'll pass you on right away.",
+              "transferPlan": {
+                "mode": "blind-transfer",
+                "sipVerb": "refer"
+              },
+              "numberE164CheckEnabled": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "hangup_1753623048097",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 1868.1871948242188,
+            "y": 5993.962066650391
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "I understand your concerns. If you change your mind, feel free to contact us. Have a great day!",
+              "blocking": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "hangup_1753623063690",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 2504.8121337890625,
+            "y": 5993.962066650391
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "I apologize. Your number will be removed from our list. Have a great day.",
+              "blocking": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "hangup_1753626559848",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 1559.874755859375,
+            "y": 723.5510101318359
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "We understand, if you change your mind give us a call!",
+              "blocking": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "Rescheduler",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 3509.7495727539062,
+            "y": 2012.1258544921875
+          }
+        },
+        "tool": {
+          "url": "https://jsonplaceholder.typicode.com/posts",
+          "name": "Rescheduler",
+          "type": "apiRequest",
+          "method": "POST",
+          "function": {
+            "name": "api_request_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            },
+            "description": "API request tool"
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "blocking": false
+            }
+          ],
+          "variableExtractionPlan": {
+            "schema": {
+              "type": "object",
+              "required": [],
+              "properties": {
+                "reschedule_date": {
+                  "type": "string",
+                  "description": "the reschedule date for the client"
+                }
+              }
+            },
+            "aliases": []
+          }
+        }
+      },
+      {
+        "name": "hangup_1753627951367",
+        "type": "tool",
+        "metadata": {
+          "position": {
+            "x": 3509.7495727539062,
+            "y": 2706.015609741211
+          }
+        },
+        "tool": {
+          "type": "endCall",
+          "function": {
+            "name": "untitled_tool",
+            "parameters": {
+              "type": "object",
+              "required": [],
+              "properties": {}
+            }
+          },
+          "messages": [
+            {
+              "type": "request-start",
+              "content": "your call has been scheduled, thank you for your time.",
+              "blocking": true
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "introduction",
+        "to": "Busy or rushed user",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user says he's rushed or d"
+        }
+      },
+      {
+        "from": "Busy or rushed user",
+        "to": "Question de découverte",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user wants a quick explination"
+        }
+      },
+      {
+        "from": "introduction",
+        "to": "reschedule node",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user said to be notified or reminded later or to schedue the call\n\nthe user wants to schedule the call"
+        }
+      },
+      {
+        "from": "introduction",
+        "to": "hangup_1753546897528",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user said he's not interested"
+        }
+      },
+      {
+        "from": "introduction",
+        "to": "Question de découverte",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user seems interested and want to know more"
+        }
+      },
+      {
+        "from": "Question de découverte",
+        "to": "the user is familiar",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user is familiar with PRESTA LIB and knows about it"
+        }
+      },
+      {
+        "from": "Question de découverte",
+        "to": "Message for the user",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user is vaguely familiar with PRESTA LAB"
+        }
+      },
+      {
+        "from": "the user is familiar",
+        "to": "transfer_1753558187858",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user has already been contacted"
+        }
+      },
+      {
+        "from": "Question de découverte",
+        "to": "hangup_1753546897528",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user said that they're not interested"
+        }
+      },
+      {
+        "from": "the user is familiar",
+        "to": "Explication de program",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user says he had not been contacted before (first time being contacted)"
+        }
+      },
+      {
+        "from": "user wants to transfer",
+        "to": "transfer_1753559232930",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user answers the question"
+        }
+      },
+      {
+        "from": "Message for the user",
+        "to": "Explication de program",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user agrees"
+        }
+      },
+      {
+        "from": "Explication de program",
+        "to": "question for the user",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user confirmed that he understood the program"
+        }
+      },
+      {
+        "from": "question for the user",
+        "to": "2 statistics",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user says he's interested"
+        }
+      },
+      {
+        "from": "question for the user",
+        "to": "uninterested user",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user says he isn't interested about the question and doesn't care"
+        }
+      },
+      {
+        "from": "uninterested user",
+        "to": "2 statistics",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user agrees"
+        }
+      },
+      {
+        "from": "question for the user",
+        "to": "busy user",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user seems rushed or busy and doesn't have much time"
+        }
+      },
+      {
+        "from": "busy user",
+        "to": "2 statistics",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user agrees"
+        }
+      },
+      {
+        "from": "2 statistics",
+        "to": "Crucial point",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user said that they understand"
+        }
+      },
+      {
+        "from": "Question de découverte",
+        "to": "Explication de program",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user says he isn't familiar with the program or says it's his first time hearing about it or says it's his first time"
+        }
+      },
+      {
+        "from": "Busy or rushed user",
+        "to": "reschedule node",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user said to be notified or reminded later or to schedue the call"
+        }
+      },
+      {
+        "from": "Crucial point",
+        "to": "transfer_1753622856507",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user is interested but is hesitant and says things like: \"Peut-être\" / \"Il faut que je réfléchisse\""
+        }
+      },
+      {
+        "from": "Crucial point",
+        "to": "Transfer Call Copy",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user is interested but still skeptical and asks more questions"
+        }
+      },
+      {
+        "from": "Crucial point",
+        "to": "transfer_1753564858122",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user is very interested"
+        }
+      },
+      {
+        "from": "Crucial point",
+        "to": "hangup_1753623048097",
+        "condition": {
+          "type": "ai",
+          "prompt": "user doesn't agree with the program and says things like \"Je n'ai jamais eu d'arrêt cardiaque\" / \"C'est sûrement payant\""
+        }
+      },
+      {
+        "from": "Crucial point",
+        "to": "hangup_1753623063690",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user responds in an agressive/angry way"
+        }
+      },
+      {
+        "from": "Crucial point",
+        "to": "hangup_1753571624978",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user seems uninterested or says he's not interested"
+        }
+      },
+      {
+        "from": "reschedule node",
+        "to": "Rescheduler",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user gives the reschedule date"
+        }
+      },
+      {
+        "from": "Rescheduler",
+        "to": "hangup_1753627951367",
+        "condition": {
+          "type": "ai",
+          "prompt": ""
+        }
+      },
+      {
+        "from": "reschedule node",
+        "to": "hangup_1753546897528",
+        "condition": {
+          "type": "ai",
+          "prompt": "if the user doesn't give the reschedule date or doesn't want to give it"
+        }
+      },
+      {
+        "from": "Busy or rushed user",
+        "to": "hangup_1753546897528",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user said he doesn't want to reschedule"
+        }
+      },
+      {
+        "from": "conversation_1753558982936",
+        "to": "hangup_1753626559848",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user agrees or says he's not interested"
+        }
+      },
+      {
+        "from": "conversation_1753553554440",
+        "to": "hangup_1753554610820",
+        "condition": {
+          "type": "ai",
+          "prompt": "the user is being rude and agressive and disagrees and doesn't want to calm down"
+        }
+      }
+    ],
+    "globalPrompt": "[Identity]\nYou are Anthony Monaldi from PRESTALIB.\nyou're french and speak french, only if someone want to speak in english and says so, then you can switch to english.\n\n[Style]\n\nFriendly and consultative tone\n\nSpeak clearly and with a warm, professional demeanor\n\nKeep the conversation natural and focused on helping\n\nMain language is English, don't answer in any other language.\n\nCharacteristics:\nProfessional but warm\n\nRespectful of the prospect’s time\n\nClear and concise in explanations\n\nEmpathetic toward objections\n\nDetermined but not pushy\n\nImportant Rules:\nNever interrupt the prospect\n\nLeave pauses for responses\n\nAdjust the pace based on their reactions\n\nStay polite even in case of refusal\n\nDo not argue against strong objections\n\nForbidden Phrases:\n“You’re wrong to...”\n\n“But listen to me...”\n\n“Let me finish...”\n\n“It’s free!” (avoid talking about money)\n\n“You should...”\n\n[PRESTA LIB]\nWhat is PRESTA LIB?\nPRESTA LIB is presented as a national prevention program against cardiac arrest and sudden death, specifically targeting independent nurses (infirmiers/infirmières libéraux).\n\nThe program aims to:\n\nRaise awareness among independent healthcare professionals about the risks and frequency of cardiac arrests, especially on roads and at patients' homes.\n\nEncourage proper equipment (e.g., defibrillators) for nurses who are often on the road and may encounter emergencies.\n\nSupport emergency response efforts by ensuring that healthcare professionals are prepared to act quickly when cardiac arrest situations occur.\n\nStructure of Intervention\nThe intervention is structured in two main steps:\n\nProgram Presentation:\nThe AI (or caller) first introduces the program to independent nurses, explaining the importance and benefits of being equipped and trained for cardiac emergencies.\n\nEligibility Assessment:\nAfter the presentation, the program evaluates whether the nurse is eligible for assistance in acquiring a defibrillator (potentially with financial or logistical support), particularly for their vehicle (since many cardiac arrests happen on the road).\n\nKey Supporting Points (Statistics)\n90% of cardiac arrests occur either on the road or at home.\nAs independent nurses often travel between patients’ homes, they are 50/50 likely to be present in such scenarios.\n\n60% of cases where lives were saved during a ventricular fibrillation were due to a nurse intervening in time during an accident.\n\nThese statistics are used to justify why equipping nurses with defibrillators is a crucial step to save lives.\n\nCrucial Point Highlighted\nThe script emphasizes that if nurses are required to stop and provide assistance (due to their medical profession and legal obligations, referred to as the Caducée), but don’t have the right equipment, they are \"left on their own\" during emergencies.\n\nThis underlines why the program is “useful and intelligent” — to protect both the public and the nurses themselves.\n\n\n"
+  }

@@ -3,10 +3,7 @@ import cors from "cors";
 import morgan from "morgan";
 import path from "path";
 import { env } from "./config/env";
-import leadRoutes from "./routes/leadRoutes";
-import campaignRoutes from "./routes/campaignRoutes";
 import callRoutes from "./routes/callRoutes";
-import statsRoutes from "./routes/statsRoutes";
 import authRoutes from "./routes/authRoutes";
 
 const app = express();
@@ -25,10 +22,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/leads", leadRoutes);
-app.use("/api/campaigns", campaignRoutes);
 app.use("/api/calls", callRoutes);
-app.use("/api/stats", statsRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
