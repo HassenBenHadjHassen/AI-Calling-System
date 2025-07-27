@@ -1,0 +1,174 @@
+{
+  "info": {
+    "name": "AI Calling System Backend",
+    "_postman_id": "aicalling-mvp-backend",
+    "description": "Test collection for AI Calling System backend endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\"\n}"
+        },
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/auth/login",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Leads - Upload (JSON)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"leads\": [\n    { \"name\": \"John Doe\", \"phone\": \"+33612345678\", \"email\": \"john@example.com\" },\n    { \"name\": \"Jane Smith\", \"phone\": \"+33687654321\", \"email\": \"jane@example.com\" }\n  ]\n}"
+        },
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads/upload",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "leads", "upload"]
+        }
+      }
+    },
+    {
+      "name": "Leads - Upload (File)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [{ "key": "file", "type": "file", "src": "" }]
+        },
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads/upload/file",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "leads", "upload", "file"]
+        }
+      }
+    },
+    {
+      "name": "Leads - List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "leads"]
+        }
+      }
+    },
+    {
+      "name": "Leads - Update Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"status\": \"CALLED\" }"
+        },
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads/{{leadId}}/status",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "leads", "{{leadId}}", "status"]
+        }
+      }
+    },
+    {
+      "name": "Campaigns - List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/campaigns",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "campaigns"]
+        }
+      }
+    },
+    {
+      "name": "Campaigns - Start",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/campaigns/{{campaignId}}/start",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "campaigns", "{{campaignId}}", "start"]
+        }
+      }
+    },
+    {
+      "name": "Campaigns - Stop",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/campaigns/{{campaignId}}/stop",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "campaigns", "{{campaignId}}", "stop"]
+        }
+      }
+    },
+    {
+      "name": "Calls - Trigger",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"leadId\": \"{{leadId}}\",\n  \"campaignId\": \"{{campaignId}}\",\n  \"phoneNumber\": \"+33612345678\",\n  \"name\": \"John Doe\"\n}"
+        },
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/calls/trigger",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "calls", "trigger"]
+        }
+      }
+    },
+    {
+      "name": "Stats - Global",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/stats",
+          "protocol": "https",
+          "host": ["ai-calling-system-api.hassenbenhadjhassen.com"],
+          "path": ["api", "stats"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "token", "value": "" },
+    { "key": "leadId", "value": "" },
+    { "key": "campaignId", "value": "" }
+  ]
+}

@@ -6,6 +6,7 @@ import {
   getLeadStats,
 } from "../repositories/leadRepository";
 import { LeadStatus } from "../generated/prisma";
+import { v4 as uuidv4 } from "uuid";
 
 interface ListLeadsOptions {
   page?: number;
@@ -19,17 +20,20 @@ export const uploadLeadsService = async (
   leads: { phone: string; name?: string; email?: string }[]
 ) => {
   // Validate and clean leads data
-  const validLeads = leads.filter(lead => {
-    // Basic phone number validation
-    return lead.phone && lead.phone.trim().length > 0;
-  }).map(lead => ({
-    phone: lead.phone.trim(),
-    name: lead.name?.trim() || null,
-    email: lead.email?.trim() || null,
-  }));
+  const validLeads = leads
+    .filter((lead) => {
+      // Basic phone number validation
+      return lead.phone && lead.phone.trim().length > 0;
+    })
+    .map((lead) => ({
+      leadId: uuidv4(),
+      phone: lead.phone.trim(),
+      name: lead.name?.trim() || null,
+      email: lead.email?.trim() || null,
+    }));
 
   if (validLeads.length === 0) {
-    throw new Error('No valid leads provided');
+    throw new Error("No valid leads provided");
   }
 
   return createLeads(validLeads);

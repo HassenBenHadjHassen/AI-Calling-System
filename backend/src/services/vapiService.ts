@@ -32,7 +32,7 @@ class VapiService {
         callRequest.assistantId || (await this.getOrCreateAssistant());
 
       const callPayload = {
-        phoneNumberId: "70abd1ad-2217-4954-bb34-4be3ed004ac9",
+        phoneNumberId: env.VAPI_PHONE_NUMBER_ID,
         customer: {
           number: callRequest.phoneNumber, // The client's number (who to call)
         },
