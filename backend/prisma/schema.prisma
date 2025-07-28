@@ -1,10 +1,85 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
+}
+
+
+model Lead {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  name                String
+  address             String?
+  postalCode          String?
+  city                String?
+  phone1              String
+  phone2              String?
+  status              LeadStatus @default(NEW)
+  campaignId          String?   @db.ObjectId
+  blacklisted         Boolean   @default(false)
+  scheduledCallAt     DateTime?
+  scheduledCallNote   String?
+  scheduledCallStatus ScheduledCallStatus?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  callHistory         CallHistory[] @relation("LeadCallHistory")
+  campaign            Campaign? @relation(fields: [campaignId], references: [id])
+}
+
+model Campaign {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  status        CampaignStatus @default(ACTIVE)
+  startedAt     DateTime?
+  stoppedAt     DateTime?
+  leads         Lead[]
+}
+
+model CallHistory {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadId        String   @db.ObjectId
+  campaignId    String?
+  callStatus    CallStatus
+  transferred   Boolean  @default(false)
+  transferTo    String?
+  duration      Int?
+  callTime      DateTime @default(now())
+  vapiCallId    String?
+  notes         String?
+  lead          Lead     @relation(fields: [leadId], references: [id], name: "LeadCallHistory")
+}
+
+enum LeadStatus {
+  NEW
+  CALLED
+  INTERESTED
+  TRANSFERRED
+  FAILED
+  BLACKLISTED
+  SCHEDULED
+}
+
+enum CampaignStatus {
+  ACTIVE
+  STOPPED
+  COMPLETED
+}
+
+enum CallStatus {
+  INITIATED
+  COMPLETED
+  TRANSFERRED
+  FAILED
+  SCHEDULED
+}
+
+enum ScheduledCallStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RESCHEDULED
 }
 
