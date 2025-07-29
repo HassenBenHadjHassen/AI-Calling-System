@@ -128,8 +128,9 @@ export class LeadController {
 
   async scheduleCall(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
-      const { scheduledCallAt, note } = req.body;
+      const { leadId, scheduledCallAt, note } = req.body;
+
+      console.log(leadId, scheduledCallAt, note);
 
       if (!scheduledCallAt) {
         res.status(400).json({ error: "Scheduled call time is required" });
@@ -142,7 +143,11 @@ export class LeadController {
         return;
       }
 
-      const lead = await this.leadService.scheduleCall(id, scheduledDate, note);
+      const lead = await this.leadService.scheduleCall(
+        leadId,
+        scheduledDate,
+        note
+      );
 
       res.status(200).json({
         message: "Call scheduled successfully",
@@ -159,8 +164,8 @@ export class LeadController {
 
   async blacklistLead(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
-      const lead = await this.leadService.blacklistLead(id);
+      const { leadId } = req.body;
+      const lead = await this.leadService.blacklistLead(leadId);
 
       res.status(200).json({
         message: "Lead blacklisted successfully",

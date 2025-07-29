@@ -57,13 +57,11 @@ router.patch(
   leadController.updateLeadStatus.bind(leadController)
 );
 router.post(
-  "/:id/schedule",
-  authenticateToken,
+  "/schedule",
   leadController.scheduleCall.bind(leadController)
 );
 router.post(
-  "/:id/blacklist",
-  authenticateToken,
+  "/blacklist",
   leadController.blacklistLead.bind(leadController)
 );
 
