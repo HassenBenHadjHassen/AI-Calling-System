@@ -56,13 +56,7 @@ router.patch(
   authenticateToken,
   leadController.updateLeadStatus.bind(leadController)
 );
-router.post(
-  "/schedule",
-  leadController.scheduleCall.bind(leadController)
-);
-router.post(
-  "/blacklist",
-  leadController.blacklistLead.bind(leadController)
-);
+router.post("/schedule", leadController.scheduleCall.bind(leadController));
+router.post("/blacklist", leadController.blacklistLead.bind(leadController));
 
 export default router;

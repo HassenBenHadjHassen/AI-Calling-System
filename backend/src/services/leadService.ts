@@ -175,39 +175,45 @@ export class LeadService {
   }
 
   async scheduleCall(
-    leadId: string,
+    customerPhoneNumber: string,
     scheduledCallAt: Date,
     note?: string
   ): Promise<any> {
-    const lead = await this.leadRepository.findById(leadId);
+    const lead = await this.leadRepository.findByPhone(customerPhoneNumber);
     if (!lead) {
       throw new Error("Lead not found");
     }
 
     // Remove from current campaign if exists
     if (lead.campaignId) {
-      await this.campaignRepository.removeLead(lead.campaignId, leadId);
+      await this.campaignRepository.removeLead(
+        lead.campaignId,
+        customerPhoneNumber
+      );
     }
 
     return this.leadRepository.updateScheduledCall(
-      leadId,
+      customerPhoneNumber,
       scheduledCallAt,
       note
     );
   }
 
-  async blacklistLead(leadId: string): Promise<any> {
-    const lead = await this.leadRepository.findById(leadId);
+  async blacklistLead(customerPhoneNumber: string): Promise<any> {
+    const lead = await this.leadRepository.findByPhone(customerPhoneNumber);
     if (!lead) {
       throw new Error("Lead not found");
     }
 
     // Remove from current campaign if exists
     if (lead.campaignId) {
-      await this.campaignRepository.removeLead(lead.campaignId, leadId);
+      await this.campaignRepository.removeLead(
+        lead.campaignId,
+        customerPhoneNumber
+      );
     }
 
-    return this.leadRepository.blacklist(leadId);
+    return this.leadRepository.blacklist(customerPhoneNumber);
   }
 
   async getLeadsByStatus(status?: LeadStatus): Promise<any[]> {

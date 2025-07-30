@@ -25,6 +25,11 @@ export class CallService {
       throw new Error("Cannot call blacklisted lead");
     }
 
+    // if a call is scheduled make sure it doesnt call before the scheduled time
+    if (lead.scheduledCallAt && lead.scheduledCallAt > new Date()) {
+      throw new Error("Cannot call before scheduled time");
+    }
+
     // Create call record
     const callRecord = await this.callRepository.create({
       leadId: lead.id,
