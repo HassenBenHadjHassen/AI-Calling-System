@@ -184,15 +184,28 @@ export class LeadService {
       throw new Error("Lead not found");
     }
 
+    // if the schedule time is in the past, throw an error
+    if (scheduledCallAt < new Date()) {
+      throw new Error("Scheduled time is in the past");
+    }
+
+    if (lead.status === LeadStatus.BLACKLISTED) {
+      throw new Error("Lead is blacklisted");
+    }
+
+    if (lead.status === LeadStatus.SCHEDULED) {
+      throw new Error("Lead is already scheduled");
+    }
+
     // Remove from current campaign if exists
     if (lead.campaignId) {
-      await this.campaignRepository.removeLead(
+      await this.campaignRepository.removeLeadByPhone(
         lead.campaignId,
         customerPhoneNumber
       );
     }
 
-    return this.leadRepository.updateScheduledCall(
+    return this.leadRepository.updateScheduledCallByPhone(
       customerPhoneNumber,
       scheduledCallAt,
       note
@@ -207,13 +220,13 @@ export class LeadService {
 
     // Remove from current campaign if exists
     if (lead.campaignId) {
-      await this.campaignRepository.removeLead(
+      await this.campaignRepository.removeLeadByPhone(
         lead.campaignId,
         customerPhoneNumber
       );
     }
 
-    return this.leadRepository.blacklist(customerPhoneNumber);
+    return this.leadRepository.blacklistByPhone(customerPhoneNumber);
   }
 
   async getLeadsByStatus(status?: LeadStatus): Promise<any[]> {

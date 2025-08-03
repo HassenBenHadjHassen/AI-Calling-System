@@ -1,6 +1,11 @@
 import { CampaignRepository } from "../repositories/campaignRepository";
 import { LeadRepository } from "../repositories/leadRepository";
-import { CampaignStatus, LeadStatus } from "@prisma/client";
+import { CampaignStatus, LeadStatus, Campaign, Lead } from "@prisma/client";
+
+// Define a type for Campaign with leads included
+type CampaignWithLeads = Campaign & {
+  leads: Lead[];
+};
 
 export class CampaignService {
   private campaignRepository: CampaignRepository;
@@ -12,7 +17,9 @@ export class CampaignService {
   }
 
   async startCampaign(campaignId: string): Promise<any> {
-    const campaign = await this.campaignRepository.findById(campaignId);
+    const campaign = (await this.campaignRepository.findById(
+      campaignId
+    )) as CampaignWithLeads | null;
     if (!campaign) {
       throw new Error("Campaign not found");
     }
@@ -30,7 +37,9 @@ export class CampaignService {
   }
 
   async stopCampaign(campaignId: string): Promise<any> {
-    const campaign = await this.campaignRepository.findById(campaignId);
+    const campaign = (await this.campaignRepository.findById(
+      campaignId
+    )) as CampaignWithLeads | null;
     if (!campaign) {
       throw new Error("Campaign not found");
     }
@@ -43,7 +52,9 @@ export class CampaignService {
   }
 
   async completeCampaign(campaignId: string): Promise<any> {
-    const campaign = await this.campaignRepository.findById(campaignId);
+    const campaign = (await this.campaignRepository.findById(
+      campaignId
+    )) as CampaignWithLeads | null;
     if (!campaign) {
       throw new Error("Campaign not found");
     }
@@ -76,7 +87,9 @@ export class CampaignService {
   }
 
   async deleteCampaign(campaignId: string): Promise<void> {
-    const campaign = await this.campaignRepository.findById(campaignId);
+    const campaign = (await this.campaignRepository.findById(
+      campaignId
+    )) as CampaignWithLeads | null;
     if (!campaign) {
       throw new Error("Campaign not found");
     }
@@ -92,7 +105,9 @@ export class CampaignService {
     campaignId: string,
     leadIds: string[]
   ): Promise<any> {
-    const campaign = await this.campaignRepository.findById(campaignId);
+    const campaign = (await this.campaignRepository.findById(
+      campaignId
+    )) as CampaignWithLeads | null;
     if (!campaign) {
       throw new Error("Campaign not found");
     }
@@ -116,12 +131,14 @@ export class CampaignService {
     campaignId: string,
     leadId: string
   ): Promise<any> {
-    const campaign = await this.campaignRepository.findById(campaignId);
+    const campaign = (await this.campaignRepository.findById(
+      campaignId
+    )) as CampaignWithLeads | null;
     if (!campaign) {
       throw new Error("Campaign not found");
     }
 
-    const lead = campaign.leads.find((l) => l.id === leadId);
+    const lead = campaign.leads.find((l: Lead) => l.id === leadId);
     if (!lead) {
       throw new Error("Lead not found in campaign");
     }
@@ -150,9 +167,9 @@ export class CampaignService {
 
   async getNextCampaignToProcess(): Promise<any> {
     // First, check for campaigns with leads that are ready to be processed
-    const campaigns = await this.campaignRepository.findByStatus(
+    const campaigns = (await this.campaignRepository.findByStatus(
       CampaignStatus.ACTIVE
-    );
+    )) as CampaignWithLeads[];
 
     for (const campaign of campaigns) {
       if (campaign.leads.length > 0) {

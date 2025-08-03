@@ -128,8 +128,13 @@ export class LeadController {
 
   async scheduleCall(req: Request, res: Response): Promise<void> {
     const toolCall = req.body?.message?.toolCalls?.[0];
+    const { note, scheduledCallAt, customerPhoneNumber } =
+      toolCall?.arguments || req.body;
 
-    const { note, scheduledCallAt, customerPhoneNumber } = toolCall?.arguments;
+    if (!customerPhoneNumber) {
+      res.status(400).json({ error: "Customer phone number is required" });
+      return;
+    }
 
     try {
       if (!scheduledCallAt) {
@@ -165,7 +170,7 @@ export class LeadController {
   async blacklistLead(req: Request, res: Response): Promise<void> {
     const toolCall = req.body?.message?.toolCalls?.[0];
 
-    const { customerPhoneNumber } = toolCall?.arguments;
+    const { customerPhoneNumber } = toolCall?.arguments || req.body;
     try {
       const lead = await this.leadService.blacklistLead(customerPhoneNumber);
 

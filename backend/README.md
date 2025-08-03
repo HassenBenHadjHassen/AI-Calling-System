@@ -23,6 +23,7 @@ MVP backend for AI-powered calling platform with French phone numbers, Vapi.ai i
 ## ⚡ Quick Start
 
 1. **Install dependencies:**
+
 ```bash
 npm install
 # or
@@ -30,18 +31,21 @@ pnpm install
 ```
 
 2. **Configure environment:**
+
 ```bash
 cp .env.example .env
 # Edit .env with your API keys
 ```
 
 3. **Setup database:**
+
 ```bash
 npx prisma generate
 npx prisma db push
 ```
 
 4. **Start server:**
+
 ```bash
 npm run dev
 ```
@@ -62,15 +66,17 @@ JWT_SECRET=your-secret-key
 ## 📚 API Endpoints
 
 ### Authentication
+
 ```http
 POST /api/auth/login
 {
-  "email": "admin@example.com",
+  "email": "admin@prestalib.com",
   "password": "admin123"
 }
 ```
 
 ### Lead Management
+
 ```http
 # Upload JSON
 POST /api/leads/upload
@@ -88,6 +94,7 @@ GET /api/leads/stats
 ```
 
 ### Call Management
+
 ```http
 # Trigger call
 POST /api/calls/trigger

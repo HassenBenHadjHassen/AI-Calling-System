@@ -71,9 +71,45 @@ export class LeadRepository {
     });
   }
 
+  async updateScheduledCallByPhone(
+    phone: string,
+    scheduledCallAt: Date,
+    note?: string
+  ): Promise<Lead> {
+    const lead = await this.findByPhone(phone);
+    if (!lead) {
+      throw new Error("Lead not found");
+    }
+
+    return this.prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        scheduledCallAt,
+        scheduledCallNote: note,
+        scheduledCallStatus: ScheduledCallStatus.PENDING,
+        status: LeadStatus.SCHEDULED,
+      },
+    });
+  }
+
   async blacklist(id: string): Promise<Lead> {
     return this.prisma.lead.update({
       where: { id },
+      data: {
+        blacklisted: true,
+        status: LeadStatus.BLACKLISTED,
+      },
+    });
+  }
+
+  async blacklistByPhone(phone: string): Promise<Lead> {
+    const lead = await this.findByPhone(phone);
+    if (!lead) {
+      throw new Error("Lead not found");
+    }
+
+    return this.prisma.lead.update({
+      where: { id: lead.id },
       data: {
         blacklisted: true,
         status: LeadStatus.BLACKLISTED,

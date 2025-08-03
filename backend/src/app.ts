@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import callRoutes from "./routes/callRoutes";
 import authRoutes from "./routes/authRoutes";
 import leadRoutes from "./routes/leadRoutes";
+import campaignRoutes from "./routes/campaignRoutes";
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api/auth", authRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/leads", leadRoutes);
+app.use("/api/campaigns", campaignRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

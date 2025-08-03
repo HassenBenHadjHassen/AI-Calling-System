@@ -125,6 +125,23 @@ export class CampaignRepository {
     }) as Promise<Campaign>;
   }
 
+  async removeLeadByPhone(campaignId: string, phone: string): Promise<Campaign> {
+    await this.prisma.lead.updateMany({
+      where: {
+        campaignId,
+        OR: [{ phone1: phone }, { phone2: phone }],
+      },
+      data: { campaignId: null },
+    });
+
+    return this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        leads: true,
+      },
+    }) as Promise<Campaign>;
+  }
+
   async findByStatus(status: CampaignStatus): Promise<Campaign[]> {
     return this.prisma.campaign.findMany({
       where: { status },

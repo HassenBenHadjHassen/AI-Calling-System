@@ -1,56 +1,157 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '../config/env';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-  };
+// Hardcoded user data for demonstration
+const HARDCODED_USERS = [
+  {
+    id: 1,
+    email: "admin@example.com",
+    password: "admin123",
+    role: "admin",
+  },
+  {
+    id: 2,
+    email: "user@example.com",
+    password: "user123",
+    role: "user",
+  },
+];
+
+// Hardcoded JWT secret (in production, this should be in environment variables)
+const JWT_SECRET = "your-super-secret-jwt-key-change-in-production";
+
+// Extend Request interface to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: number;
+        email: string;
+        role: string;
+      };
+    }
+  }
 }
 
-export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+/**
+ * Middleware to authenticate requests using JWT tokens
+ */
+export const authenticateToken = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    return res.status(401).json({
+      error: "Access token required",
+      message: "Please provide a valid JWT token in the Authorization header",
+    });
   }
 
-  jwt.verify(token, env.JWT_SECRET, (err: any, user: any) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-export const generateToken = (user: { id: string; email: string }): string => {
-  return jwt.sign(user, env.JWT_SECRET, { expiresIn: '24h' });
-};
-
-// Basic login function (in a real app, you'd have proper user management)
-export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
-    
-    // For MVP, we'll use a simple hardcoded admin user
-    // In production, you'd check against a user database with hashed passwords
-    if (email === 'admin@example.com' && password === 'admin123') {
-      const user = { id: '1', email: 'admin@example.com' };
-      const token = generateToken(user);
-      
-      res.json({
-        message: 'Login successful',
-        token,
-        user: { id: user.id, email: user.email }
-      });
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
-    }
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+    };
+    next();
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    return res.status(403).json({
+      error: "Invalid token",
+      message: "The provided token is invalid or expired",
+    });
   }
 };
+
+/**
+ * Middleware to check if user has admin role
+ */
+export const requireAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.user) {
+    return res.status(401).json({
+      error: "Authentication required",
+      message: "Please authenticate first",
+    });
+  }
+
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      error: "Admin access required",
+      message: "This endpoint requires admin privileges",
+    });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to check if user has specific role
+ */
+export const requireRole = (role: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        error: "Authentication required",
+        message: "Please authenticate first",
+      });
+    }
+
+    if (req.user.role !== role) {
+      return res.status(403).json({
+        error: "Insufficient permissions",
+        message: `This endpoint requires ${role} role`,
+      });
+    }
+
+    next();
+  };
+};
+
+/**
+ * Helper function to generate JWT token for a user
+ */
+export const generateToken = (user: {
+  id: number;
+  email: string;
+  role: string;
+}) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: "24h" }
+  );
+};
+
+/**
+ * Helper function to authenticate user with email and password
+ */
+export const authenticateUser = (email: string, password: string) => {
+  const user = HARDCODED_USERS.find(
+    (u) => u.email === email && u.password === password
+  );
+  return user ? { id: user.id, email: user.email, role: user.role } : null;
+};
+
+/**
+ * Get all hardcoded users (for testing purposes)
+ */
+export const getHardcodedUsers = () => {
+  return HARDCODED_USERS.map((user) => ({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+  }));
+};
+
