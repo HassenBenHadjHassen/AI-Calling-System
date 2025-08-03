@@ -1,18 +1,32 @@
 import {
-	type RouteConfig,
-	index,
-	route,
-	layout,
+  type RouteConfig,
+  index,
+  route,
+  layout,
 } from "@react-router/dev/routes";
 
 export default [
-	index("routes/home.tsx"),
-	route("login", "routes/login.tsx"),
-	layout("routes/dashboard.tsx", [
-		route("dashboard/upload", "routes/dashboard/upload.tsx"),
-		route("dashboard/leads", "routes/dashboard/leads.tsx"),
-		route("dashboard/campaign", "routes/dashboard/campaign.tsx"),
-		route("dashboard/activity", "routes/dashboard/activity.tsx"),
-		route("dashboard/stats", "routes/dashboard/stats.tsx"),
-	]),
+  // root index → /
+  index("routes/home.tsx"),
+
+  // /login
+  route("login", "routes/login.tsx"),
+
+  // /dashboard  (inferred from routes/dashboard.tsx)
+  layout("routes/dashboard.tsx", [
+    // /dashboard/upload
+    route("upload", "routes/dashboard/upload.tsx"),
+
+    // /dashboard/leads
+    route("leads", "routes/dashboard/leads.tsx"),
+
+    // /dashboard/campaign
+    route("campaign", "routes/dashboard/campaign.tsx"),
+
+    // /dashboard/activity
+    route("activity", "routes/dashboard/activity.tsx"),
+
+    // /dashboard/stats
+    route("stats", "routes/dashboard/stats.tsx"),
+  ]),
 ] satisfies RouteConfig;

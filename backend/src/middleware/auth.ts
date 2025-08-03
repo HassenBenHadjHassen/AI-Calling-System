@@ -5,14 +5,14 @@ import jwt from "jsonwebtoken";
 const HARDCODED_USERS = [
   {
     id: 1,
-    email: "admin@example.com",
+    email: "admin@prestalib.com",
     password: "admin123",
     role: "admin",
   },
   {
     id: 2,
-    email: "user@example.com",
-    password: "user123",
+    email: "user@prestalib.com",
+    password: "admin123",
     role: "user",
   },
 ];
@@ -154,4 +154,3 @@ export const getHardcodedUsers = () => {
     role: user.role,
   }));
 };
-
