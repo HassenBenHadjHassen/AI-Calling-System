@@ -1,471 +1,532 @@
 // API service layer for communicating with backend
-const API_BASE_URL =
-  import.meta.env.REACT_APP_API_URL || "http://localhost:3548/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 class ApiService {
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const token = localStorage.getItem("authToken");
+	private async request<T>(
+		endpoint: string,
+		options: RequestInit = {}
+	): Promise<ApiResponse<T>> {
+		const token = localStorage.getItem("authToken");
 
-    const config: RequestInit = {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
+		const config: RequestInit = {
+			headers: {
+				"Content-Type": "application/json",
+				...(token && { Authorization: `Bearer ${token}` }),
+				...options.headers,
+			},
+			...options,
+		};
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-    const json = await response.json().catch(() => ({}));
+		const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+		const json = await response.json().catch(() => ({}));
 
-    // Always return the parsed JSON, even for non-OK responses
-    return json;
-  }
-  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint);
-  }
+		// Always return the parsed JSON, even for non-OK responses
+		return json;
+	}
+	async get<T>(endpoint: string): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint);
+	}
 
-  async post<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
+	async post<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: "POST",
+			body: JSON.stringify(data),
+		});
+	}
 
-  async put<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
+	async put<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		});
+	}
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "DELETE",
-    });
-  }
+	async patch<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		});
+	}
+
+	async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: "DELETE",
+		});
+	}
 }
 
 const apiService = new ApiService();
 
 // --- Types ---
 export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error?: string;
+	success: boolean;
+	data: T;
+	error?: string;
 }
 
 // Authentication Types
 export interface AuthPayload {
-  email: string;
-  password: string;
+	email: string;
+	password: string;
 }
 
 export interface AuthResponse {
-  token: string;
+	token: string;
 }
 
 export interface User {
-  id: number;
-  email: string;
-  role: string;
+	id: number;
+	email: string;
+	role: string;
 }
 
 export interface AuthUserResponse {
-  user: User;
-  token: string;
+	user: User;
+	token: string;
 }
 
 // Lead Types
 export interface Lead {
-  id: string;
-  name: string;
-  address?: string;
-  postalCode?: string;
-  city?: string;
-  phone1: string;
-  phone2?: string;
-  status: LeadStatus;
-  campaignId?: string;
-  blacklisted: boolean;
-  scheduledCallAt?: string;
-  scheduledCallNote?: string;
-  scheduledCallStatus?: ScheduledCallStatus;
-  createdAt: string;
-  updatedAt: string;
+	id: string;
+	name: string;
+	address?: string;
+	postalCode?: string;
+	city?: string;
+	phone1: string;
+	phone2?: string;
+	status: LeadStatus;
+	campaignId?: string;
+	blacklisted: boolean;
+	scheduledCallAt?: string;
+	scheduledCallNote?: string;
+	scheduledCallStatus?: ScheduledCallStatus;
+	createdAt: string;
+	updatedAt: string;
 }
 
 export type LeadStatus =
-  | "NEW"
-  | "CALLED"
-  | "INTERESTED"
-  | "TRANSFERRED"
-  | "FAILED"
-  | "BLACKLISTED"
-  | "SCHEDULED";
+	| "NEW"
+	| "CALLED"
+	| "INTERESTED"
+	| "TRANSFERRED"
+	| "FAILED"
+	| "BLACKLISTED"
+	| "SCHEDULED";
 
 export type ScheduledCallStatus =
-  | "PENDING"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED"
-  | "RESCHEDULED";
+	| "PENDING"
+	| "COMPLETED"
+	| "FAILED"
+	| "CANCELLED"
+	| "RESCHEDULED";
 
 export interface CreateLeadRequest {
-  name: string;
-  phone1: string;
-  phone2?: string;
-  address?: string;
-  postalCode?: string;
-  city?: string;
+	name: string;
+	phone1: string;
+	phone2?: string;
+	address?: string;
+	postalCode?: string;
+	city?: string;
 }
 
 export interface UpdateLeadStatusRequest {
-  status: LeadStatus;
+	status: LeadStatus;
 }
 
 export interface ScheduleCallRequest {
-  customerPhoneNumber: string;
-  scheduledCallAt: string;
-  note?: string;
+	customerPhoneNumber: string;
+	scheduledCallAt: string;
+	note?: string;
 }
 
 export interface BlacklistLeadRequest {
-  customerPhoneNumber: string;
+	customerPhoneNumber: string;
 }
 
 // Campaign Types
 export interface Campaign {
-  id: string;
-  name: string;
-  status: CampaignStatus;
-  startedAt?: string;
-  stoppedAt?: string;
-  leads?: Lead[];
+	id: string;
+	name: string;
+	status: CampaignStatus;
+	startedAt?: string;
+	stoppedAt?: string;
+	leads?: Lead[];
 }
 
 export type CampaignStatus = "ACTIVE" | "STOPPED" | "COMPLETED";
 
 export interface CreateCampaignRequest {
-  name: string;
+	name: string;
 }
 
 export interface AddLeadsToCampaignRequest {
-  leadIds: string[];
+	leadIds: string[];
 }
 
 // Call Types
 export interface CallHistory {
-  id: string;
-  leadId: string;
-  campaignId?: string;
-  callStatus: CallStatus;
-  transferred: boolean;
-  transferTo?: string;
-  duration?: number;
-  callTime: string;
-  vapiCallId?: string;
-  notes?: string;
-  lead?: Lead;
+	id: string;
+	leadId: string;
+	campaignId?: string;
+	callStatus: CallStatus;
+	transferred: boolean;
+	transferTo?: string;
+	duration?: number;
+	callTime: string;
+	vapiCallId?: string;
+	notes?: string;
+	lead?: Lead;
 }
 
 export type CallStatus =
-  | "INITIATED"
-  | "COMPLETED"
-  | "TRANSFERRED"
-  | "FAILED"
-  | "SCHEDULED";
+	| "INITIATED"
+	| "COMPLETED"
+	| "TRANSFERRED"
+	| "FAILED"
+	| "SCHEDULED";
 
 export interface CallStats {
-  totalCalls: number;
-  completedCalls: number;
-  failedCalls: number;
-  transferredCalls: number;
-  initiatedCalls: number;
-  averageDuration: number;
+	totalCalls: number;
+	completedCalls: number;
+	failedCalls: number;
+	transferredCalls: number;
+	initiatedCalls: number;
+	averageDuration: number;
+	// Backend returns these field names
+	total?: number;
+	completed?: number;
+	transferred?: number;
+	failed?: number;
+	scheduled?: number;
 }
 
 export interface TriggerCallResponse {
-  triggeredCount: number;
-  calls: CallHistory[];
+	triggeredCount: number;
+	calls: CallHistory[];
 }
 
 export interface UpdateCallNotesRequest {
-  notes: string;
+	notes: string;
 }
 
 // File Upload Types
 export interface UploadResponse {
-  uploadedCount: number;
-  errors?: string[];
+	totalLeads: number;
+	campaignsCreated: number;
+	leadsProcessed: number;
+	duplicatesSkipped: number;
+	errors?: string[];
 }
 
 // Authentication API
 export const authAPI = {
-  login: async (
-    email: string,
-    password: string
-  ): Promise<ApiResponse<AuthResponse>> => {
-    return apiService.post<AuthResponse>("/auth/login", {
-      email,
-      password,
-    });
-  },
+	login: async (
+		email: string,
+		password: string
+	): Promise<ApiResponse<AuthResponse>> => {
+		return apiService.post<AuthResponse>("/auth/login", {
+			email,
+			password,
+		});
+	},
 
-  register: async (
-    email: string,
-    password: string
-  ): Promise<ApiResponse<User>> => {
-    return apiService.post<User>("/auth/register", {
-      email,
-      password,
-    });
-  },
+	register: async (
+		email: string,
+		password: string
+	): Promise<ApiResponse<User>> => {
+		return apiService.post<User>("/auth/register", {
+			email,
+			password,
+		});
+	},
 
-  logout: async (): Promise<ApiResponse<{ note: string }>> => {
-    return apiService.post<{ note: string }>("/auth/logout", {});
-  },
+	logout: async (): Promise<ApiResponse<{ note: string }>> => {
+		return apiService.post<{ note: string }>("/auth/logout", {});
+	},
 
-  refreshToken: async (): Promise<ApiResponse<AuthUserResponse>> => {
-    return apiService.post<AuthUserResponse>("/auth/refresh", {});
-  },
+	refreshToken: async (): Promise<ApiResponse<AuthUserResponse>> => {
+		return apiService.post<AuthUserResponse>("/auth/refresh", {});
+	},
 
-  getProfile: async (): Promise<ApiResponse<User>> => {
-    return apiService.get<User>("/auth/profile");
-  },
+	getProfile: async (): Promise<ApiResponse<User>> => {
+		return apiService.get<User>("/auth/profile");
+	},
 
-  verifyToken: async (): Promise<ApiResponse<User>> => {
-    return apiService.get<User>("/auth/verify");
-  },
+	verifyToken: async (): Promise<ApiResponse<User>> => {
+		return apiService.get<User>("/auth/verify");
+	},
 
-  getUsers: async (): Promise<ApiResponse<{ users: User[] }>> => {
-    return apiService.get<{ users: User[] }>("/auth/users");
-  },
+	getUsers: async (): Promise<ApiResponse<{ users: User[] }>> => {
+		return apiService.get<{ users: User[] }>("/auth/users");
+	},
 };
 
 // Lead API
 export const leadAPI = {
-  createManualLead: async (
-    data: CreateLeadRequest
-  ): Promise<ApiResponse<Lead>> => {
-    return apiService.post<Lead>("/leads/manual", data);
-  },
+	createManualLead: async (
+		data: CreateLeadRequest
+	): Promise<ApiResponse<Lead>> => {
+		return apiService.post<Lead>("/leads/manual", data);
+	},
 
-  uploadLeads: async (file: File): Promise<ApiResponse<UploadResponse>> => {
-    const formData = new FormData();
-    formData.append("file", file);
+	uploadLeads: async (file: File): Promise<ApiResponse<UploadResponse>> => {
+		const formData = new FormData();
+		formData.append("file", file);
 
-    const token = localStorage.getItem("authToken");
-    const response = await fetch(`${API_BASE_URL}/leads/upload`, {
-      method: "POST",
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    });
+		const token = localStorage.getItem("authToken");
+		const response = await fetch(`${API_BASE_URL}/leads/upload`, {
+			method: "POST",
+			headers: {
+				...(token && { Authorization: `Bearer ${token}` }),
+			},
+			body: formData,
+		});
 
-    const json = await response.json().catch(() => ({}));
-    return json;
-  },
+		const json = await response.json().catch(() => ({}));
+		return json;
+	},
 
-  getLeads: async (status?: LeadStatus): Promise<ApiResponse<Lead[]>> => {
-    const params = status ? `?status=${status}` : "";
-    return apiService.get<Lead[]>(`/leads${params}`);
-  },
+	getLeads: async (status?: LeadStatus): Promise<ApiResponse<Lead[]>> => {
+		const params = status ? `?status=${status}` : "";
+		return apiService.get<Lead[]>(`/leads${params}`);
+	},
 
-  getLeadById: async (id: string): Promise<ApiResponse<Lead>> => {
-    return apiService.get<Lead>(`/leads/${id}`);
-  },
+	getLeadById: async (id: string): Promise<ApiResponse<Lead>> => {
+		return apiService.get<Lead>(`/leads/${id}`);
+	},
 
-  updateLeadStatus: async (
-    id: string,
-    status: LeadStatus
-  ): Promise<ApiResponse<Lead>> => {
-    return apiService.put<Lead>(`/leads/${id}/status`, { status });
-  },
+	updateLeadStatus: async (
+		id: string,
+		status: LeadStatus
+	): Promise<ApiResponse<Lead>> => {
+		return apiService.patch<Lead>(`/leads/${id}/status`, { status });
+	},
 
-  scheduleCall: async (
-    data: ScheduleCallRequest
-  ): Promise<ApiResponse<Lead>> => {
-    return apiService.post<Lead>("/leads/schedule-call", data);
-  },
+	scheduleCall: async (
+		data: ScheduleCallRequest
+	): Promise<ApiResponse<Lead>> => {
+		return apiService.post<Lead>("/leads/schedule", data);
+	},
 
-  blacklistLead: async (
-    data: BlacklistLeadRequest
-  ): Promise<ApiResponse<Lead>> => {
-    return apiService.post<Lead>("/leads/blacklist", data);
-  },
+	blacklistLead: async (
+		data: BlacklistLeadRequest
+	): Promise<ApiResponse<Lead>> => {
+		return apiService.post<Lead>("/leads/blacklist", data);
+	},
 
-  getScheduledCalls: async (): Promise<ApiResponse<Lead[]>> => {
-    return apiService.get<Lead[]>("/leads/scheduled-calls");
-  },
+	getScheduledCalls: async (): Promise<ApiResponse<Lead[]>> => {
+		return apiService.get<Lead[]>("/leads/scheduled-calls");
+	},
 
-  getDueScheduledCalls: async (): Promise<ApiResponse<Lead[]>> => {
-    return apiService.get<Lead[]>("/leads/due-scheduled-calls");
-  },
+	getDueScheduledCalls: async (): Promise<ApiResponse<Lead[]>> => {
+		return apiService.get<Lead[]>("/leads/due-scheduled-calls");
+	},
 
-  getAvailableLeads: async (): Promise<ApiResponse<Lead[]>> => {
-    return apiService.get<Lead[]>("/leads/available");
-  },
+	getAvailableLeads: async (): Promise<ApiResponse<Lead[]>> => {
+		return apiService.get<Lead[]>("/leads/available/campaign");
+	},
+
+	cleanAllLeads: async (): Promise<ApiResponse<{ deletedCount: number }>> => {
+		return apiService.delete<{ deletedCount: number }>("/leads/clean/all");
+	},
+
+	cleanupOrphanedLeads: async (): Promise<
+		ApiResponse<{ cleanedCount: number }>
+	> => {
+		return apiService.post<{ cleanedCount: number }>(
+			"/leads/cleanup/orphaned",
+			{}
+		);
+	},
 };
 
 // Campaign API
 export const campaignAPI = {
-  createCampaign: async (
-    data: CreateCampaignRequest
-  ): Promise<ApiResponse<Campaign>> => {
-    return apiService.post<Campaign>("/campaigns", data);
-  },
+	createCampaign: async (
+		data: CreateCampaignRequest
+	): Promise<ApiResponse<Campaign>> => {
+		return apiService.post<Campaign>("/campaigns", data);
+	},
 
-  getCampaigns: async (
-    status?: CampaignStatus
-  ): Promise<ApiResponse<Campaign[]>> => {
-    const params = status ? `?status=${status}` : "";
-    return apiService.get<Campaign[]>(`/campaigns${params}`);
-  },
+	getCampaigns: async (
+		status?: CampaignStatus
+	): Promise<ApiResponse<Campaign[]>> => {
+		const params = status ? `?status=${status}` : "";
+		return apiService.get<Campaign[]>(`/campaigns${params}`);
+	},
 
-  getCampaignById: async (id: string): Promise<ApiResponse<Campaign>> => {
-    return apiService.get<Campaign>(`/campaigns/${id}`);
-  },
+	getCampaignById: async (id: string): Promise<ApiResponse<Campaign>> => {
+		return apiService.get<Campaign>(`/campaigns/${id}`);
+	},
 
-  startCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
-    return apiService.put<Campaign>(`/campaigns/${id}/start`, {});
-  },
+	getCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
+		return apiService.get<Campaign>(`/campaigns/${id}`);
+	},
 
-  stopCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
-    return apiService.put<Campaign>(`/campaigns/${id}/stop`, {});
-  },
+	startCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
+		return apiService.post<Campaign>(`/campaigns/${id}/start`, {});
+	},
 
-  completeCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
-    return apiService.put<Campaign>(`/campaigns/${id}/complete`, {});
-  },
+	stopCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
+		return apiService.post<Campaign>(`/campaigns/${id}/stop`, {});
+	},
 
-  deleteCampaign: async (id: string): Promise<ApiResponse<null>> => {
-    return apiService.delete<null>(`/campaigns/${id}`);
-  },
+	completeCampaign: async (id: string): Promise<ApiResponse<Campaign>> => {
+		return apiService.put<Campaign>(`/campaigns/${id}/complete`, {});
+	},
 
-  addLeadsToCampaign: async (
-    id: string,
-    data: AddLeadsToCampaignRequest
-  ): Promise<ApiResponse<Campaign>> => {
-    return apiService.put<Campaign>(`/campaigns/${id}/leads`, data);
-  },
+	deleteCampaign: async (id: string): Promise<ApiResponse<null>> => {
+		return apiService.delete<null>(`/campaigns/${id}`);
+	},
 
-  removeLeadFromCampaign: async (
-    id: string,
-    leadId: string
-  ): Promise<ApiResponse<Campaign>> => {
-    return apiService.delete<Campaign>(`/campaigns/${id}/leads/${leadId}`);
-  },
+	addLeadsToCampaign: async (
+		id: string,
+		data: AddLeadsToCampaignRequest
+	): Promise<ApiResponse<Campaign>> => {
+		return apiService.post<Campaign>(`/campaigns/${id}/leads`, data);
+	},
 
-  getActiveCampaign: async (): Promise<ApiResponse<Campaign>> => {
-    return apiService.get<Campaign>("/campaigns/active");
-  },
+	removeLeadFromCampaign: async (
+		id: string,
+		leadId: string
+	): Promise<ApiResponse<Campaign>> => {
+		return apiService.delete<Campaign>(`/campaigns/${id}/leads/${leadId}`);
+	},
 
-  getNextCampaignToProcess: async (): Promise<ApiResponse<Campaign>> => {
-    return apiService.get<Campaign>("/campaigns/next");
-  },
+	getActiveCampaign: async (): Promise<ApiResponse<Campaign>> => {
+		return apiService.get<Campaign>("/campaigns/active/current");
+	},
 
-  getCampaignStats: async (): Promise<ApiResponse<any>> => {
-    return apiService.get<any>("/campaigns/stats");
-  },
+	getNextCampaignToProcess: async (): Promise<ApiResponse<Campaign>> => {
+		return apiService.get<Campaign>("/campaigns/next/process");
+	},
+
+	getCampaignStats: async (): Promise<ApiResponse<any>> => {
+		return apiService.get<any>("/campaigns/stats");
+	},
+
+	cleanAllCampaigns: async (): Promise<
+		ApiResponse<{ deletedCount: number }>
+	> => {
+		return apiService.delete<{ deletedCount: number }>("/campaigns/clean/all");
+	},
 };
 
 // Call API
 export const callAPI = {
-  triggerCall: async (
-    leadId: string,
-    title: string
-  ): Promise<ApiResponse<CallHistory>> => {
-    return apiService.post<CallHistory>(
-      `/calls/${leadId}/trigger/${title}`,
-      {}
-    );
-  },
+	triggerCall: async (
+		leadId: string,
+		title: string,
+		name: string
+	): Promise<ApiResponse<CallHistory>> => {
+		return apiService.post<CallHistory>(`/calls/trigger/${leadId}`, {
+			title,
+			name,
+		});
+	},
 
-  handleWebhook: async (webhookData: any): Promise<ApiResponse<null>> => {
-    return apiService.post<null>("/calls/webhook", webhookData);
-  },
+	handleWebhook: async (webhookData: any): Promise<ApiResponse<null>> => {
+		return apiService.post<null>("/calls/webhook", webhookData);
+	},
 
-  triggerScheduledCalls: async (
-    title: string
-  ): Promise<ApiResponse<TriggerCallResponse>> => {
-    return apiService.post<TriggerCallResponse>(
-      `/calls/scheduled/${title}`,
-      {}
-    );
-  },
+	triggerScheduledCalls: async (
+		title: string
+	): Promise<ApiResponse<TriggerCallResponse>> => {
+		return apiService.post<TriggerCallResponse>(`/calls/scheduled`, {});
+	},
 
-  triggerCampaignCalls: async (
-    campaignId: string,
-    title: string
-  ): Promise<ApiResponse<TriggerCallResponse>> => {
-    return apiService.post<TriggerCallResponse>(
-      `/calls/campaign/${campaignId}/${title}`,
-      {}
-    );
-  },
+	triggerCampaignCalls: async (
+		campaignId: string,
+		title: string
+	): Promise<ApiResponse<TriggerCallResponse>> => {
+		return apiService.post<TriggerCallResponse>(
+			`/calls/campaign/${campaignId}`,
+			{}
+		);
+	},
 
-  getCallStats: async (): Promise<ApiResponse<CallStats>> => {
-    return apiService.get<CallStats>("/calls/stats");
-  },
+	getCallsByLead: async (
+		leadId: string
+	): Promise<ApiResponse<CallHistory[]>> => {
+		return apiService.get<CallHistory[]>(`/calls/lead/${leadId}`);
+	},
 
-  getCallsByLead: async (
-    leadId: string
-  ): Promise<ApiResponse<CallHistory[]>> => {
-    return apiService.get<CallHistory[]>(`/calls/lead/${leadId}`);
-  },
+	getCallsByCampaign: async (
+		campaignId: string
+	): Promise<ApiResponse<CallHistory[]>> => {
+		return apiService.get<CallHistory[]>(`/calls/campaign/${campaignId}`);
+	},
 
-  getCallsByCampaign: async (
-    campaignId: string
-  ): Promise<ApiResponse<CallHistory[]>> => {
-    return apiService.get<CallHistory[]>(`/calls/campaign/${campaignId}`);
-  },
+	getTransferredCalls: async (): Promise<ApiResponse<CallHistory[]>> => {
+		return apiService.get<CallHistory[]>("/calls/transferred");
+	},
 
-  getTransferredCalls: async (): Promise<ApiResponse<CallHistory[]>> => {
-    return apiService.get<CallHistory[]>("/calls/transferred");
-  },
+	getCompletedCalls: async (): Promise<ApiResponse<CallHistory[]>> => {
+		return apiService.get<CallHistory[]>("/calls/completed");
+	},
 
-  getCompletedCalls: async (): Promise<ApiResponse<CallHistory[]>> => {
-    return apiService.get<CallHistory[]>("/calls/completed");
-  },
+	getFailedCalls: async (): Promise<ApiResponse<CallHistory[]>> => {
+		return apiService.get<CallHistory[]>("/calls/failed");
+	},
 
-  getFailedCalls: async (): Promise<ApiResponse<CallHistory[]>> => {
-    return apiService.get<CallHistory[]>("/calls/failed");
-  },
+	updateCallNotes: async (
+		id: string,
+		data: UpdateCallNotesRequest
+	): Promise<ApiResponse<CallHistory>> => {
+		return apiService.put<CallHistory>(`/calls/${id}/notes`, data);
+	},
 
-  updateCallNotes: async (
-    id: string,
-    data: UpdateCallNotesRequest
-  ): Promise<ApiResponse<CallHistory>> => {
-    return apiService.put<CallHistory>(`/calls/${id}/notes`, data);
-  },
+	getRecentCalls: async (
+		limit?: number
+	): Promise<ApiResponse<CallHistory[]>> => {
+		const params = limit ? `?limit=${limit}` : "";
+		return apiService.get<CallHistory[]>(`/calls/recent${params}`);
+	},
 
-  getCallById: async (id: string): Promise<ApiResponse<CallHistory>> => {
-    return apiService.get<CallHistory>(`/calls/${id}`);
-  },
+	getCallById: async (id: string): Promise<ApiResponse<CallHistory>> => {
+		return apiService.get<CallHistory>(`/calls/${id}`);
+	},
+
+	getCallHistory: async (params: {
+		campaignId?: string;
+		leadId?: string;
+	}): Promise<ApiResponse<CallHistory[]>> => {
+		const queryParams = new URLSearchParams();
+		if (params.campaignId) queryParams.append("campaignId", params.campaignId);
+		if (params.leadId) queryParams.append("leadId", params.leadId);
+		const queryString = queryParams.toString();
+		const endpoint = `/calls/history${queryString ? `?${queryString}` : ""}`;
+		return apiService.get<CallHistory[]>(endpoint);
+	},
+
+	getCallStats: async (params?: {
+		campaignId?: string;
+	}): Promise<ApiResponse<CallStats>> => {
+		const queryParams = new URLSearchParams();
+		if (params?.campaignId) queryParams.append("campaignId", params.campaignId);
+		const queryString = queryParams.toString();
+		const endpoint = `/calls/stats${queryString ? `?${queryString}` : ""}`;
+		return apiService.get<CallStats>(endpoint);
+	},
 };
 
 // Health Check API
 export const healthAPI = {
-  check: async (): Promise<
-    ApiResponse<{
-      status: string;
-      timestamp: string;
-      environment: string;
-      version: string;
-    }>
-  > => {
-    return apiService.get<{
-      status: string;
-      timestamp: string;
-      environment: string;
-      version: string;
-    }>("/health");
-  },
+	check: async (): Promise<
+		ApiResponse<{
+			status: string;
+			timestamp: string;
+			environment: string;
+			version: string;
+		}>
+	> => {
+		return apiService.get<{
+			status: string;
+			timestamp: string;
+			environment: string;
+			version: string;
+		}>("/health");
+	},
 };
 
 // Export the main API service for direct use if needed

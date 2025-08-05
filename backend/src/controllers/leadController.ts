@@ -40,7 +40,7 @@ export class LeadController {
 			ResponseUtils.success(res, lead, "Lead created successfully", 201);
 		} catch (error: any) {
 			console.error("Error creating manual lead:", error);
-			ResponseUtils.error(res, "Failed to create lead");
+			ResponseUtils.error(res, error.message || "Failed to create lead", 400);
 		}
 	}
 
@@ -51,12 +51,26 @@ export class LeadController {
 				return;
 			}
 
-			const result = await this.leadService.uploadLeadsFromFile(req.file.path);
+			// Check file size to determine processing method
+			const fileSizeInMB = req.file.size / (1024 * 1024);
+			const isLargeFile = fileSizeInMB > 5; // Consider files larger than 5MB as large files
+
+			let result;
+			if (isLargeFile) {
+				console.log(
+					`Processing large file: ${
+						req.file.originalname
+					} (${fileSizeInMB.toFixed(2)}MB)`
+				);
+				result = await this.leadService.uploadLeadsFromLargeFile(req.file.path);
+			} else {
+				result = await this.leadService.uploadLeadsFromFile(req.file.path);
+			}
 
 			ResponseUtils.success(res, result, "Leads uploaded successfully");
 		} catch (error: any) {
 			console.error("Error uploading leads:", error);
-			ResponseUtils.error(res, "Failed to upload leads");
+			ResponseUtils.error(res, error.message || "Failed to upload leads", 400);
 		}
 	}
 
@@ -68,7 +82,7 @@ export class LeadController {
 			ResponseUtils.success(res, leads);
 		} catch (error: any) {
 			console.error("Error fetching leads:", error);
-			ResponseUtils.error(res, "Failed to fetch leads");
+			ResponseUtils.error(res, error.message || "Failed to fetch leads", 500);
 		}
 	}
 
@@ -85,7 +99,7 @@ export class LeadController {
 			ResponseUtils.success(res, lead);
 		} catch (error: any) {
 			console.error("Error fetching lead:", error);
-			ResponseUtils.error(res, "Failed to fetch lead");
+			ResponseUtils.error(res, error.message || "Failed to fetch lead", 500);
 		}
 	}
 
@@ -94,8 +108,8 @@ export class LeadController {
 			const { id } = req.params;
 			const { status } = req.body;
 
-			if (!status || !Object.values(LeadStatus).includes(status)) {
-				ResponseUtils.badRequest(res, "Invalid status");
+			if (!status) {
+				ResponseUtils.badRequest(res, "Status is required");
 				return;
 			}
 
@@ -104,90 +118,144 @@ export class LeadController {
 			ResponseUtils.success(res, lead, "Lead status updated successfully");
 		} catch (error: any) {
 			console.error("Error updating lead status:", error);
-			ResponseUtils.error(res, "Failed to update lead status");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to update lead status",
+				400
+			);
 		}
 	}
 
 	async scheduleCall(req: Request, res: Response): Promise<void> {
-		const toolCall = req.body?.message?.toolCalls?.[0];
-		const { note, scheduledCallAt, customerPhoneNumber } =
-			toolCall?.arguments || req.body;
-
-		if (!customerPhoneNumber) {
-			ResponseUtils.badRequest(res, "Customer phone number is required");
-			return;
-		}
-
 		try {
+			const { phoneNumber } = req.params;
+			const { scheduledCallAt, note } = req.body;
+
 			if (!scheduledCallAt) {
 				ResponseUtils.badRequest(res, "Scheduled call time is required");
 				return;
 			}
 
-			const scheduledDate = new Date(scheduledCallAt);
-			if (isNaN(scheduledDate.getTime())) {
-				ResponseUtils.badRequest(res, "Invalid date format");
+			// Validate that scheduledCallAt is in the future
+			const scheduledTime = new Date(scheduledCallAt);
+			if (scheduledTime <= new Date()) {
+				ResponseUtils.badRequest(
+					res,
+					"Scheduled call time must be in the future"
+				);
 				return;
 			}
 
 			const lead = await this.leadService.scheduleCall(
-				customerPhoneNumber,
-				scheduledDate,
+				phoneNumber,
+				scheduledTime,
 				note
 			);
 
 			ResponseUtils.success(res, lead, "Call scheduled successfully");
 		} catch (error: any) {
 			console.error("Error scheduling call:", error);
-			ResponseUtils.error(res, "Failed to schedule call");
+			ResponseUtils.error(res, error.message || "Failed to schedule call", 400);
 		}
 	}
 
 	async blacklistLead(req: Request, res: Response): Promise<void> {
-		const toolCall = req.body?.message?.toolCalls?.[0];
-
-		const { customerPhoneNumber } = toolCall?.arguments || req.body;
 		try {
-			const lead = await this.leadService.blacklistLead(customerPhoneNumber);
+			const { phoneNumber } = req.params;
+
+			const lead = await this.leadService.blacklistLead(phoneNumber);
 
 			ResponseUtils.success(res, lead, "Lead blacklisted successfully");
 		} catch (error: any) {
 			console.error("Error blacklisting lead:", error);
-			ResponseUtils.error(res, "Failed to blacklist lead");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to blacklist lead",
+				400
+			);
 		}
 	}
 
 	async getScheduledCalls(req: Request, res: Response): Promise<void> {
 		try {
-			const scheduledCalls = await this.leadService.getScheduledCalls();
+			const calls = await this.leadService.getScheduledCalls();
 
-			ResponseUtils.success(res, scheduledCalls);
+			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching scheduled calls:", error);
-			ResponseUtils.error(res, "Failed to fetch scheduled calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch scheduled calls",
+				500
+			);
 		}
 	}
 
 	async getDueScheduledCalls(req: Request, res: Response): Promise<void> {
 		try {
-			const dueCalls = await this.leadService.getDueScheduledCalls();
+			const calls = await this.leadService.getDueScheduledCalls();
 
-			ResponseUtils.success(res, dueCalls);
+			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching due scheduled calls:", error);
-			ResponseUtils.error(res, "Failed to fetch due scheduled calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch due scheduled calls",
+				500
+			);
 		}
 	}
 
 	async getAvailableLeads(req: Request, res: Response): Promise<void> {
 		try {
-			const availableLeads =
-				await this.leadService.getAvailableLeadsForCampaign();
+			const leads = await this.leadService.getAvailableLeadsForCampaign();
 
-			ResponseUtils.success(res, availableLeads);
+			ResponseUtils.success(res, leads);
 		} catch (error: any) {
 			console.error("Error fetching available leads:", error);
-			ResponseUtils.error(res, "Failed to fetch available leads");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch available leads",
+				500
+			);
+		}
+	}
+
+	async cleanupOrphanedLeads(req: Request, res: Response): Promise<void> {
+		try {
+			const result = await this.leadService.cleanupOrphanedLeads();
+
+			ResponseUtils.success(
+				res,
+				result,
+				`Orphaned leads cleaned. Cleaned ${result.cleanedCount} leads.`
+			);
+		} catch (error: any) {
+			console.error("Error cleaning orphaned leads:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to cleanup orphaned leads",
+				500
+			);
+		}
+	}
+
+	async cleanAllLeads(req: Request, res: Response): Promise<void> {
+		try {
+			const result = await this.leadService.cleanAllLeads();
+
+			ResponseUtils.success(
+				res,
+				result,
+				`All leads cleaned. Deleted ${result.deletedCount} leads.`
+			);
+		} catch (error: any) {
+			console.error("Error cleaning all leads:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to clean all leads",
+				500
+			);
 		}
 	}
 }

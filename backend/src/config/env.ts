@@ -45,7 +45,7 @@ function validateEnv(): EnvConfig {
   //   }
 
   return {
-    PORT: parseInt(process.env.PORT || "4000", 10),
+    PORT: parseInt(process.env.PORT || "3548", 10),
     DATABASE_URL: process.env.DATABASE_URL!,
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID!,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN!,

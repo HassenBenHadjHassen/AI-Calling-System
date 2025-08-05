@@ -29,7 +29,11 @@ export class CampaignController {
 			);
 		} catch (error: any) {
 			console.error("Error creating campaign:", error);
-			ResponseUtils.error(res, "Failed to create campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to create campaign",
+				400
+			);
 		}
 	}
 
@@ -43,7 +47,11 @@ export class CampaignController {
 			ResponseUtils.success(res, campaigns);
 		} catch (error: any) {
 			console.error("Error fetching campaigns:", error);
-			ResponseUtils.error(res, "Failed to fetch campaigns");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch campaigns",
+				500
+			);
 		}
 	}
 
@@ -60,7 +68,11 @@ export class CampaignController {
 			ResponseUtils.success(res, campaign);
 		} catch (error: any) {
 			console.error("Error fetching campaign:", error);
-			ResponseUtils.error(res, "Failed to fetch campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch campaign",
+				500
+			);
 		}
 	}
 
@@ -72,7 +84,11 @@ export class CampaignController {
 			ResponseUtils.success(res, campaign, "Campaign started successfully");
 		} catch (error: any) {
 			console.error("Error starting campaign:", error);
-			ResponseUtils.error(res, "Failed to start campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to start campaign",
+				400
+			);
 		}
 	}
 
@@ -84,7 +100,7 @@ export class CampaignController {
 			ResponseUtils.success(res, campaign, "Campaign stopped successfully");
 		} catch (error: any) {
 			console.error("Error stopping campaign:", error);
-			ResponseUtils.error(res, "Failed to stop campaign");
+			ResponseUtils.error(res, error.message || "Failed to stop campaign", 400);
 		}
 	}
 
@@ -96,7 +112,11 @@ export class CampaignController {
 			ResponseUtils.success(res, campaign, "Campaign completed successfully");
 		} catch (error: any) {
 			console.error("Error completing campaign:", error);
-			ResponseUtils.error(res, "Failed to complete campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to complete campaign",
+				400
+			);
 		}
 	}
 
@@ -108,7 +128,11 @@ export class CampaignController {
 			ResponseUtils.success(res, null, "Campaign deleted successfully");
 		} catch (error: any) {
 			console.error("Error deleting campaign:", error);
-			ResponseUtils.error(res, "Failed to delete campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to delete campaign",
+				400
+			);
 		}
 	}
 
@@ -117,7 +141,7 @@ export class CampaignController {
 			const { id } = req.params;
 			const { leadIds } = req.body;
 
-			if (!leadIds || !Array.isArray(leadIds)) {
+			if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
 				ResponseUtils.badRequest(res, "Lead IDs array is required");
 				return;
 			}
@@ -134,13 +158,23 @@ export class CampaignController {
 			);
 		} catch (error: any) {
 			console.error("Error adding leads to campaign:", error);
-			ResponseUtils.error(res, "Failed to add leads to campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to add leads to campaign",
+				400
+			);
 		}
 	}
 
 	async removeLeadFromCampaign(req: Request, res: Response): Promise<void> {
 		try {
 			const { id, leadId } = req.params;
+
+			if (!leadId) {
+				ResponseUtils.badRequest(res, "Lead ID is required");
+				return;
+			}
+
 			const campaign = await this.campaignService.removeLeadFromCampaign(
 				id,
 				leadId
@@ -153,7 +187,11 @@ export class CampaignController {
 			);
 		} catch (error: any) {
 			console.error("Error removing lead from campaign:", error);
-			ResponseUtils.error(res, "Failed to remove lead from campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to remove lead from campaign",
+				400
+			);
 		}
 	}
 
@@ -164,7 +202,11 @@ export class CampaignController {
 			ResponseUtils.success(res, campaign);
 		} catch (error: any) {
 			console.error("Error fetching active campaign:", error);
-			ResponseUtils.error(res, "Failed to fetch active campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch active campaign",
+				500
+			);
 		}
 	}
 
@@ -175,7 +217,11 @@ export class CampaignController {
 			ResponseUtils.success(res, campaign);
 		} catch (error: any) {
 			console.error("Error fetching next campaign to process:", error);
-			ResponseUtils.error(res, "Failed to fetch next campaign to process");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch next campaign to process",
+				500
+			);
 		}
 	}
 
@@ -186,7 +232,30 @@ export class CampaignController {
 			ResponseUtils.success(res, stats);
 		} catch (error: any) {
 			console.error("Error fetching campaign stats:", error);
-			ResponseUtils.error(res, "Failed to fetch campaign stats");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch campaign stats",
+				500
+			);
+		}
+	}
+
+	async cleanAllCampaigns(req: Request, res: Response): Promise<void> {
+		try {
+			const result = await this.campaignService.cleanAllCampaigns();
+
+			ResponseUtils.success(
+				res,
+				result,
+				`All campaigns cleaned. Deleted ${result.deletedCount} campaigns.`
+			);
+		} catch (error: any) {
+			console.error("Error cleaning all campaigns:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to clean all campaigns",
+				500
+			);
 		}
 	}
 }

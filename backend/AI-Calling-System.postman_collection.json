@@ -1,525 +1,525 @@
 {
-  "info": {
-    "name": "AI Calling System Backend",
-    "_postman_id": "aicalling-mvp-backend",
-    "description": "Test collection for AI Calling System backend endpoints",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Login",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@prestalib.com\",\n  \"password\": \"admin123\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "login"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Leads",
-      "item": [
-        {
-          "name": "Upload File (CSV/Excel)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "body": {
-              "mode": "formdata",
-              "formdata": [{ "key": "file", "type": "file", "src": "" }]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/upload",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "upload"]
-            }
-          }
-        },
-        {
-          "name": "Get All Leads",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads"]
-            }
-          }
-        },
-        {
-          "name": "Get Leads by Status",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads?status=NEW",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads"],
-              "query": [{ "key": "status", "value": "NEW" }]
-            }
-          }
-        },
-        {
-          "name": "Get Lead by ID",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}"]
-            }
-          }
-        },
-        {
-          "name": "Update Lead Status",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"status\": \"CALLED\" }"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}", "status"]
-            }
-          }
-        },
-        {
-          "name": "Schedule Call",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"scheduledCallAt\": \"2024-01-15T17:00:00.000Z\",\n  \"note\": \"Client requested callback at 5pm\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}/schedule",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}", "schedule"]
-            }
-          }
-        },
-        {
-          "name": "Blacklist Lead",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/{{leadId}}/blacklist",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "{{leadId}}", "blacklist"]
-            }
-          }
-        },
-        {
-          "name": "Get Scheduled Calls",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/scheduled/calls",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "scheduled", "calls"]
-            }
-          }
-        },
-        {
-          "name": "Get Due Scheduled Calls",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/scheduled/due",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "scheduled", "due"]
-            }
-          }
-        },
-        {
-          "name": "Get Available Leads for Campaign",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/leads/available/campaign",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "leads", "available", "campaign"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Campaigns",
-      "item": [
-        {
-          "name": "Create Campaign",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"name\": \"Test Campaign\" }"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns"]
-            }
-          }
-        },
-        {
-          "name": "Get All Campaigns",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns"]
-            }
-          }
-        },
-        {
-          "name": "Get Campaigns by Status",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns?status=ACTIVE",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns"],
-              "query": [{ "key": "status", "value": "ACTIVE" }]
-            }
-          }
-        },
-        {
-          "name": "Get Campaign by ID",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "{{campaignId}}"]
-            }
-          }
-        },
-        {
-          "name": "Start Campaign",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/start",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "{{campaignId}}", "start"]
-            }
-          }
-        },
-        {
-          "name": "Stop Campaign",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/stop",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "{{campaignId}}", "stop"]
-            }
-          }
-        },
-        {
-          "name": "Complete Campaign",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/complete",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "{{campaignId}}", "complete"]
-            }
-          }
-        },
-        {
-          "name": "Delete Campaign",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "{{campaignId}}"]
-            }
-          }
-        },
-        {
-          "name": "Add Leads to Campaign",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"leadIds\": [\"{{leadId}}\", \"{{leadId2}}\"]\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/leads",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "{{campaignId}}", "leads"]
-            }
-          }
-        },
-        {
-          "name": "Remove Lead from Campaign",
-          "request": {
-            "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/leads/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": [
-                "api",
-                "campaigns",
-                "{{campaignId}}",
-                "leads",
-                "{{leadId}}"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Active Campaign",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/active/current",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "active", "current"]
-            }
-          }
-        },
-        {
-          "name": "Get Next Campaign to Process",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/next/process",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "next", "process"]
-            }
-          }
-        },
-        {
-          "name": "Get Campaign Stats",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/campaigns/stats/overview",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "campaigns", "stats", "overview"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Calls",
-      "item": [
-        {
-          "name": "Trigger Call to Lead",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/trigger/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "trigger", "{{leadId}}"]
-            }
-          }
-        },
-        {
-          "name": "Trigger Scheduled Calls",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/trigger/scheduled",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "trigger", "scheduled"]
-            }
-          }
-        },
-        {
-          "name": "Trigger Campaign Calls",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/trigger/campaign/{{campaignId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "trigger", "campaign", "{{campaignId}}"]
-            }
-          }
-        },
-        {
-          "name": "Handle Webhook (Vapi.ai)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"callId\": \"vapi_call_123\",\n  \"status\": \"completed\",\n  \"duration\": 120,\n  \"transferred\": false\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/webhook",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "webhook"]
-            }
-          }
-        },
-        {
-          "name": "Get Call Stats",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "stats"]
-            }
-          }
-        },
-        {
-          "name": "Get Transferred Calls",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/transferred",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "transferred"]
-            }
-          }
-        },
-        {
-          "name": "Get Completed Calls",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/completed",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "completed"]
-            }
-          }
-        },
-        {
-          "name": "Get Failed Calls",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/failed",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "failed"]
-            }
-          }
-        },
-        {
-          "name": "Get Call by ID",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/{{callId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "{{callId}}"]
-            }
-          }
-        },
-        {
-          "name": "Get Calls by Lead",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/lead/{{leadId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "lead", "{{leadId}}"]
-            }
-          }
-        },
-        {
-          "name": "Get Calls by Campaign",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/campaign/{{campaignId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "campaign", "{{campaignId}}"]
-            }
-          }
-        },
-        {
-          "name": "Update Call Notes",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"notes\": \"Customer was interested in the program\" }"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/calls/{{callId}}/notes",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "calls", "{{callId}}", "notes"]
-            }
-          }
-        }
-      ]
-    }
-  ],
-  "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "token", "value": "" },
-    { "key": "leadId", "value": "" },
-    { "key": "leadId2", "value": "" },
-    { "key": "campaignId", "value": "" },
-    { "key": "callId", "value": "" }
-  ]
+	"info": {
+		"name": "AI Calling System Backend",
+		"_postman_id": "aicalling-mvp-backend",
+		"description": "Test collection for AI Calling System backend endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@prestalib.com\",\n  \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Leads",
+			"item": [
+				{
+					"name": "Upload File (CSV/Excel)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"body": {
+							"mode": "formdata",
+							"formdata": [{ "key": "file", "type": "file", "src": "" }]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/upload",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "upload"]
+						}
+					}
+				},
+				{
+					"name": "Get All Leads",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads"]
+						}
+					}
+				},
+				{
+					"name": "Get Leads by Status",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads?status=NEW",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads"],
+							"query": [{ "key": "status", "value": "NEW" }]
+						}
+					}
+				},
+				{
+					"name": "Get Lead by ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/{{leadId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "{{leadId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Lead Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"status\": \"CALLED\" }"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/{{leadId}}/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "{{leadId}}", "status"]
+						}
+					}
+				},
+				{
+					"name": "Schedule Call",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"scheduledCallAt\": \"2024-01-15T17:00:00.000Z\",\n  \"note\": \"Client requested callback at 5pm\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/{{leadId}}/schedule",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "{{leadId}}", "schedule"]
+						}
+					}
+				},
+				{
+					"name": "Blacklist Lead",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/{{leadId}}/blacklist",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "{{leadId}}", "blacklist"]
+						}
+					}
+				},
+				{
+					"name": "Get Scheduled Calls",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/scheduled/calls",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "scheduled", "calls"]
+						}
+					}
+				},
+				{
+					"name": "Get Due Scheduled Calls",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/scheduled/due",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "scheduled", "due"]
+						}
+					}
+				},
+				{
+					"name": "Get Available Leads for Campaign",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/leads/available/campaign",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "leads", "available", "campaign"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Campaigns",
+			"item": [
+				{
+					"name": "Create Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"name\": \"Test Campaign\" }"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns"]
+						}
+					}
+				},
+				{
+					"name": "Get All Campaigns",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns"]
+						}
+					}
+				},
+				{
+					"name": "Get Campaigns by Status",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns?status=ACTIVE",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns"],
+							"query": [{ "key": "status", "value": "ACTIVE" }]
+						}
+					}
+				},
+				{
+					"name": "Get Campaign by ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}"]
+						}
+					}
+				},
+				{
+					"name": "Start Campaign",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/start",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}", "start"]
+						}
+					}
+				},
+				{
+					"name": "Stop Campaign",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/stop",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}", "stop"]
+						}
+					}
+				},
+				{
+					"name": "Complete Campaign",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/complete",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}", "complete"]
+						}
+					}
+				},
+				{
+					"name": "Delete Campaign",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}"]
+						}
+					}
+				},
+				{
+					"name": "Add Leads to Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"leadIds\": [\"{{leadId}}\", \"{{leadId2}}\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/leads",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}", "leads"]
+						}
+					}
+				},
+				{
+					"name": "Remove Lead from Campaign",
+					"request": {
+						"method": "DELETE",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/leads/{{leadId}}",
+							"host": ["{{baseUrl}}"],
+							"path": [
+								"api",
+								"campaigns",
+								"{{campaignId}}",
+								"leads",
+								"{{leadId}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Active Campaign",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/active/current",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "active", "current"]
+						}
+					}
+				},
+				{
+					"name": "Get Next Campaign to Process",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/next/process",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "next", "process"]
+						}
+					}
+				},
+				{
+					"name": "Get Campaign Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/stats/overview",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "stats", "overview"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Calls",
+			"item": [
+				{
+					"name": "Trigger Call to Lead",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/trigger/{{leadId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "trigger", "{{leadId}}"]
+						}
+					}
+				},
+				{
+					"name": "Trigger Scheduled Calls",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/trigger/scheduled",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "trigger", "scheduled"]
+						}
+					}
+				},
+				{
+					"name": "Trigger Campaign Calls",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/trigger/campaign/{{campaignId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "trigger", "campaign", "{{campaignId}}"]
+						}
+					}
+				},
+				{
+					"name": "Handle Webhook (Vapi.ai)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"callId\": \"vapi_call_123\",\n  \"status\": \"completed\",\n  \"duration\": 120,\n  \"transferred\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/webhook",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "webhook"]
+						}
+					}
+				},
+				{
+					"name": "Get Call Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "stats"]
+						}
+					}
+				},
+				{
+					"name": "Get Transferred Calls",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/transferred",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "transferred"]
+						}
+					}
+				},
+				{
+					"name": "Get Completed Calls",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/completed",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "completed"]
+						}
+					}
+				},
+				{
+					"name": "Get Failed Calls",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/failed",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "failed"]
+						}
+					}
+				},
+				{
+					"name": "Get Call by ID",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/{{callId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "{{callId}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Calls by Lead",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/lead/{{leadId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "lead", "{{leadId}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Calls by Campaign",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/campaign/{{campaignId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "campaign", "{{campaignId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Call Notes",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"notes\": \"Customer was interested in the program\" }"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/{{callId}}/notes",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "{{callId}}", "notes"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:3548" },
+		{ "key": "token", "value": "" },
+		{ "key": "leadId", "value": "" },
+		{ "key": "leadId2", "value": "" },
+		{ "key": "campaignId", "value": "" },
+		{ "key": "callId", "value": "" }
+	]
 }

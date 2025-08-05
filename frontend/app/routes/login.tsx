@@ -2,10 +2,8 @@
 
 import type React from "react";
 
-import { useState } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { Label } from "@radix-ui/react-dropdown-menu";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import {
@@ -15,8 +13,9 @@ import {
 	CardDescription,
 	CardContent,
 } from "~/components/ui/card";
-import { useAuth } from "~/hooks/use-auth";
+import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 
 export default function Login() {
 	const [email, setEmail] = useState("");
@@ -24,12 +23,22 @@ export default function Login() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 
-	const { login, isAuthenticated } = useAuth();
-	const navigate = useNavigate();
+	const { login } = useAuth();
+	const { isClient, redirectIfAuthenticated } = useClientSideAuth();
 
-	// Redirect if already authenticated
-	if (isAuthenticated) {
-		return <Navigate to="/dashboard" replace />;
+	useEffect(() => {
+		if (isClient) {
+			redirectIfAuthenticated("/dashboard");
+		}
+	}, [isClient, redirectIfAuthenticated]);
+
+	// Show loading state during SSR
+	if (!isClient) {
+		return (
+			<div className="min-h-screen flex items-center justify-center bg-gray-50">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+			</div>
+		);
 	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +49,7 @@ export default function Login() {
 		try {
 			const success = await login(email, password);
 			if (success) {
-				navigate("/dashboard");
+				// Navigation will be handled by the redirectIfAuthenticated hook
 			} else {
 				setError("Invalid email or password");
 			}
@@ -71,7 +80,12 @@ export default function Login() {
 						)}
 
 						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
+							<Label
+								htmlFor="email"
+								className="block text-sm font-medium text-gray-700"
+							>
+								Email
+							</Label>
 							<Input
 								id="email"
 								type="email"
@@ -84,7 +98,12 @@ export default function Login() {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="password">Password</Label>
+							<Label
+								htmlFor="password"
+								className="block text-sm font-medium text-gray-700"
+							>
+								Password
+							</Label>
 							<Input
 								id="password"
 								type="password"

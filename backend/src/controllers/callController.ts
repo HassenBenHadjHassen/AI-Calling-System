@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { CallService } from "../services/callService";
 import { ResponseUtils } from "../utils/responseUtils";
+import { socketService } from "../services/socketService";
 
 export class CallController {
 	private callService: CallService;
@@ -14,10 +15,19 @@ export class CallController {
 			const { leadId, title } = req.params;
 			const result = await this.callService.triggerCall(leadId, title);
 
+			// Emit real-time update to connected clients
+			socketService.emitToCall(result.callId, "call-triggered", {
+				callId: result.callId,
+				leadId,
+				title,
+				status: "triggered",
+				metadata: result,
+			});
+
 			ResponseUtils.success(res, result, "Call triggered successfully");
 		} catch (error: any) {
 			console.error("Error triggering call:", error);
-			ResponseUtils.error(res, "Failed to trigger call");
+			ResponseUtils.error(res, error.message || "Failed to trigger call", 400);
 		}
 	}
 
@@ -26,10 +36,48 @@ export class CallController {
 			const webhookData = req.body;
 			await this.callService.handleWebhook(webhookData);
 
+			// Emit real-time updates based on webhook data
+			if (webhookData.callId) {
+				socketService.emitToCall(webhookData.callId, "webhook-received", {
+					callId: webhookData.callId,
+					webhookType: webhookData.type || "unknown",
+					data: webhookData,
+					timestamp: new Date().toISOString(),
+				});
+
+				// Handle specific webhook types
+				if (webhookData.type === "transcript") {
+					socketService.emitToCall(webhookData.callId, "transcript-updated", {
+						callId: webhookData.callId,
+						transcript: webhookData.transcript,
+						speaker: webhookData.speaker || "unknown",
+						timestamp: new Date().toISOString(),
+					});
+				}
+
+				if (webhookData.type === "voice-activity") {
+					socketService.emitToCall(
+						webhookData.callId,
+						"voice-activity-detected",
+						{
+							callId: webhookData.callId,
+							isSpeaking: webhookData.isSpeaking,
+							speaker: webhookData.speaker || "unknown",
+							audioLevel: webhookData.audioLevel,
+							timestamp: new Date().toISOString(),
+						}
+					);
+				}
+			}
+
 			ResponseUtils.success(res, null, "Webhook processed successfully");
 		} catch (error: any) {
 			console.error("Error processing webhook:", error);
-			ResponseUtils.error(res, "Failed to process webhook");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to process webhook",
+				400
+			);
 		}
 	}
 
@@ -50,7 +98,11 @@ export class CallController {
 			);
 		} catch (error: any) {
 			console.error("Error triggering scheduled calls:", error);
-			ResponseUtils.error(res, "Failed to trigger scheduled calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to trigger scheduled calls",
+				400
+			);
 		}
 	}
 
@@ -72,7 +124,11 @@ export class CallController {
 			);
 		} catch (error: any) {
 			console.error("Error triggering campaign calls:", error);
-			ResponseUtils.error(res, "Failed to trigger campaign calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to trigger campaign calls",
+				400
+			);
 		}
 	}
 
@@ -83,7 +139,11 @@ export class CallController {
 			ResponseUtils.success(res, stats);
 		} catch (error: any) {
 			console.error("Error fetching call stats:", error);
-			ResponseUtils.error(res, "Failed to fetch call stats");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch call stats",
+				500
+			);
 		}
 	}
 
@@ -95,7 +155,11 @@ export class CallController {
 			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching calls by lead:", error);
-			ResponseUtils.error(res, "Failed to fetch calls by lead");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch calls by lead",
+				500
+			);
 		}
 	}
 
@@ -107,7 +171,11 @@ export class CallController {
 			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching calls by campaign:", error);
-			ResponseUtils.error(res, "Failed to fetch calls by campaign");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch calls by campaign",
+				500
+			);
 		}
 	}
 
@@ -118,7 +186,11 @@ export class CallController {
 			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching transferred calls:", error);
-			ResponseUtils.error(res, "Failed to fetch transferred calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch transferred calls",
+				500
+			);
 		}
 	}
 
@@ -129,7 +201,11 @@ export class CallController {
 			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching completed calls:", error);
-			ResponseUtils.error(res, "Failed to fetch completed calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch completed calls",
+				500
+			);
 		}
 	}
 
@@ -140,7 +216,11 @@ export class CallController {
 			ResponseUtils.success(res, calls);
 		} catch (error: any) {
 			console.error("Error fetching failed calls:", error);
-			ResponseUtils.error(res, "Failed to fetch failed calls");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch failed calls",
+				500
+			);
 		}
 	}
 
@@ -159,7 +239,29 @@ export class CallController {
 			ResponseUtils.success(res, call, "Call notes updated successfully");
 		} catch (error: any) {
 			console.error("Error updating call notes:", error);
-			ResponseUtils.error(res, "Failed to update call notes");
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to update call notes",
+				400
+			);
+		}
+	}
+
+	async getRecentCalls(req: Request, res: Response): Promise<void> {
+		try {
+			const { limit = "50" } = req.query;
+			const calls = await this.callService.getRecentCalls(
+				parseInt(limit as string)
+			);
+
+			ResponseUtils.success(res, calls);
+		} catch (error: any) {
+			console.error("Error fetching recent calls:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch recent calls",
+				500
+			);
 		}
 	}
 
@@ -176,7 +278,7 @@ export class CallController {
 			ResponseUtils.success(res, call);
 		} catch (error: any) {
 			console.error("Error fetching call:", error);
-			ResponseUtils.error(res, "Failed to fetch call");
+			ResponseUtils.error(res, error.message || "Failed to fetch call", 500);
 		}
 	}
 }

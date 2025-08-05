@@ -6,253 +6,747 @@ import * as path from "path";
 import * as XLSX from "xlsx";
 
 export class LeadService {
-  private leadRepository: LeadRepository;
-  private campaignRepository: CampaignRepository;
+	private leadRepository: LeadRepository;
+	private campaignRepository: CampaignRepository;
 
-  constructor() {
-    this.leadRepository = new LeadRepository();
-    this.campaignRepository = new CampaignRepository();
-  }
+	constructor() {
+		this.leadRepository = new LeadRepository();
+		this.campaignRepository = new CampaignRepository();
+	}
 
-  async createManualLead(
-    name: string,
-    phone1: string,
-    phone2?: string,
-    address?: string,
-    postalCode?: string,
-    city?: string
-  ): Promise<any> {
-    return this.leadRepository.create({
-      name,
-      phone1,
-      phone2,
-      address,
-      postalCode,
-      city,
-    });
-  }
+	async createManualLead(
+		name: string,
+		phone1: string,
+		phone2?: string,
+		address?: string,
+		postalCode?: string,
+		city?: string
+	): Promise<any> {
+		try {
+			const formattedPhone1 = this.formatPhoneNumber(phone1);
+			const formattedPhone2 = phone2
+				? this.formatPhoneNumber(phone2)
+				: undefined;
 
-  async uploadLeadsFromFile(filePath: string): Promise<{
-    totalLeads: number;
-    campaignsCreated: number;
-    leadsProcessed: number;
-  }> {
-    const fileExtension = path.extname(filePath).toLowerCase();
+			// Check for existing leads with the same phone numbers
+			const phoneNumbersToCheck = [formattedPhone1];
+			if (formattedPhone2) {
+				phoneNumbersToCheck.push(formattedPhone2);
+			}
+			const existingLeads = await this.checkForExistingLeads(
+				phoneNumbersToCheck
+			);
 
-    if (fileExtension === ".csv") {
-      return this.processCSVFile(filePath);
-    } else if (fileExtension === ".xlsx" || fileExtension === ".xls") {
-      return this.processExcelFile(filePath);
-    } else {
-      throw new Error(
-        "Unsupported file format. Please upload CSV or Excel files."
-      );
-    }
-  }
+			if (existingLeads.length > 0) {
+				throw new Error(
+					`Lead with phone number already exists: ${existingLeads
+						.map((l: any) => l.phone1)
+						.join(", ")}`
+				);
+			}
 
-  private async processCSVFile(filePath: string): Promise<{
-    totalLeads: number;
-    campaignsCreated: number;
-    leadsProcessed: number;
-  }> {
-    const leads: any[] = [];
+			return await this.leadRepository.create({
+				name,
+				phone1: formattedPhone1,
+				phone2: formattedPhone2,
+				address,
+				postalCode,
+				city,
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to create manual lead: ${error.message}`);
+		}
+	}
 
-    return new Promise((resolve, reject) => {
-      const csv = require("csv-parser");
+	async uploadLeadsFromFile(filePath: string): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		try {
+			const fileExtension = path.extname(filePath).toLowerCase();
 
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on("data", (row: any) => {
-          // Map CSV columns to lead data
-          const leadData = {
-            name: row.nom || row.name,
-            address: row.adresse2 || row.address,
-            postalCode: row.codepostal || row.postalCode,
-            city: row.ville || row.city,
-            phone1: row.tel1 || row.phone1,
-            phone2: row.tel2 || row.phone2,
-          };
+			if (fileExtension === ".csv") {
+				return await this.processCSVFile(filePath);
+			} else if (fileExtension === ".xlsx" || fileExtension === ".xls") {
+				return await this.processExcelFile(filePath);
+			} else {
+				throw new Error(
+					"Unsupported file format. Please upload CSV or Excel files."
+				);
+			}
+		} catch (error: any) {
+			throw new Error(`Failed to upload leads from file: ${error.message}`);
+		}
+	}
 
-          if (leadData.name && leadData.phone1) {
-            leads.push(leadData);
-          }
-        })
-        .on("end", async () => {
-          try {
-            const result = await this.processLeads(leads);
-            resolve(result);
-          } catch (error: any) {
-            reject(error);
-          }
-        })
-        .on("error", (error: any) => {
-          reject(error);
-        });
-    });
-  }
+	async uploadLeadsFromLargeFile(filePath: string): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		try {
+			// For very large files, process in chunks to prevent memory issues
+			const fileExtension = path.extname(filePath).toLowerCase();
 
-  private async processExcelFile(filePath: string): Promise<{
-    totalLeads: number;
-    campaignsCreated: number;
-    leadsProcessed: number;
-  }> {
-    try {
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+			if (fileExtension === ".csv") {
+				return await this.processLargeCSVFile(filePath);
+			} else if (fileExtension === ".xlsx" || fileExtension === ".xls") {
+				return await this.processLargeExcelFile(filePath);
+			} else {
+				throw new Error(
+					"Unsupported file format. Please upload CSV or Excel files."
+				);
+			}
+		} catch (error: any) {
+			throw new Error(
+				`Failed to upload leads from large file: ${error.message}`
+			);
+		}
+	}
 
-      const leads: any[] = [];
+	private async processCSVFile(filePath: string): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		const leads: any[] = [];
 
-      for (const row of jsonData) {
-        const leadData = {
-          name: (row as any).nom || (row as any).name,
-          address: (row as any).adresse2 || (row as any).address,
-          postalCode: (row as any).codepostal || (row as any).postalCode,
-          city: (row as any).ville || (row as any).city,
-          phone1: (row as any).tel1 || (row as any).phone1,
-          phone2: (row as any).tel2 || (row as any).phone2,
-        };
+		return new Promise((resolve, reject) => {
+			const csv = require("csv-parser");
 
-        if (leadData.name && leadData.phone1) {
-          leads.push(leadData);
-        }
-      }
+			fs.createReadStream(filePath)
+				.pipe(csv())
+				.on("data", (row: any) => {
+					// Map CSV columns to lead data with better validation
+					const leadData = {
+						name: row.nom || row.name || row.Nom || row.Name,
+						address: row.adresse2 || row.address || row.Adresse2 || row.Address,
+						postalCode:
+							row.codepostal ||
+							row.postalCode ||
+							row.Codepostal ||
+							row.PostalCode,
+						city: row.ville || row.city || row.Ville || row.City,
+						phone1: row.tel1 || row.phone1 || row.Tel1 || row.Phone1,
+						phone2: row.tel2 || row.phone2 || row.Tel2 || row.Phone2,
+					};
 
-      return await this.processLeads(leads);
-    } catch (error: any) {
-      throw new Error(`Error processing Excel file: ${error.message}`);
-    }
-  }
+					// Only add leads with required fields
+					if (
+						leadData.name &&
+						leadData.phone1 &&
+						leadData.name.trim() &&
+						leadData.phone1.trim()
+					) {
+						// Clean the data
+						leads.push({
+							name: leadData.name.trim(),
+							address: leadData.address?.trim() || null,
+							postalCode: leadData.postalCode?.trim() || null,
+							city: leadData.city?.trim() || null,
+							phone1: this.formatPhoneNumber(leadData.phone1.trim()),
+							phone2: leadData.phone2?.trim()
+								? this.formatPhoneNumber(leadData.phone2.trim())
+								: null,
+						});
+					}
+				})
+				.on("end", async () => {
+					try {
+						console.log(
+							`CSV processing completed. Found ${leads.length} valid leads.`
+						);
+						const result = await this.processLeads(leads);
+						resolve(result);
+					} catch (error: any) {
+						reject(error);
+					}
+				})
+				.on("error", (error: any) => {
+					console.error("CSV processing error:", error);
+					reject(error);
+				});
+		});
+	}
 
-  private async processLeads(leads: any[]): Promise<{
-    totalLeads: number;
-    campaignsCreated: number;
-    leadsProcessed: number;
-  }> {
-    let leadsProcessed = 0;
-    let campaignsCreated = 0;
+	private async processExcelFile(filePath: string): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		try {
+			const workbook = XLSX.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const worksheet = workbook.Sheets[sheetName];
+			const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-    // Process leads in batches of 5
-    for (let i = 0; i < leads.length; i += 5) {
-      const batch = leads.slice(i, i + 5);
+			const leads: any[] = [];
 
-      // Create a new campaign for this batch
-      const campaign = await this.campaignRepository.create({
-        name: `Campaign ${Date.now()}-${campaignsCreated + 1}`,
-      });
-      campaignsCreated++;
+			for (const row of jsonData) {
+				const leadData = {
+					name:
+						(row as any).nom ||
+						(row as any).name ||
+						(row as any).Nom ||
+						(row as any).Name,
+					address:
+						(row as any).adresse2 ||
+						(row as any).address ||
+						(row as any).Adresse2 ||
+						(row as any).Address,
+					postalCode:
+						(row as any).codepostal ||
+						(row as any).postalCode ||
+						(row as any).Codepostal ||
+						(row as any).PostalCode,
+					city:
+						(row as any).ville ||
+						(row as any).city ||
+						(row as any).Ville ||
+						(row as any).City,
+					phone1:
+						(row as any).tel1 ||
+						(row as any).phone1 ||
+						(row as any).Tel1 ||
+						(row as any).Phone1,
+					phone2:
+						(row as any).tel2 ||
+						(row as any).phone2 ||
+						(row as any).Tel2 ||
+						(row as any).Phone2,
+				};
 
-      // Create leads and assign to campaign
-      for (const leadData of batch) {
-        const lead = await this.leadRepository.create({
-          ...leadData,
-          campaignId: campaign.id,
-        });
-        leadsProcessed++;
-      }
-    }
+				// Only add leads with required fields
+				if (
+					leadData.name &&
+					leadData.phone1 &&
+					leadData.name.toString().trim() &&
+					leadData.phone1.toString().trim()
+				) {
+					// Clean the data
+					leads.push({
+						name: leadData.name.toString().trim(),
+						address: leadData.address?.toString().trim() || null,
+						postalCode: leadData.postalCode?.toString().trim() || null,
+						city: leadData.city?.toString().trim() || null,
+						phone1: this.formatPhoneNumber(leadData.phone1.toString().trim()),
+						phone2: leadData.phone2?.toString().trim()
+							? this.formatPhoneNumber(leadData.phone2.toString().trim())
+							: null,
+					});
+				}
+			}
 
-    return {
-      totalLeads: leads.length,
-      campaignsCreated,
-      leadsProcessed,
-    };
-  }
+			console.log(
+				`Excel processing completed. Found ${leads.length} valid leads.`
+			);
+			return await this.processLeads(leads);
+		} catch (error: any) {
+			throw new Error(`Error processing Excel file: ${error.message}`);
+		}
+	}
 
-  async updateLeadStatus(leadId: string, status: LeadStatus): Promise<any> {
-    const lead = await this.leadRepository.findById(leadId);
-    if (!lead) {
-      throw new Error("Lead not found");
-    }
+	private async processLeads(leads: any[]): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		let leadsProcessed = 0;
+		let campaignsCreated = 0;
+		let duplicatesSkipped = 0;
 
-    // If lead is being rescheduled, remove from current campaign
-    if (status === LeadStatus.SCHEDULED && lead.campaignId) {
-      await this.campaignRepository.removeLead(lead.campaignId, leadId);
-    }
+		// Process leads in larger batches for better performance
+		const batchSize = 50; // Increased from 5 to 50 for better performance
 
-    return this.leadRepository.updateStatus(leadId, status);
-  }
+		for (let i = 0; i < leads.length; i += batchSize) {
+			const batch = leads.slice(i, i + batchSize);
 
-  async scheduleCall(
-    customerPhoneNumber: string,
-    scheduledCallAt: Date,
-    note?: string
-  ): Promise<any> {
-    const lead = await this.leadRepository.findByPhone(customerPhoneNumber);
-    if (!lead) {
-      throw new Error("Lead not found");
-    }
+			// Filter out duplicates before processing
+			const uniqueLeads = await this.filterDuplicateLeads(batch);
+			const duplicatesInBatch = batch.length - uniqueLeads.length;
+			duplicatesSkipped += duplicatesInBatch;
 
-    // if the schedule time is in the past, throw an error
-    if (scheduledCallAt < new Date()) {
-      throw new Error("Scheduled time is in the past");
-    }
+			if (uniqueLeads.length === 0) {
+				continue; // Skip this batch if all leads are duplicates
+			}
 
-    if (lead.status === LeadStatus.BLACKLISTED) {
-      throw new Error("Lead is blacklisted");
-    }
+			// Create a new campaign for this batch
+			const campaign = await this.campaignRepository.create({
+				name: `Campaign ${Date.now()}-${campaignsCreated + 1}`,
+			});
+			campaignsCreated++;
 
-    if (lead.status === LeadStatus.SCHEDULED) {
-      throw new Error("Lead is already scheduled");
-    }
+			// Prepare bulk data for all leads in this batch
+			const bulkLeadData = uniqueLeads.map((leadData) => ({
+				...leadData,
+				campaignId: campaign.id,
+			}));
 
-    // Remove from current campaign if exists
-    if (lead.campaignId) {
-      await this.campaignRepository.removeLeadByPhone(
-        lead.campaignId,
-        customerPhoneNumber
-      );
-    }
+			// Use bulk create for better performance
+			await this.leadRepository.createMany(bulkLeadData);
+			leadsProcessed += uniqueLeads.length;
+		}
 
-    return this.leadRepository.updateScheduledCallByPhone(
-      customerPhoneNumber,
-      scheduledCallAt,
-      note
-    );
-  }
+		return {
+			totalLeads: leads.length,
+			campaignsCreated,
+			leadsProcessed,
+			duplicatesSkipped,
+		};
+	}
 
-  async blacklistLead(customerPhoneNumber: string): Promise<any> {
-    const lead = await this.leadRepository.findByPhone(customerPhoneNumber);
-    if (!lead) {
-      throw new Error("Lead not found");
-    }
+	private formatPhoneNumber(phone: string): string {
+		// Remove all non-digit characters
+		const cleaned = phone.replace(/\D/g, "");
 
-    // Remove from current campaign if exists
-    if (lead.campaignId) {
-      await this.campaignRepository.removeLeadByPhone(
-        lead.campaignId,
-        customerPhoneNumber
-      );
-    }
+		// Match French numbers starting with 0 and followed by 9 digits
+		const match = cleaned.match(/^0(\d{9})$/);
 
-    return this.leadRepository.blacklistByPhone(customerPhoneNumber);
-  }
+		if (match) {
+			// Convert to E.164 by replacing leading 0 with +33
+			return `+33${match[1]}`;
+		}
 
-  async getLeadsByStatus(status?: LeadStatus): Promise<any[]> {
-    if (status) {
-      return this.leadRepository.findByStatus(status);
-    }
-    return this.leadRepository.findAll();
-  }
+		// If already in E.164 or invalid format, return as is
+		return phone;
+	}
 
-  async getScheduledCalls(): Promise<any[]> {
-    return this.leadRepository.findScheduledCalls();
-  }
+	private async checkForExistingLeads(phoneNumbers: string[]): Promise<any[]> {
+		if (phoneNumbers.length === 0) return [];
 
-  async getDueScheduledCalls(): Promise<any[]> {
-    return this.leadRepository.findDueScheduledCalls();
-  }
+		return this.leadRepository.findExistingLeads(phoneNumbers);
+	}
 
-  async getAvailableLeadsForCampaign(): Promise<any[]> {
-    return this.leadRepository.findAvailableForCampaign();
-  }
+	private async filterDuplicateLeads(leads: any[]): Promise<any[]> {
+		if (leads.length === 0) return [];
 
-  async getLeadById(leadId: string): Promise<any> {
-    return this.leadRepository.findById(leadId);
-  }
+		// Extract all phone numbers from the leads
+		const phoneNumbers: string[] = [];
+		leads.forEach((lead) => {
+			if (lead.phone1) phoneNumbers.push(lead.phone1);
+			if (lead.phone2) phoneNumbers.push(lead.phone2);
+		});
 
-  async getLeadByPhone(phone: string): Promise<any> {
-    return this.leadRepository.findByPhone(phone);
-  }
+		// Find existing leads with these phone numbers
+		const existingLeads = await this.leadRepository.findExistingLeads(
+			phoneNumbers
+		);
+		const existingPhoneNumbers = new Set<string>();
+
+		existingLeads.forEach((lead) => {
+			if (lead.phone1) existingPhoneNumbers.add(lead.phone1);
+			if (lead.phone2) existingPhoneNumbers.add(lead.phone2);
+		});
+
+		// Filter out leads that have phone numbers already in the database
+		return leads.filter((lead) => {
+			const hasExistingPhone1 =
+				lead.phone1 && existingPhoneNumbers.has(lead.phone1);
+			const hasExistingPhone2 =
+				lead.phone2 && existingPhoneNumbers.has(lead.phone2);
+			return !hasExistingPhone1 && !hasExistingPhone2;
+		});
+	}
+
+	private async processLargeCSVFile(filePath: string): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		let totalLeads = 0;
+		let campaignsCreated = 0;
+		let leadsProcessed = 0;
+		let duplicatesSkipped = 0;
+		const chunkSize = 1000; // Process 1000 leads at a time
+		let currentChunk: any[] = [];
+
+		return new Promise((resolve, reject) => {
+			const csv = require("csv-parser");
+
+			fs.createReadStream(filePath)
+				.pipe(csv())
+				.on("data", async (row: any) => {
+					// Map CSV columns to lead data with better validation
+					const leadData = {
+						name: row.nom || row.name || row.Nom || row.Name,
+						address: row.adresse2 || row.address || row.Adresse2 || row.Address,
+						postalCode:
+							row.codepostal ||
+							row.postalCode ||
+							row.Codepostal ||
+							row.PostalCode,
+						city: row.ville || row.city || row.Ville || row.City,
+						phone1: row.tel1 || row.phone1 || row.Tel1 || row.Phone1,
+						phone2: row.tel2 || row.phone2 || row.Tel2 || row.Phone2,
+					};
+
+					// Only add leads with required fields
+					if (
+						leadData.name &&
+						leadData.phone1 &&
+						leadData.name.trim() &&
+						leadData.phone1.trim()
+					) {
+						currentChunk.push({
+							name: leadData.name.trim(),
+							address: leadData.address?.trim() || null,
+							postalCode: leadData.postalCode?.trim() || null,
+							city: leadData.city?.trim() || null,
+							phone1: this.formatPhoneNumber(leadData.phone1.trim()),
+							phone2: leadData.phone2?.trim()
+								? this.formatPhoneNumber(leadData.phone2.trim())
+								: null,
+						});
+						totalLeads++;
+
+						// Process chunk when it reaches the size limit
+						if (currentChunk.length >= chunkSize) {
+							const chunk = [...currentChunk];
+							currentChunk = [];
+
+							try {
+								const result = await this.processLeads(chunk);
+								campaignsCreated += result.campaignsCreated;
+								leadsProcessed += result.leadsProcessed;
+								duplicatesSkipped += result.duplicatesSkipped;
+								console.log(
+									`Processed chunk: ${result.leadsProcessed} leads, Skipped: ${result.duplicatesSkipped} duplicates`
+								);
+							} catch (error) {
+								reject(error);
+								return;
+							}
+						}
+					}
+				})
+				.on("end", async () => {
+					try {
+						// Process remaining leads
+						if (currentChunk.length > 0) {
+							const result = await this.processLeads(currentChunk);
+							campaignsCreated += result.campaignsCreated;
+							leadsProcessed += result.leadsProcessed;
+							duplicatesSkipped += result.duplicatesSkipped;
+						}
+
+						console.log(
+							`Large CSV processing completed. Total: ${totalLeads} leads, Processed: ${leadsProcessed}, Skipped: ${duplicatesSkipped} duplicates`
+						);
+						resolve({
+							totalLeads,
+							campaignsCreated,
+							leadsProcessed,
+							duplicatesSkipped,
+						});
+					} catch (error: any) {
+						reject(error);
+					}
+				})
+				.on("error", (error: any) => {
+					console.error("Large CSV processing error:", error);
+					reject(error);
+				});
+		});
+	}
+
+	private async processLargeExcelFile(filePath: string): Promise<{
+		totalLeads: number;
+		campaignsCreated: number;
+		leadsProcessed: number;
+		duplicatesSkipped: number;
+	}> {
+		try {
+			const workbook = XLSX.readFile(filePath);
+			const sheetName = workbook.SheetNames[0];
+			const worksheet = workbook.Sheets[sheetName];
+			const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+			let totalLeads = 0;
+			let campaignsCreated = 0;
+			let leadsProcessed = 0;
+			let duplicatesSkipped = 0;
+			const chunkSize = 1000;
+			let currentChunk: any[] = [];
+
+			for (const row of jsonData) {
+				const leadData = {
+					name:
+						(row as any).nom ||
+						(row as any).name ||
+						(row as any).Nom ||
+						(row as any).Name,
+					address:
+						(row as any).adresse2 ||
+						(row as any).address ||
+						(row as any).Adresse2 ||
+						(row as any).Address,
+					postalCode:
+						(row as any).codepostal ||
+						(row as any).postalCode ||
+						(row as any).Codepostal ||
+						(row as any).PostalCode,
+					city:
+						(row as any).ville ||
+						(row as any).city ||
+						(row as any).Ville ||
+						(row as any).City,
+					phone1:
+						(row as any).tel1 ||
+						(row as any).phone1 ||
+						(row as any).Tel1 ||
+						(row as any).Phone1,
+					phone2:
+						(row as any).tel2 ||
+						(row as any).phone2 ||
+						(row as any).Tel2 ||
+						(row as any).Phone2,
+				};
+
+				// Only add leads with required fields
+				if (
+					leadData.name &&
+					leadData.phone1 &&
+					leadData.name.toString().trim() &&
+					leadData.phone1.toString().trim()
+				) {
+					currentChunk.push({
+						name: leadData.name.toString().trim(),
+						address: leadData.address?.toString().trim() || null,
+						postalCode: leadData.postalCode?.toString().trim() || null,
+						city: leadData.city?.toString().trim() || null,
+						phone1: this.formatPhoneNumber(leadData.phone1.toString().trim()),
+						phone2: leadData.phone2?.toString().trim()
+							? this.formatPhoneNumber(leadData.phone2.toString().trim())
+							: null,
+					});
+					totalLeads++;
+
+					// Process chunk when it reaches the size limit
+					if (currentChunk.length >= chunkSize) {
+						const chunk = [...currentChunk];
+						currentChunk = [];
+
+						const result = await this.processLeads(chunk);
+						campaignsCreated += result.campaignsCreated;
+						leadsProcessed += result.leadsProcessed;
+						duplicatesSkipped += result.duplicatesSkipped;
+						console.log(
+							`Processed Excel chunk: ${result.leadsProcessed} leads, Skipped: ${result.duplicatesSkipped} duplicates`
+						);
+					}
+				}
+			}
+
+			// Process remaining leads
+			if (currentChunk.length > 0) {
+				const result = await this.processLeads(currentChunk);
+				campaignsCreated += result.campaignsCreated;
+				leadsProcessed += result.leadsProcessed;
+				duplicatesSkipped += result.duplicatesSkipped;
+			}
+
+			console.log(
+				`Large Excel processing completed. Total: ${totalLeads} leads, Processed: ${leadsProcessed}, Skipped: ${duplicatesSkipped} duplicates`
+			);
+			return {
+				totalLeads,
+				campaignsCreated,
+				leadsProcessed,
+				duplicatesSkipped,
+			};
+		} catch (error: any) {
+			throw new Error(`Error processing large Excel file: ${error.message}`);
+		}
+	}
+
+	async updateLeadStatus(leadId: string, status: LeadStatus): Promise<any> {
+		try {
+			const lead = await this.leadRepository.findById(leadId);
+			if (!lead) {
+				throw new Error("Lead not found");
+			}
+
+			// If lead is being rescheduled, remove from current campaign
+			if (status === LeadStatus.SCHEDULED && lead.campaignId) {
+				await this.campaignRepository.removeLead(lead.campaignId, leadId);
+			}
+
+			return await this.leadRepository.updateStatus(leadId, status);
+		} catch (error: any) {
+			throw new Error(`Failed to update lead status: ${error.message}`);
+		}
+	}
+
+	async scheduleCall(
+		customerPhoneNumber: string,
+		scheduledCallAt: Date,
+		note?: string
+	): Promise<any> {
+		try {
+			const formattedPhone = this.formatPhoneNumber(customerPhoneNumber);
+
+			// Check if lead exists
+			const existingLead = await this.leadRepository.findByPhone(
+				formattedPhone
+			);
+			if (!existingLead) {
+				throw new Error("Lead not found with this phone number");
+			}
+
+			// Check if lead is blacklisted
+			if (existingLead.blacklisted) {
+				throw new Error("Cannot schedule call for blacklisted lead");
+			}
+
+			// Check if call is already scheduled
+			if (existingLead.scheduledCallAt) {
+				throw new Error("Call is already scheduled for this lead");
+			}
+
+			// Remove from current campaign if exists
+			if (existingLead.campaignId) {
+				await this.campaignRepository.removeLeadByPhone(
+					existingLead.campaignId,
+					customerPhoneNumber
+				);
+			}
+
+			return await this.leadRepository.updateScheduledCallByPhone(
+				formattedPhone,
+				scheduledCallAt,
+				note
+			);
+		} catch (error: any) {
+			throw new Error(`Failed to schedule call: ${error.message}`);
+		}
+	}
+
+	async blacklistLead(customerPhoneNumber: string): Promise<any> {
+		try {
+			const formattedPhone = this.formatPhoneNumber(customerPhoneNumber);
+
+			// Check if lead exists
+			const existingLead = await this.leadRepository.findByPhone(
+				formattedPhone
+			);
+			if (!existingLead) {
+				throw new Error("Lead not found with this phone number");
+			}
+
+			// Check if lead is already blacklisted
+			if (existingLead.blacklisted) {
+				throw new Error("Lead is already blacklisted");
+			}
+
+			// Remove from current campaign if exists
+			if (existingLead.campaignId) {
+				await this.campaignRepository.removeLeadByPhone(
+					existingLead.campaignId,
+					customerPhoneNumber
+				);
+			}
+
+			return await this.leadRepository.blacklistByPhone(formattedPhone);
+		} catch (error: any) {
+			throw new Error(`Failed to blacklist lead: ${error.message}`);
+		}
+	}
+
+	async getLeadsByStatus(status?: LeadStatus): Promise<any[]> {
+		try {
+			if (status) {
+				return await this.leadRepository.findByStatus(status);
+			} else {
+				return await this.leadRepository.findAll();
+			}
+		} catch (error: any) {
+			throw new Error(`Failed to get leads by status: ${error.message}`);
+		}
+	}
+
+	async getScheduledCalls(): Promise<any[]> {
+		try {
+			return await this.leadRepository.findScheduledCalls();
+		} catch (error: any) {
+			throw new Error(`Failed to get scheduled calls: ${error.message}`);
+		}
+	}
+
+	async getDueScheduledCalls(): Promise<any[]> {
+		try {
+			return await this.leadRepository.findDueScheduledCalls();
+		} catch (error: any) {
+			throw new Error(`Failed to get due scheduled calls: ${error.message}`);
+		}
+	}
+
+	async getAvailableLeadsForCampaign(): Promise<any[]> {
+		try {
+			return await this.leadRepository.findAvailableForCampaign();
+		} catch (error: any) {
+			throw new Error(
+				`Failed to get available leads for campaign: ${error.message}`
+			);
+		}
+	}
+
+	async cleanupOrphanedLeads(): Promise<{ cleanedCount: number }> {
+		try {
+			const cleanedCount = await this.leadRepository.cleanupOrphanedLeads();
+			return { cleanedCount };
+		} catch (error: any) {
+			throw new Error(`Failed to cleanup orphaned leads: ${error.message}`);
+		}
+	}
+
+	async getLeadById(leadId: string): Promise<any> {
+		try {
+			return await this.leadRepository.findById(leadId);
+		} catch (error: any) {
+			throw new Error(`Failed to get lead by ID: ${error.message}`);
+		}
+	}
+
+	async getLeadByPhone(phone: string): Promise<any> {
+		try {
+			return await this.leadRepository.findByPhone(phone);
+		} catch (error: any) {
+			throw new Error(`Failed to get lead by phone: ${error.message}`);
+		}
+	}
+
+	async cleanAllLeads(): Promise<{ deletedCount: number }> {
+		try {
+			const deletedCount = await this.leadRepository.deleteAll();
+			return { deletedCount };
+		} catch (error: any) {
+			throw new Error(`Failed to clean all leads: ${error.message}`);
+		}
+	}
+
+	async getProcessingStats(): Promise<{
+		totalLeads: number;
+		recentUploads: number;
+		averageProcessingTime: number;
+	}> {
+		try {
+			const totalLeads = await this.leadRepository.count();
+			const recentCampaigns = await this.campaignRepository.countRecent();
+
+			return {
+				totalLeads,
+				recentUploads: recentCampaigns,
+				averageProcessingTime: 0, // This could be calculated based on actual processing times
+			};
+		} catch (error: any) {
+			throw new Error(`Failed to get processing statistics: ${error.message}`);
+		}
+	}
 }

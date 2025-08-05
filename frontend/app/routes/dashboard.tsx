@@ -1,41 +1,60 @@
 "use client";
 
 import { useEffect } from "react";
-import { Navigate, Outlet } from "react-router";
+import { Outlet } from "react-router";
 import { Sidebar } from "~/components/dashboard/sidebar";
 import { Topbar } from "~/components/dashboard/topbar";
-import { useAuth } from "~/hooks/use-auth";
+import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { socketService } from "~/lib/socket";
 
 export default function Dashboard() {
-  const { isAuthenticated } = useAuth();
+	const { isAuthenticated } = useAuth();
+	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Connect to socket when dashboard loads
-      socketService.connect();
-      // Start simulating activity for demo
-      socketService.simulateActivity();
+	useEffect(() => {
+		if (isClient && !isAuthenticated) {
+			redirectIfNotAuthenticated("/login");
+		}
+	}, [isClient, isAuthenticated, redirectIfNotAuthenticated]);
 
-      return () => {
-        socketService.disconnect();
-      };
-    }
-  }, [isAuthenticated]);
+	useEffect(() => {
+		if (isAuthenticated && isClient) {
+			// Connect to socket when dashboard loads
+			socketService.connect();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
+			return () => {
+				socketService.disconnect();
+			};
+		}
+	}, [isAuthenticated, isClient]);
 
-  return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  );
+	// Show loading state during SSR
+	if (!isClient) {
+		return (
+			<div className="flex h-screen bg-gray-100 items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+			</div>
+		);
+	}
+
+	// Don't render dashboard if not authenticated
+	if (!isAuthenticated) {
+		return (
+			<div className="flex h-screen bg-gray-100 items-center justify-center">
+				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex h-screen bg-gray-100">
+			<Sidebar />
+			<div className="flex-1 flex flex-col overflow-hidden">
+				<Topbar />
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+					<Outlet />
+				</main>
+			</div>
+		</div>
+	);
 }

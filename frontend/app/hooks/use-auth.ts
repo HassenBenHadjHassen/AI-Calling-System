@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { authAPI, type User } from "../services/api";
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router";
 
 interface AuthState {
 	user: User | null;
@@ -64,3 +66,39 @@ export const useAuth = create<AuthState>()(
 		}
 	)
 );
+
+// Hook to handle client-side authentication with SSR safety
+export const useClientSideAuth = () => {
+	const { isAuthenticated } = useAuth();
+	const navigate = useNavigate();
+	const [isClient, setIsClient] = useState(false);
+
+	useEffect(() => {
+		setIsClient(true);
+	}, []);
+
+	const redirectIfNotAuthenticated = useCallback(
+		(redirectTo: string = "/login") => {
+			if (isClient && !isAuthenticated) {
+				navigate(redirectTo, { replace: true });
+			}
+		},
+		[isClient, isAuthenticated, navigate]
+	);
+
+	const redirectIfAuthenticated = useCallback(
+		(redirectTo: string = "/dashboard") => {
+			if (isClient && isAuthenticated) {
+				navigate(redirectTo, { replace: true });
+			}
+		},
+		[isClient, isAuthenticated, navigate]
+	);
+
+	return {
+		isAuthenticated,
+		isClient,
+		redirectIfNotAuthenticated,
+		redirectIfAuthenticated,
+	};
+};

@@ -7,48 +7,55 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Lead {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  id                  String               @id @default(auto()) @map("_id") @db.ObjectId
   name                String
   address             String?
   postalCode          String?
   city                String?
   phone1              String
   phone2              String?
-  status              LeadStatus @default(NEW)
-  campaignId          String?   @db.ObjectId
-  blacklisted         Boolean   @default(false)
+  status              LeadStatus           @default(NEW)
+  campaignId          String?              @db.ObjectId
+  blacklisted         Boolean              @default(false)
   scheduledCallAt     DateTime?
   scheduledCallNote   String?
   scheduledCallStatus ScheduledCallStatus?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  callHistory         CallHistory[] @relation("LeadCallHistory")
-  campaign            Campaign? @relation(fields: [campaignId], references: [id])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  callHistory         CallHistory[]        @relation("LeadCallHistory")
+  campaign            Campaign?            @relation(fields: [campaignId], references: [id])
+
+  @@index([phone1])
+  @@index([phone2])
+  @@index([status])
+  @@index([campaignId])
+  @@index([blacklisted])
+  @@index([scheduledCallAt])
 }
 
 model Campaign {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  status        CampaignStatus @default(ACTIVE)
-  startedAt     DateTime?
-  stoppedAt     DateTime?
-  leads         Lead[]
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  status    CampaignStatus @default(STOPPED)
+  startedAt DateTime?
+  stoppedAt DateTime?
+  createdAt DateTime       @default(now())
+  leads     Lead[]
 }
 
 model CallHistory {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  leadId        String   @db.ObjectId
-  campaignId    String?
-  callStatus    CallStatus
-  transferred   Boolean  @default(false)
-  transferTo    String?
-  duration      Int?
-  callTime      DateTime @default(now())
-  vapiCallId    String?
-  notes         String?
-  lead          Lead     @relation(fields: [leadId], references: [id], name: "LeadCallHistory")
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  leadId      String     @db.ObjectId
+  campaignId  String?
+  callStatus  CallStatus
+  transferred Boolean    @default(false)
+  transferTo  String?
+  duration    Int?
+  callTime    DateTime   @default(now())
+  vapiCallId  String?
+  notes       String?
+  lead        Lead       @relation(fields: [leadId], references: [id], name: "LeadCallHistory")
 }
 
 enum LeadStatus {
@@ -82,4 +89,3 @@ enum ScheduledCallStatus {
   CANCELLED
   RESCHEDULED
 }
-

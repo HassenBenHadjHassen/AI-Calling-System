@@ -1,32 +1,33 @@
-import {
-  type RouteConfig,
-  index,
-  route,
-  layout,
-} from "@react-router/dev/routes";
+import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
-  // root index → /
-  index("routes/home.tsx"),
+	// root index → /
+	index("routes/home.tsx"),
 
-  // /login
-  route("login", "routes/login.tsx"),
+	// /login
+	route("login", "routes/login.tsx"),
 
-  // /dashboard  (inferred from routes/dashboard.tsx)
-  layout("routes/dashboard.tsx", [
-    // /dashboard/upload
-    route("upload", "routes/dashboard/upload.tsx"),
+	// /dashboard → overview page
+	route("dashboard", "routes/dashboard/_index.tsx"),
 
-    // /dashboard/leads
-    route("leads", "routes/dashboard/leads.tsx"),
+	// /dashboard/upload
+	route("dashboard/upload", "routes/dashboard/upload.tsx"),
 
-    // /dashboard/campaign
-    route("campaign", "routes/dashboard/campaign.tsx"),
+	// /dashboard/leads
+	route("dashboard/leads", "routes/dashboard/leads.tsx"),
 
-    // /dashboard/activity
-    route("activity", "routes/dashboard/activity.tsx"),
+	// /dashboard/leads/:id
+	route("dashboard/leads/:id", "routes/dashboard/lead-detail.tsx"),
 
-    // /dashboard/stats
-    route("stats", "routes/dashboard/stats.tsx"),
-  ]),
+	// /dashboard/campaign
+	route("dashboard/campaign", "routes/dashboard/campaign.tsx"),
+
+	// /dashboard/campaign/:id
+	route("dashboard/campaign/:id", "routes/dashboard/campaign-detail.tsx"),
+
+	// /dashboard/activity
+	route("dashboard/activity", "routes/dashboard/activity.tsx"),
+
+	// /dashboard/stats
+	route("dashboard/stats", "routes/dashboard/stats.tsx"),
 ] satisfies RouteConfig;

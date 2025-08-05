@@ -2,14 +2,18 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import path from "path";
+import { createServer } from "http";
 import { env } from "./config/env";
 import callRoutes from "./routes/callRoutes";
 import authRoutes from "./routes/authRoutes";
 import leadRoutes from "./routes/leadRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
+import socketRoutes from "./routes/socketRoutes";
 import { ResponseUtils } from "./utils/responseUtils";
+import { socketService } from "./services/socketService";
 
 const app = express();
+const server = createServer(app);
 
 // Middleware
 app.use(
@@ -30,6 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/campaigns", campaignRoutes);
+app.use("/api/socket", socketRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -91,8 +96,13 @@ process.on("SIGINT", () => {
 });
 
 const PORT = env.PORT;
-app.listen(PORT, () => {
+
+// Initialize Socket.IO server
+socketService.initialize(server);
+
+server.listen(PORT, () => {
 	console.log(`🚀 Server running on port ${PORT}`);
 	console.log(`📊 Environment: ${env.NODE_ENV}`);
 	console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+	console.log(`🔌 Socket.IO server ready for real-time communication`);
 });
