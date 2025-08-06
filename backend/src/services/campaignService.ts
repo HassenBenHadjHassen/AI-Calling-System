@@ -36,7 +36,7 @@ export class CampaignService {
 				throw new Error("Cannot start campaign with no leads");
 			}
 
-			// Start the campaign (this will automatically stop any other active campaign)
+			// Start the campaign
 			const startedCampaign = await this.campaignRepository.start(campaignId);
 
 			// Automatically trigger calls for the campaign leads
@@ -86,21 +86,6 @@ export class CampaignService {
 			}
 
 			const stoppedCampaign = await this.campaignRepository.stop(campaignId);
-
-			// Optionally start the next available campaign
-			try {
-				const nextCampaign = await this.startNextAvailableCampaign();
-				if (nextCampaign) {
-					return {
-						...stoppedCampaign,
-						nextCampaignStarted: true,
-						nextCampaign: nextCampaign,
-						message: `Campaign stopped successfully. Next campaign "${nextCampaign.name}" started automatically.`,
-					};
-				}
-			} catch (nextCampaignError: any) {
-				console.error("Failed to start next campaign:", nextCampaignError);
-			}
 
 			return {
 				...stoppedCampaign,
@@ -177,13 +162,6 @@ export class CampaignService {
 
 	async autoStartFirstCampaign(): Promise<any | null> {
 		try {
-			// Check if there's already an active campaign
-			const activeCampaign = await this.campaignRepository.findActive();
-			if (activeCampaign) {
-				console.log(`📞 Campaign "${activeCampaign.name}" is already active`);
-				return activeCampaign;
-			}
-
 			// Find the first available campaign with leads
 			const campaigns = await this.campaignRepository.findByStatus(
 				CampaignStatus.STOPPED
@@ -212,6 +190,14 @@ export class CampaignService {
 			return await this.campaignRepository.findActive();
 		} catch (error: any) {
 			throw new Error(`Failed to get active campaign: ${error.message}`);
+		}
+	}
+
+	async getAllActiveCampaigns(): Promise<any[]> {
+		try {
+			return await this.campaignRepository.findAllActive();
+		} catch (error: any) {
+			throw new Error(`Failed to get active campaigns: ${error.message}`);
 		}
 	}
 

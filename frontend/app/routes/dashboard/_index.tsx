@@ -54,9 +54,9 @@ export default function DashboardIndex() {
 		refetchInterval: 30000, // Refresh every 30 seconds
 	});
 
-	const { data: activeCampaignData } = useQuery({
-		queryKey: ["active-campaign-overview"],
-		queryFn: () => campaignAPI.getActiveCampaign(),
+	const { data: activeCampaignsData } = useQuery({
+		queryKey: ["active-campaigns-overview"],
+		queryFn: () => campaignAPI.getAllActiveCampaigns(),
 		enabled: isAuthenticated,
 		refetchInterval: 10000, // Refresh every 10 seconds
 	});
@@ -249,15 +249,25 @@ export default function DashboardIndex() {
 						</CardHeader>
 						<CardContent>
 							<div className="space-y-3">
-								{activeCampaignData?.data ? (
-									<div className="flex items-center space-x-3">
-										<div className="w-2 h-2 bg-green-500 rounded-full"></div>
-										<div className="flex-1">
-											<p className="text-sm font-medium">
-												Active campaign: {activeCampaignData.data.name}
-											</p>
-											<p className="text-xs text-gray-500">Currently running</p>
-										</div>
+								{activeCampaignsData?.data &&
+								activeCampaignsData.data.length > 0 ? (
+									<div className="space-y-2">
+										{activeCampaignsData.data.map((campaign) => (
+											<div
+												key={campaign.id}
+												className="flex items-center space-x-3"
+											>
+												<div className="w-2 h-2 bg-green-500 rounded-full"></div>
+												<div className="flex-1">
+													<p className="text-sm font-medium">
+														Active campaign: {campaign.name}
+													</p>
+													<p className="text-xs text-gray-500">
+														Currently running
+													</p>
+												</div>
+											</div>
+										))}
 									</div>
 								) : (
 									<div className="flex items-center space-x-3">

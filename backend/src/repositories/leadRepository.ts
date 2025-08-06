@@ -3,6 +3,7 @@ import {
 	Lead,
 	LeadStatus,
 	ScheduledCallStatus,
+	CampaignStatus,
 } from "@prisma/client";
 
 export class LeadRepository {
@@ -155,10 +156,30 @@ export class LeadRepository {
 					scheduledCallNote: note,
 					scheduledCallStatus: ScheduledCallStatus.PENDING,
 					status: LeadStatus.SCHEDULED,
+					retryCount: {
+						increment: 1,
+					},
 				},
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to update scheduled call: ${error.message}`);
+		}
+	}
+
+	async clearScheduledCall(id: string): Promise<Lead> {
+		try {
+			return await this.prisma.lead.update({
+				where: { id },
+				data: {
+					scheduledCallAt: null,
+					scheduledCallNote: null,
+					scheduledCallStatus: null,
+					status: LeadStatus.CALLED, // Reset to CALLED status
+					retryCount: 0, // Reset retry count
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to clear scheduled call: ${error.message}`);
 		}
 	}
 
@@ -279,10 +300,17 @@ export class LeadRepository {
 
 			return await this.prisma.lead.findMany({
 				where: {
-					status: LeadStatus.NEW,
+					// Include leads with various statuses that can be reassigned to campaigns
+					status: {
+						in: [
+							LeadStatus.NEW,
+							LeadStatus.CALLED,
+							LeadStatus.FAILED,
+							LeadStatus.TRANSFERRED,
+						],
+					},
 					blacklisted: false,
-					scheduledCallAt: null,
-					OR: [{ campaignId: null }, { campaign: null }],
+					campaignId: null, // Simplified: just check that campaignId is null
 				},
 				include: {
 					callHistory: true,
@@ -397,7 +425,9 @@ export class LeadRepository {
 
 	async cleanupOrphanedLeads(): Promise<number> {
 		try {
-			// Find leads that have a campaignId but the campaign doesn't exist
+			let cleanedCount = 0;
+
+			// 1. Find leads that have a campaignId but the campaign doesn't exist
 			const orphanedLeads = await this.prisma.lead.findMany({
 				where: {
 					campaignId: { not: null },
@@ -416,11 +446,150 @@ export class LeadRepository {
 						campaignId: null,
 					},
 				});
+				cleanedCount += orphanedLeads.length;
 			}
 
-			return orphanedLeads.length;
+			// 2. Reset leads with INTERESTED status that are not in active campaigns
+			// These leads might have been marked as interested but the campaign ended
+			const interestedLeadsNotInActiveCampaigns =
+				await this.prisma.lead.findMany({
+					where: {
+						status: LeadStatus.INTERESTED,
+						OR: [
+							{ campaignId: null },
+							{ campaign: null },
+							{
+								campaign: {
+									status: {
+										in: [CampaignStatus.STOPPED, CampaignStatus.COMPLETED],
+									},
+								},
+							},
+						],
+					},
+				});
+
+			if (interestedLeadsNotInActiveCampaigns.length > 0) {
+				await this.prisma.lead.updateMany({
+					where: {
+						status: LeadStatus.INTERESTED,
+						OR: [
+							{ campaignId: null },
+							{ campaign: null },
+							{
+								campaign: {
+									status: {
+										in: [CampaignStatus.STOPPED, CampaignStatus.COMPLETED],
+									},
+								},
+							},
+						],
+					},
+					data: {
+						status: LeadStatus.CALLED,
+						campaignId: null,
+					},
+				});
+				cleanedCount += interestedLeadsNotInActiveCampaigns.length;
+			}
+
+			// 3. Reset leads with SCHEDULED status that have no scheduled call time
+			const invalidScheduledLeads = await this.prisma.lead.findMany({
+				where: {
+					status: LeadStatus.SCHEDULED,
+					scheduledCallAt: null,
+				},
+			});
+
+			if (invalidScheduledLeads.length > 0) {
+				await this.prisma.lead.updateMany({
+					where: {
+						status: LeadStatus.SCHEDULED,
+						scheduledCallAt: null,
+					},
+					data: {
+						status: LeadStatus.CALLED,
+						scheduledCallStatus: null,
+						scheduledCallNote: null,
+					},
+				});
+				cleanedCount += invalidScheduledLeads.length;
+			}
+
+			return cleanedCount;
 		} catch (error: any) {
 			throw new Error(`Failed to cleanup orphaned leads: ${error.message}`);
+		}
+	}
+
+	async resetAllLeads(): Promise<{ count: number }> {
+		try {
+			// Reset all leads to NEW status and remove them from campaigns
+			// This is useful for testing purposes
+			const result = await this.prisma.lead.updateMany({
+				where: {
+					blacklisted: false, // Don't reset blacklisted leads
+				},
+				data: {
+					status: LeadStatus.NEW,
+					campaignId: null,
+					scheduledCallAt: null,
+					scheduledCallNote: null,
+					scheduledCallStatus: null,
+				},
+			});
+			return result;
+		} catch (error: any) {
+			throw new Error(`Failed to reset all leads: ${error.message}`);
+		}
+	}
+
+	async debugLeadAvailability(): Promise<{
+		totalLeads: number;
+		leadsByStatus: Record<string, number>;
+		leadsByCampaignId: Record<string, number>;
+		blacklistedLeads: number;
+		scheduledLeads: number;
+		availableLeads: number;
+	}> {
+		try {
+			const allLeads = await this.prisma.lead.findMany({
+				include: {
+					callHistory: true,
+					campaign: true,
+				},
+			});
+
+			// Count leads by status
+			const leadsByStatus: Record<string, number> = {};
+			const leadsByCampaignId: Record<string, number> = {};
+			let blacklistedLeads = 0;
+			let scheduledLeads = 0;
+
+			allLeads.forEach((lead) => {
+				leadsByStatus[lead.status] = (leadsByStatus[lead.status] || 0) + 1;
+
+				if (lead.blacklisted) blacklistedLeads++;
+				if (lead.scheduledCallAt) scheduledLeads++;
+
+				const campaignId = lead.campaignId || "null";
+				leadsByCampaignId[campaignId] =
+					(leadsByCampaignId[campaignId] || 0) + 1;
+			});
+
+			// Get available leads using the current logic
+			const availableLeads = await this.findAvailableForCampaign();
+
+			return {
+				totalLeads: allLeads.length,
+				leadsByStatus,
+				leadsByCampaignId,
+				blacklistedLeads,
+				scheduledLeads,
+				availableLeads: availableLeads.length,
+			};
+		} catch (error: any) {
+			throw new Error(`Failed to debug lead availability: ${error.message}`);
 		}
 	}
 }

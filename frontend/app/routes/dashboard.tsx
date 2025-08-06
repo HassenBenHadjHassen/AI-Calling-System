@@ -4,12 +4,19 @@ import { useEffect } from "react";
 import { Outlet } from "react-router";
 import { Sidebar } from "~/components/dashboard/sidebar";
 import { Topbar } from "~/components/dashboard/topbar";
-import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
+import {
+	useAuth,
+	useClientSideAuth,
+	useGlobalSocketListeners,
+} from "~/hooks/use-auth";
 import { socketService } from "~/lib/socket";
 
 export default function Dashboard() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
+
+	// Set up global socket listeners for real-time updates
+	useGlobalSocketListeners();
 
 	useEffect(() => {
 		if (isClient && !isAuthenticated) {

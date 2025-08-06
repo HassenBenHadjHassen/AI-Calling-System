@@ -45,6 +45,27 @@ router.post(
 	leadController.cleanupOrphanedLeads.bind(leadController)
 );
 
+// Get lead statistics
+router.get(
+	"/statistics",
+	// authenticateToken, // Commented out for testing
+	leadController.getLeadStatistics.bind(leadController)
+);
+
+// Reset leads for testing
+router.post(
+	"/reset/testing",
+	// authenticateToken, // Commented out for testing
+	leadController.resetLeadsForTesting.bind(leadController)
+);
+
+// Debug lead availability
+router.get(
+	"/debug/availability",
+	// authenticateToken, // Commented out for testing
+	leadController.debugLeadAvailability.bind(leadController)
+);
+
 // General routes
 router.get(
 	"/",

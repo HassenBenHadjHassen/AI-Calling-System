@@ -3,6 +3,7 @@ import { LeadRepository } from "../repositories/leadRepository";
 import { CampaignRepository } from "../repositories/campaignRepository";
 import { vapiService } from "./vapiService";
 import { CallStatus, LeadStatus, ScheduledCallStatus } from "@prisma/client";
+import { socketService } from "./socketService";
 
 export class CallService {
 	private callRepository: CallRepository;
@@ -13,6 +14,33 @@ export class CallService {
 		this.callRepository = new CallRepository();
 		this.leadRepository = new LeadRepository();
 		this.campaignRepository = new CampaignRepository();
+	}
+
+	/**
+	 * Calculate the next retry time for a failed call
+	 * If current time is between 8am-10pm, schedule for 1 hour later
+	 * If outside business hours, schedule for next day at 8am
+	 */
+	private calculateNextRetryTime(): Date {
+		const now = new Date();
+		const currentHour = now.getHours();
+
+		// Business hours: 8am (8) to 10pm (22)
+		const businessStartHour = 8;
+		const businessEndHour = 22;
+
+		let nextRetryTime = new Date(now);
+
+		if (currentHour >= businessStartHour && currentHour < businessEndHour) {
+			// Within business hours: schedule for 1 hour later
+			nextRetryTime.setHours(currentHour + 1);
+		} else {
+			// Outside business hours: schedule for next day at 8am
+			nextRetryTime.setDate(now.getDate() + 1);
+			nextRetryTime.setHours(businessStartHour);
+		}
+
+		return nextRetryTime;
 	}
 
 	async triggerCall(leadId: string, title: string): Promise<any> {
@@ -62,6 +90,31 @@ export class CallService {
 					callRecord.id,
 					CallStatus.FAILED
 				);
+
+				// Schedule retry for failed call
+				const maxRetries = 3;
+				if (lead.retryCount >= maxRetries) {
+					// Max retries reached, mark as permanently failed
+					await this.leadRepository.updateStatus(lead.id, LeadStatus.FAILED);
+					console.log(
+						`Lead ${lead.id} has reached max retries (${maxRetries}), marking as permanently failed`
+					);
+				} else {
+					const nextRetryTime = this.calculateNextRetryTime();
+					await this.leadRepository.updateScheduledCall(
+						lead.id,
+						nextRetryTime,
+						`Retry ${
+							lead.retryCount + 1
+						}/${maxRetries} scheduled after failed call trigger at ${new Date().toLocaleString()}`
+					);
+					console.log(
+						`Scheduled retry ${lead.retryCount + 1}/${maxRetries} for lead ${
+							lead.id
+						} at ${nextRetryTime.toLocaleString()}`
+					);
+				}
+
 				throw new Error(`Failed to trigger call via Vapi: ${error.message}`);
 			}
 		} catch (error: any) {
@@ -105,13 +158,49 @@ export class CallService {
 				);
 			}
 
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("call-status-updated", {
+				callId: callRecord.id,
+				vapiCallId: callId,
+				status,
+				duration,
+				transferred,
+				transferTo,
+				leadId: callRecord.leadId,
+				campaignId: callRecord.campaignId,
+				timestamp: new Date().toISOString(),
+			});
+
 			// Update lead status based on call outcome
 			const lead = await this.leadRepository.findById(callRecord.leadId);
 			if (lead) {
 				if (status === "completed") {
 					await this.leadRepository.updateStatus(lead.id, LeadStatus.CALLED);
 				} else if (status === "failed") {
-					await this.leadRepository.updateStatus(lead.id, LeadStatus.FAILED);
+					// Check retry count to prevent infinite retries
+					const maxRetries = 3;
+					if (lead.retryCount >= maxRetries) {
+						// Max retries reached, mark as permanently failed
+						await this.leadRepository.updateStatus(lead.id, LeadStatus.FAILED);
+						console.log(
+							`Lead ${lead.id} has reached max retries (${maxRetries}), marking as permanently failed`
+						);
+					} else {
+						// Schedule a retry
+						const nextRetryTime = this.calculateNextRetryTime();
+						await this.leadRepository.updateScheduledCall(
+							lead.id,
+							nextRetryTime,
+							`Retry ${
+								lead.retryCount + 1
+							}/${maxRetries} scheduled after failed call at ${new Date().toLocaleString()}`
+						);
+						console.log(
+							`Scheduled retry ${lead.retryCount + 1}/${maxRetries} for lead ${
+								lead.id
+							} at ${nextRetryTime.toLocaleString()}`
+						);
+					}
 				}
 			}
 		} catch (error: any) {
@@ -130,12 +219,8 @@ export class CallService {
 					const result = await this.triggerCall(lead.id, title);
 					triggeredCalls.push(result);
 
-					// Update scheduled call status
-					await this.leadRepository.updateScheduledCall(
-						lead.id,
-						lead.scheduledCallAt!,
-						lead.scheduledCallNote || undefined
-					);
+					// Clear the scheduled call since it has been triggered
+					await this.leadRepository.clearScheduledCall(lead.id);
 				} catch (error: any) {
 					console.error(
 						`Failed to trigger scheduled call for lead ${lead.id}:`,

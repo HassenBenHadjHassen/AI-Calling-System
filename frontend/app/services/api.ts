@@ -366,6 +366,51 @@ export const leadAPI = {
 			{}
 		);
 	},
+
+	getLeadStatistics: async (): Promise<
+		ApiResponse<{
+			totalLeads: number;
+			leadsByStatus: Record<string, number>;
+			availableLeads: number;
+			blacklistedLeads: number;
+			scheduledLeads: number;
+			orphanedLeads: number;
+		}>
+	> => {
+		return apiService.get<{
+			totalLeads: number;
+			leadsByStatus: Record<string, number>;
+			availableLeads: number;
+			blacklistedLeads: number;
+			scheduledLeads: number;
+			orphanedLeads: number;
+		}>("/leads/statistics");
+	},
+
+	resetLeadsForTesting: async (): Promise<
+		ApiResponse<{ resetCount: number }>
+	> => {
+		return apiService.post<{ resetCount: number }>("/leads/reset/testing", {});
+	},
+	debugLeadAvailability: async (): Promise<
+		ApiResponse<{
+			totalLeads: number;
+			leadsByStatus: Record<string, number>;
+			leadsByCampaignId: Record<string, number>;
+			blacklistedLeads: number;
+			scheduledLeads: number;
+			availableLeads: number;
+		}>
+	> => {
+		return apiService.get<{
+			totalLeads: number;
+			leadsByStatus: Record<string, number>;
+			leadsByCampaignId: Record<string, number>;
+			blacklistedLeads: number;
+			scheduledLeads: number;
+			availableLeads: number;
+		}>("/leads/debug/availability");
+	},
 };
 
 // Campaign API
@@ -423,6 +468,10 @@ export const campaignAPI = {
 
 	getActiveCampaign: async (): Promise<ApiResponse<Campaign>> => {
 		return apiService.get<Campaign>("/campaigns/active/current");
+	},
+
+	getAllActiveCampaigns: async (): Promise<ApiResponse<Campaign[]>> => {
+		return apiService.get<Campaign[]>("/campaigns/active/all");
 	},
 
 	getNextCampaignToProcess: async (): Promise<ApiResponse<Campaign>> => {
@@ -519,12 +568,16 @@ export const callAPI = {
 		campaignId?: string;
 		leadId?: string;
 	}): Promise<ApiResponse<CallHistory[]>> => {
-		const queryParams = new URLSearchParams();
-		if (params.campaignId) queryParams.append("campaignId", params.campaignId);
-		if (params.leadId) queryParams.append("leadId", params.leadId);
-		const queryString = queryParams.toString();
-		const endpoint = `/calls/history${queryString ? `?${queryString}` : ""}`;
-		return apiService.get<CallHistory[]>(endpoint);
+		if (params.campaignId) {
+			return apiService.get<CallHistory[]>(
+				`/calls/campaign/${params.campaignId}`
+			);
+		}
+		if (params.leadId) {
+			return apiService.get<CallHistory[]>(`/calls/lead/${params.leadId}`);
+		}
+		// If no specific filters, return recent calls
+		return apiService.get<CallHistory[]>("/calls/recent");
 	},
 
 	getCallStats: async (params?: {

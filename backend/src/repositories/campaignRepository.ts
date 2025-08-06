@@ -49,6 +49,19 @@ export class CampaignRepository {
 		}
 	}
 
+	async findAllActive(): Promise<Campaign[]> {
+		try {
+			return await this.prisma.campaign.findMany({
+				where: { status: CampaignStatus.ACTIVE },
+				include: {
+					leads: true,
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to find active campaigns: ${error.message}`);
+		}
+	}
+
 	async findNextAvailable(): Promise<Campaign | null> {
 		try {
 			return await this.prisma.campaign.findFirst({
@@ -71,12 +84,6 @@ export class CampaignRepository {
 
 	async start(id: string): Promise<Campaign> {
 		try {
-			// Stop any other active campaign first
-			await this.prisma.campaign.updateMany({
-				where: { status: CampaignStatus.ACTIVE },
-				data: { status: CampaignStatus.STOPPED },
-			});
-
 			return await this.prisma.campaign.update({
 				where: { id },
 				data: {

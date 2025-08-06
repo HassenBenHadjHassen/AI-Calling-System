@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { LeadService } from "../services/leadService";
 import { ResponseUtils } from "../utils/responseUtils";
+import { socketService } from "../services/socketService";
 
 enum LeadStatus {
 	NEW = "NEW",
@@ -67,6 +68,12 @@ export class LeadController {
 				result = await this.leadService.uploadLeadsFromFile(req.file.path);
 			}
 
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("leads-uploaded", {
+				result,
+				timestamp: new Date().toISOString(),
+			});
+
 			ResponseUtils.success(res, result, "Leads uploaded successfully");
 		} catch (error: any) {
 			console.error("Error uploading leads:", error);
@@ -115,6 +122,14 @@ export class LeadController {
 
 			const lead = await this.leadService.updateLeadStatus(id, status);
 
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("lead-status-updated", {
+				leadId: id,
+				status,
+				lead,
+				timestamp: new Date().toISOString(),
+			});
+
 			ResponseUtils.success(res, lead, "Lead status updated successfully");
 		} catch (error: any) {
 			console.error("Error updating lead status:", error);
@@ -157,8 +172,12 @@ export class LeadController {
 
 	async scheduleCall(req: Request, res: Response): Promise<void> {
 		try {
-			const { phoneNumber } = req.params;
-			const { scheduledCallAt, note } = req.body;
+			const { customerPhoneNumber, scheduledCallAt, note } = req.body;
+
+			if (!customerPhoneNumber) {
+				ResponseUtils.badRequest(res, "Customer phone number is required");
+				return;
+			}
 
 			if (!scheduledCallAt) {
 				ResponseUtils.badRequest(res, "Scheduled call time is required");
@@ -176,7 +195,7 @@ export class LeadController {
 			}
 
 			const lead = await this.leadService.scheduleCall(
-				phoneNumber,
+				customerPhoneNumber,
 				scheduledTime,
 				note
 			);
@@ -190,9 +209,14 @@ export class LeadController {
 
 	async blacklistLead(req: Request, res: Response): Promise<void> {
 		try {
-			const { phoneNumber } = req.params;
+			const { customerPhoneNumber } = req.body;
 
-			const lead = await this.leadService.blacklistLead(phoneNumber);
+			if (!customerPhoneNumber) {
+				ResponseUtils.badRequest(res, "Customer phone number is required");
+				return;
+			}
+
+			const lead = await this.leadService.blacklistLead(customerPhoneNumber);
 
 			ResponseUtils.success(res, lead, "Lead blacklisted successfully");
 		} catch (error: any) {
@@ -272,7 +296,18 @@ export class LeadController {
 	async cleanAllLeads(req: Request, res: Response): Promise<void> {
 		try {
 			const result = await this.leadService.cleanAllLeads();
-			ResponseUtils.success(res, result, "All leads deleted successfully");
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("leads-cleaned", {
+				deletedCount: result.deletedCount,
+				timestamp: new Date().toISOString(),
+			});
+
+			ResponseUtils.success(
+				res,
+				result,
+				`All leads cleaned. Deleted ${result.deletedCount} leads.`
+			);
 		} catch (error: any) {
 			console.error("Error cleaning all leads:", error);
 			ResponseUtils.error(
@@ -286,11 +321,18 @@ export class LeadController {
 	async deleteLead(req: Request, res: Response): Promise<void> {
 		try {
 			const { id } = req.params;
-			const result = await this.leadService.deleteLead(id);
-			ResponseUtils.success(res, result, "Lead deleted successfully");
+			await this.leadService.deleteLead(id);
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("lead-deleted", {
+				leadId: id,
+				timestamp: new Date().toISOString(),
+			});
+
+			ResponseUtils.success(res, null, "Lead deleted successfully");
 		} catch (error: any) {
 			console.error("Error deleting lead:", error);
-			ResponseUtils.error(res, error.message || "Failed to delete lead", 500);
+			ResponseUtils.error(res, error.message || "Failed to delete lead", 400);
 		}
 	}
 
@@ -315,6 +357,52 @@ export class LeadController {
 		} catch (error: any) {
 			console.error("Error deleting leads:", error);
 			ResponseUtils.error(res, error.message || "Failed to delete leads", 500);
+		}
+	}
+
+	async getLeadStatistics(req: Request, res: Response): Promise<void> {
+		try {
+			const stats = await this.leadService.getLeadStatistics();
+			ResponseUtils.success(res, stats);
+		} catch (error: any) {
+			console.error("Error fetching lead statistics:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch lead statistics",
+				500
+			);
+		}
+	}
+
+	async resetLeadsForTesting(req: Request, res: Response): Promise<void> {
+		try {
+			const result = await this.leadService.resetLeadsForTesting();
+			ResponseUtils.success(
+				res,
+				result,
+				`${result.resetCount} leads reset for testing`
+			);
+		} catch (error: any) {
+			console.error("Error resetting leads for testing:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to reset leads for testing",
+				500
+			);
+		}
+	}
+
+	async debugLeadAvailability(req: Request, res: Response): Promise<void> {
+		try {
+			const debugInfo = await this.leadService.debugLeadAvailability();
+			ResponseUtils.success(res, debugInfo);
+		} catch (error: any) {
+			console.error("Error debugging lead availability:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to debug lead availability",
+				500
+			);
 		}
 	}
 }

@@ -42,9 +42,9 @@ export default function CampaignPage() {
 		enabled: isAuthenticated, // Only run when authenticated
 	});
 
-	const { data: activeCampaign } = useQuery({
-		queryKey: ["active-campaign"],
-		queryFn: () => campaignAPI.getActiveCampaign(),
+	const { data: activeCampaigns } = useQuery({
+		queryKey: ["active-campaigns"],
+		queryFn: () => campaignAPI.getAllActiveCampaigns(),
 		enabled: isAuthenticated, // Only run when authenticated
 	});
 
@@ -64,8 +64,10 @@ export default function CampaignPage() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 			queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign-overview"] });
+			queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+			queryClient.invalidateQueries({
+				queryKey: ["active-campaigns-overview"],
+			});
 		},
 	});
 
@@ -74,8 +76,10 @@ export default function CampaignPage() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 			queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign-overview"] });
+			queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+			queryClient.invalidateQueries({
+				queryKey: ["active-campaigns-overview"],
+			});
 		},
 	});
 
@@ -84,8 +88,10 @@ export default function CampaignPage() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 			queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign-overview"] });
+			queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+			queryClient.invalidateQueries({
+				queryKey: ["active-campaigns-overview"],
+			});
 			setShowCleanWarning(false);
 		},
 	});
@@ -95,8 +101,10 @@ export default function CampaignPage() {
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 			queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign"] });
-			queryClient.invalidateQueries({ queryKey: ["active-campaign-overview"] });
+			queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+			queryClient.invalidateQueries({
+				queryKey: ["active-campaigns-overview"],
+			});
 		},
 	});
 
@@ -112,11 +120,73 @@ export default function CampaignPage() {
 			// Connect to socket when dashboard loads
 			socketService.connect();
 
+			const socket = socketService.getSocket();
+			if (socket) {
+				// Listen for real-time campaign updates
+				socket.on("campaign-created", (data) => {
+					console.log("Campaign created:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaign-started", (data) => {
+					console.log("Campaign started:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaign-stopped", (data) => {
+					console.log("Campaign stopped:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaign-completed", (data) => {
+					console.log("Campaign completed:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaign-deleted", (data) => {
+					console.log("Campaign deleted:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaign-leads-added", (data) => {
+					console.log("Leads added to campaign:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaign-lead-removed", (data) => {
+					console.log("Lead removed from campaign:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+
+				socket.on("campaigns-cleaned", (data) => {
+					console.log("All campaigns cleaned:", data);
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				});
+			}
+
 			return () => {
+				if (socket) {
+					socket.off("campaign-created");
+					socket.off("campaign-started");
+					socket.off("campaign-stopped");
+					socket.off("campaign-completed");
+					socket.off("campaign-deleted");
+					socket.off("campaign-leads-added");
+					socket.off("campaign-lead-removed");
+					socket.off("campaigns-cleaned");
+				}
 				socketService.disconnect();
 			};
 		}
-	}, [isAuthenticated, isClient]);
+	}, [isAuthenticated, isClient, queryClient]);
 
 	// Show loading state during SSR
 	if (!isClient) {
@@ -207,10 +277,10 @@ export default function CampaignPage() {
 								</p>
 							</div>
 							<div className="flex space-x-2">
-								{/* <Button onClick={handleOpenCreateModal}>
+								<Button onClick={handleOpenCreateModal}>
 									<Plus className="h-4 w-4 mr-2" />
 									New Campaign
-								</Button> */}
+								</Button>
 								<Button
 									variant="destructive"
 									onClick={handleCleanAllCampaigns}
@@ -317,45 +387,50 @@ export default function CampaignPage() {
 							</Card>
 						)}
 
-						{activeCampaign?.data && (
+						{activeCampaigns?.data && activeCampaigns.data.length > 0 && (
 							<Card className="border-green-200 bg-green-50">
 								<CardHeader>
 									<CardTitle className="text-green-800">
-										Active Campaign
+										Active Campaigns ({activeCampaigns.data.length})
 									</CardTitle>
 									<CardDescription className="text-green-600">
-										Currently running campaign
+										Currently running campaigns
 									</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<div className="flex items-center justify-between">
-										<div>
-											<h3 className="font-semibold text-lg">
-												{activeCampaign.data.name}
-											</h3>
-											<p className="text-sm text-gray-600">
-												Started:{" "}
-												{activeCampaign.data.startedAt
-													? formatDate(activeCampaign.data.startedAt) ?? ""
-													: ""}
-											</p>
-											<p className="text-sm text-gray-600">
-												Leads: {activeCampaign.data.leads?.length || 0}
-											</p>
-										</div>
-										<div className="flex items-center space-x-4">
-											<Badge variant="default">ACTIVE</Badge>
-											<Button
-												variant="destructive"
-												onClick={() =>
-													handleToggleCampaign(activeCampaign.data)
-												}
-												disabled={stopCampaignMutation.isPending}
+									<div className="space-y-4">
+										{activeCampaigns.data.map((campaign) => (
+											<div
+												key={campaign.id}
+												className="flex items-center justify-between p-4 border border-green-200 rounded-lg bg-white"
 											>
-												<Square className="h-4 w-4 mr-2" />
-												Stop Campaign
-											</Button>
-										</div>
+												<div>
+													<h3 className="font-semibold text-lg">
+														{campaign.name}
+													</h3>
+													<p className="text-sm text-gray-600">
+														Started:{" "}
+														{campaign.startedAt
+															? formatDate(campaign.startedAt) ?? ""
+															: ""}
+													</p>
+													<p className="text-sm text-gray-600">
+														Leads: {campaign.leads?.length || 0}
+													</p>
+												</div>
+												<div className="flex items-center space-x-4">
+													<Badge variant="default">ACTIVE</Badge>
+													<Button
+														variant="destructive"
+														onClick={() => handleToggleCampaign(campaign)}
+														disabled={stopCampaignMutation.isPending}
+													>
+														<Square className="h-4 w-4 mr-2" />
+														Stop Campaign
+													</Button>
+												</div>
+											</div>
+										))}
 									</div>
 								</CardContent>
 							</Card>

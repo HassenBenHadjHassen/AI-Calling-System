@@ -24,6 +24,11 @@ router.get(
 	campaignController.getActiveCampaign.bind(campaignController)
 );
 router.get(
+	"/active/all",
+	// authenticateToken, // Commented out for testing
+	campaignController.getAllActiveCampaigns.bind(campaignController)
+);
+router.get(
 	"/next/process",
 	// authenticateToken, // Commented out for testing
 	campaignController.getNextCampaignToProcess.bind(campaignController)

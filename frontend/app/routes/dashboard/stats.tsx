@@ -126,7 +126,7 @@ export default function StatsPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+				<main className="flex-1 overflow-x-hidden overflow-y-hidden bg-gray-100 p-6">
 					<div className="space-y-6">
 						<div>
 							<h1 className="text-2xl font-bold text-gray-900">

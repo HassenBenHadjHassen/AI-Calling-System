@@ -12,12 +12,14 @@ import socketRoutes from "./routes/socketRoutes";
 import { ResponseUtils } from "./utils/responseUtils";
 import { socketService } from "./services/socketService";
 import { CampaignService } from "./services/campaignService";
+import { CallService } from "./services/callService";
 
 const app = express();
 const server = createServer(app);
 
-// Initialize campaign service for auto-start functionality
+// Initialize services
 const campaignService = new CampaignService();
+const callService = new CallService();
 
 // Middleware
 app.use(
@@ -91,11 +93,13 @@ app.use(
 // Graceful shutdown
 process.on("SIGTERM", () => {
 	console.log("SIGTERM received, shutting down gracefully");
+	clearInterval(scheduledCallsInterval);
 	process.exit(0);
 });
 
 process.on("SIGINT", () => {
 	console.log("SIGINT received, shutting down gracefully");
+	clearInterval(scheduledCallsInterval);
 	process.exit(0);
 });
 
@@ -104,9 +108,30 @@ const PORT = env.PORT;
 // Initialize Socket.IO server
 socketService.initialize(server);
 
+// Scheduled job to process due scheduled calls
+const processScheduledCalls = async () => {
+	try {
+		const triggeredCalls = await callService.triggerScheduledCalls(
+			"Scheduled Call"
+		);
+		if (triggeredCalls.length > 0) {
+			console.log(`📞 Triggered ${triggeredCalls.length} scheduled calls`);
+		}
+	} catch (error) {
+		console.error("❌ Error processing scheduled calls:", error);
+	}
+};
+
+// Start scheduled job to check for due scheduled calls every minute
+const scheduledCallsInterval = setInterval(processScheduledCalls, 60000); // 60 seconds
+
+// Initial run after 10 seconds to allow server to fully start
+setTimeout(processScheduledCalls, 10000);
+
 server.listen(PORT, async () => {
 	console.log(`🚀 Server running on port ${PORT}`);
 	console.log(`📊 Environment: ${env.NODE_ENV}`);
 	console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
 	console.log(`🔌 Socket.IO server ready for real-time communication`);
+	console.log(`⏰ Scheduled calls processor started (runs every minute)`);
 });

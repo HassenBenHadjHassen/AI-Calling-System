@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { CampaignService } from "../services/campaignService";
 import { ResponseUtils } from "../utils/responseUtils";
 import { CampaignStatus } from "@prisma/client";
+import { socketService } from "../services/socketService";
 
 export class CampaignController {
 	private campaignService: CampaignService;
@@ -20,6 +21,12 @@ export class CampaignController {
 			}
 
 			const campaign = await this.campaignService.createCampaign(name);
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-created", {
+				campaign,
+				timestamp: new Date().toISOString(),
+			});
 
 			ResponseUtils.success(
 				res,
@@ -81,6 +88,12 @@ export class CampaignController {
 			const { id } = req.params;
 			const campaign = await this.campaignService.startCampaign(id);
 
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-started", {
+				campaign,
+				timestamp: new Date().toISOString(),
+			});
+
 			ResponseUtils.success(res, campaign, "Campaign started successfully");
 		} catch (error: any) {
 			console.error("Error starting campaign:", error);
@@ -97,6 +110,12 @@ export class CampaignController {
 			const { id } = req.params;
 			const campaign = await this.campaignService.stopCampaign(id);
 
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-stopped", {
+				campaign,
+				timestamp: new Date().toISOString(),
+			});
+
 			ResponseUtils.success(res, campaign, "Campaign stopped successfully");
 		} catch (error: any) {
 			console.error("Error stopping campaign:", error);
@@ -108,6 +127,12 @@ export class CampaignController {
 		try {
 			const { id } = req.params;
 			const campaign = await this.campaignService.completeCampaign(id);
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-completed", {
+				campaign,
+				timestamp: new Date().toISOString(),
+			});
 
 			ResponseUtils.success(res, campaign, "Campaign completed successfully");
 		} catch (error: any) {
@@ -124,6 +149,12 @@ export class CampaignController {
 		try {
 			const { id } = req.params;
 			await this.campaignService.deleteCampaign(id);
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-deleted", {
+				campaignId: id,
+				timestamp: new Date().toISOString(),
+			});
 
 			ResponseUtils.success(res, null, "Campaign deleted successfully");
 		} catch (error: any) {
@@ -150,6 +181,13 @@ export class CampaignController {
 				id,
 				leadIds
 			);
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-leads-added", {
+				campaign,
+				leadIds,
+				timestamp: new Date().toISOString(),
+			});
 
 			ResponseUtils.success(
 				res,
@@ -180,6 +218,13 @@ export class CampaignController {
 				leadId
 			);
 
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaign-lead-removed", {
+				campaign,
+				leadId,
+				timestamp: new Date().toISOString(),
+			});
+
 			ResponseUtils.success(
 				res,
 				campaign,
@@ -205,6 +250,21 @@ export class CampaignController {
 			ResponseUtils.error(
 				res,
 				error.message || "Failed to fetch active campaign",
+				500
+			);
+		}
+	}
+
+	async getAllActiveCampaigns(req: Request, res: Response): Promise<void> {
+		try {
+			const campaigns = await this.campaignService.getAllActiveCampaigns();
+
+			ResponseUtils.success(res, campaigns);
+		} catch (error: any) {
+			console.error("Error fetching active campaigns:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to fetch active campaigns",
 				500
 			);
 		}
@@ -243,6 +303,12 @@ export class CampaignController {
 	async cleanAllCampaigns(req: Request, res: Response): Promise<void> {
 		try {
 			const result = await this.campaignService.cleanAllCampaigns();
+
+			// Emit real-time update to all connected clients
+			socketService.broadcastToAll("campaigns-cleaned", {
+				deletedCount: result.deletedCount,
+				timestamp: new Date().toISOString(),
+			});
 
 			ResponseUtils.success(
 				res,

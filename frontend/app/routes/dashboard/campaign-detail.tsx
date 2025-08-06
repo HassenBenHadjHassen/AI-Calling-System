@@ -89,6 +89,15 @@ export default function CampaignDetailPage() {
 		enabled: isAuthenticated && showAddLeadsModal,
 	});
 
+	const { data: leadStats, isLoading: leadStatsLoading } = useQuery({
+		queryKey: ["lead-statistics"],
+		queryFn: () => leadAPI.getLeadStatistics(),
+		enabled:
+			isAuthenticated &&
+			showAddLeadsModal &&
+			availableLeads?.data?.length === 0,
+	});
+
 	// Debug logging
 	useEffect(() => {
 		if (showAddLeadsModal) {
@@ -155,6 +164,29 @@ export default function CampaignDetailPage() {
 		mutationFn: () => leadAPI.cleanupOrphanedLeads(),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["available-leads"] });
+			queryClient.invalidateQueries({ queryKey: ["lead-statistics"] });
+		},
+	});
+
+	const resetLeadsForTestingMutation = useMutation({
+		mutationFn: () => leadAPI.resetLeadsForTesting(),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["available-leads"] });
+			queryClient.invalidateQueries({ queryKey: ["lead-statistics"] });
+		},
+	});
+
+	const debugLeadAvailabilityMutation = useMutation({
+		mutationFn: () => leadAPI.debugLeadAvailability(),
+		onSuccess: (data) => {
+			console.log("Debug Info:", data.data);
+			alert(
+				`Debug Info:\nTotal: ${data.data.totalLeads}\nAvailable: ${
+					data.data.availableLeads
+				}\nBy Status: ${JSON.stringify(
+					data.data.leadsByStatus
+				)}\nBy CampaignId: ${JSON.stringify(data.data.leadsByCampaignId)}`
+			);
 		},
 	});
 
@@ -634,15 +666,59 @@ export default function CampaignDetailPage() {
 												No available leads found. All leads are either assigned
 												to campaigns, blacklisted, or scheduled.
 											</div>
-											<Button
-												onClick={() => cleanupOrphanedLeadsMutation.mutate()}
-												disabled={cleanupOrphanedLeadsMutation.isPending}
-												variant="outline"
-											>
-												{cleanupOrphanedLeadsMutation.isPending
-													? "Cleaning..."
-													: "Clean Orphaned Leads"}
-											</Button>
+
+											{leadStats?.data && (
+												<div className="text-sm text-gray-400 mb-4 space-y-1">
+													<div>Total leads: {leadStats.data.totalLeads}</div>
+													<div>
+														Available leads: {leadStats.data.availableLeads}
+													</div>
+													<div>
+														Blacklisted: {leadStats.data.blacklistedLeads}
+													</div>
+													<div>Scheduled: {leadStats.data.scheduledLeads}</div>
+													<div>Orphaned: {leadStats.data.orphanedLeads}</div>
+													{Object.entries(leadStats.data.leadsByStatus).map(
+														([status, count]) => (
+															<div key={status}>
+																Status {status}: {count}
+															</div>
+														)
+													)}
+												</div>
+											)}
+
+											<div className="flex space-x-2">
+												<Button
+													onClick={() => cleanupOrphanedLeadsMutation.mutate()}
+													disabled={cleanupOrphanedLeadsMutation.isPending}
+													variant="outline"
+												>
+													{cleanupOrphanedLeadsMutation.isPending
+														? "Cleaning..."
+														: "Clean Orphaned Leads"}
+												</Button>
+												<Button
+													onClick={() => resetLeadsForTestingMutation.mutate()}
+													disabled={resetLeadsForTestingMutation.isPending}
+													variant="outline"
+													className="text-orange-600 border-orange-600 hover:bg-orange-50"
+												>
+													{resetLeadsForTestingMutation.isPending
+														? "Resetting..."
+														: "Reset All Leads (Testing)"}
+												</Button>
+												<Button
+													onClick={() => debugLeadAvailabilityMutation.mutate()}
+													disabled={debugLeadAvailabilityMutation.isPending}
+													variant="outline"
+													className="text-blue-600 border-blue-600 hover:bg-blue-50"
+												>
+													{debugLeadAvailabilityMutation.isPending
+														? "Debugging..."
+														: "Debug Lead Availability"}
+												</Button>
+											</div>
 										</div>
 									) : (
 										<div className="space-y-4">

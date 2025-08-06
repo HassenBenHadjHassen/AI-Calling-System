@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import { authAPI, type User } from "../services/api";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { socketService } from "~/lib/socket";
 
 interface AuthState {
 	user: User | null;
@@ -101,4 +103,23 @@ export const useClientSideAuth = () => {
 		redirectIfNotAuthenticated,
 		redirectIfAuthenticated,
 	};
+};
+
+// Hook for setting up global socket listeners
+export const useGlobalSocketListeners = () => {
+	const queryClient = useQueryClient();
+	const { isAuthenticated } = useAuth();
+
+	useEffect(() => {
+		if (isAuthenticated) {
+			const socket = socketService.connect();
+
+			// Set up global listeners for campaign and call updates
+			socketService.setupGlobalListeners(queryClient);
+
+			return () => {
+				// Clean up is handled by individual components
+			};
+		}
+	}, [isAuthenticated, queryClient]);
 };

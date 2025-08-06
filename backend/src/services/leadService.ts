@@ -302,8 +302,17 @@ export class LeadService {
 	}
 
 	private formatPhoneNumber(phone: string): string {
-		// Remove all non-digit characters
-		const cleaned = phone.replace(/\D/g, "");
+		if (!phone) {
+			throw new Error("Phone number is required");
+		}
+
+		// Remove all non-digit characters except +
+		const cleaned = phone.replace(/[^\d+]/g, "");
+
+		// If already in E.164 format (starts with +), return as is
+		if (cleaned.startsWith("+")) {
+			return cleaned;
+		}
 
 		// Match French numbers starting with 0 and followed by 9 digits
 		const match = cleaned.match(/^0(\d{9})$/);
@@ -313,7 +322,12 @@ export class LeadService {
 			return `+33${match[1]}`;
 		}
 
-		// If already in E.164 or invalid format, return as is
+		// If it's a valid number without country code, assume it's French
+		if (cleaned.length === 10 && cleaned.startsWith("0")) {
+			return `+33${cleaned.substring(1)}`;
+		}
+
+		// Return as is if no pattern matches
 		return phone;
 	}
 
@@ -806,6 +820,69 @@ export class LeadService {
 			};
 		} catch (error: any) {
 			throw new Error(`Failed to get processing statistics: ${error.message}`);
+		}
+	}
+
+	async getLeadStatistics(): Promise<{
+		totalLeads: number;
+		leadsByStatus: Record<string, number>;
+		availableLeads: number;
+		blacklistedLeads: number;
+		scheduledLeads: number;
+		orphanedLeads: number;
+	}> {
+		try {
+			const allLeads = await this.leadRepository.findAll();
+			const availableLeads =
+				await this.leadRepository.findAvailableForCampaign();
+
+			// Count leads by status
+			const leadsByStatus: Record<string, number> = {};
+			allLeads.forEach((lead) => {
+				leadsByStatus[lead.status] = (leadsByStatus[lead.status] || 0) + 1;
+			});
+
+			// Count orphaned leads (leads with campaignId but no campaign)
+			const orphanedLeads = allLeads.filter(
+				(lead) => lead.campaignId && !(lead as any).campaign
+			);
+
+			return {
+				totalLeads: allLeads.length,
+				leadsByStatus,
+				availableLeads: availableLeads.length,
+				blacklistedLeads: allLeads.filter((lead) => lead.blacklisted).length,
+				scheduledLeads: allLeads.filter((lead) => lead.scheduledCallAt).length,
+				orphanedLeads: orphanedLeads.length,
+			};
+		} catch (error: any) {
+			throw new Error(`Failed to get lead statistics: ${error.message}`);
+		}
+	}
+
+	async resetLeadsForTesting(): Promise<{ resetCount: number }> {
+		try {
+			// Reset all leads to NEW status and remove them from campaigns
+			// This is useful for testing purposes
+			const result = await this.leadRepository.resetAllLeads();
+			return { resetCount: result.count };
+		} catch (error: any) {
+			throw new Error(`Failed to reset leads for testing: ${error.message}`);
+		}
+	}
+
+	async debugLeadAvailability(): Promise<{
+		totalLeads: number;
+		leadsByStatus: Record<string, number>;
+		leadsByCampaignId: Record<string, number>;
+		blacklistedLeads: number;
+		scheduledLeads: number;
+		availableLeads: number;
+	}> {
+		try {
+			return await this.leadRepository.debugLeadAvailability();
+		} catch (error: any) {
+			throw new Error(`Failed to debug lead availability: ${error.message}`);
 		}
 	}
 }

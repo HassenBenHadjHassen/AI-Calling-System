@@ -19,6 +19,7 @@ import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { formatPhoneNumber, formatDate } from "~/lib/utils";
 import { socketService } from "~/lib/socket";
 import { callAPI, type CallHistory } from "~/services/api";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ActivityItem {
 	id: string;
@@ -51,6 +52,7 @@ export default function ActivityPage() {
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 	const [activities, setActivities] = useState<ActivityItem[]>([]);
 	const [isDownloading, setIsDownloading] = useState(false);
+	const queryClient = useQueryClient();
 
 	useEffect(() => {
 		if (isClient) {
@@ -78,8 +80,38 @@ export default function ActivityPage() {
 		if (isAuthenticated && isClient) {
 			// Connect to socket when dashboard loads
 			socketService.connect();
+
+			const socket = socketService.getSocket();
+			if (socket) {
+				// Listen for real-time call status updates
+				socket.on("call-status-updated", (data) => {
+					console.log("Call status updated:", data);
+					// Invalidate queries to refresh data
+					queryClient.invalidateQueries({ queryKey: ["call-history"] });
+					queryClient.invalidateQueries({ queryKey: ["recent-calls"] });
+				});
+
+				// Listen for real-time activity updates
+				socket.on("call-activity", (activity: ActivityItem) => {
+					setActivities((prev) => [activity, ...prev.slice(0, 49)]); // Keep last 50 items
+				});
+
+				// Listen for mock activity (for demo)
+				socket.on("mock-activity", (activity: ActivityItem) => {
+					setActivities((prev) => [activity, ...prev.slice(0, 49)]);
+				});
+			}
+
+			return () => {
+				if (socket) {
+					socket.off("call-status-updated");
+					socket.off("call-activity");
+					socket.off("mock-activity");
+				}
+				socketService.disconnect();
+			};
 		}
-	}, [isAuthenticated, isClient]);
+	}, [isAuthenticated, isClient, queryClient]);
 
 	// Transform real call data into activity format
 	useEffect(() => {
@@ -100,29 +132,6 @@ export default function ActivityPage() {
 			setActivities(transformedActivities);
 		}
 	}, [recentCallsData]);
-
-	useEffect(() => {
-		const socket = socketService.getSocket();
-
-		if (socket) {
-			// Listen for real-time activity updates
-			socket.on("call-activity", (activity: ActivityItem) => {
-				setActivities((prev) => [activity, ...prev.slice(0, 49)]); // Keep last 50 items
-			});
-
-			// Listen for mock activity (for demo)
-			socket.on("mock-activity", (activity: ActivityItem) => {
-				setActivities((prev) => [activity, ...prev.slice(0, 49)]);
-			});
-		}
-
-		return () => {
-			if (socket) {
-				socket.off("call-activity");
-				socket.off("mock-activity");
-			}
-		};
-	}, []);
 
 	// Download activity data as CSV
 	const downloadActivityData = async () => {
