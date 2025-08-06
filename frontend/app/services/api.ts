@@ -102,6 +102,7 @@ export interface Lead {
 	scheduledCallStatus?: ScheduledCallStatus;
 	createdAt: string;
 	updatedAt: string;
+	campaign?: Campaign;
 }
 
 export type LeadStatus =
@@ -302,6 +303,20 @@ export const leadAPI = {
 		return apiService.patch<Lead>(`/leads/${id}/status`, { status });
 	},
 
+	updateLead: async (
+		id: string,
+		data: {
+			name?: string;
+			address?: string;
+			postalCode?: string;
+			city?: string;
+			phone1?: string;
+			phone2?: string;
+		}
+	): Promise<ApiResponse<Lead>> => {
+		return apiService.put<Lead>(`/leads/${id}`, data);
+	},
+
 	scheduleCall: async (
 		data: ScheduleCallRequest
 	): Promise<ApiResponse<Lead>> => {
@@ -328,6 +343,19 @@ export const leadAPI = {
 
 	cleanAllLeads: async (): Promise<ApiResponse<{ deletedCount: number }>> => {
 		return apiService.delete<{ deletedCount: number }>("/leads/clean/all");
+	},
+
+	deleteLead: async (id: string): Promise<ApiResponse<{ message: string }>> => {
+		return apiService.delete<{ message: string }>(`/leads/${id}`);
+	},
+
+	deleteLeads: async (
+		leadIds: string[]
+	): Promise<ApiResponse<{ message: string; deletedCount: number }>> => {
+		return apiService.post<{ message: string; deletedCount: number }>(
+			"/leads/delete/batch",
+			{ leadIds }
+		);
 	},
 
 	cleanupOrphanedLeads: async (): Promise<

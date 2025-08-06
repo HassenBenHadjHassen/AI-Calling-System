@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import {
 	Clock,
 	CheckCircle,
@@ -27,6 +28,8 @@ interface ActivityItem {
 	timestamp: string;
 	duration?: number;
 	notes?: string;
+	campaignId?: string;
+	campaignName?: string;
 }
 
 const statusIcons = {
@@ -90,6 +93,8 @@ export default function ActivityPage() {
 					timestamp: call.callTime,
 					duration: call.duration,
 					notes: call.notes,
+					campaignId: call.lead?.campaign?.id,
+					campaignName: call.lead?.campaign?.name,
 				})
 			);
 			setActivities(transformedActivities);
@@ -134,6 +139,7 @@ export default function ActivityPage() {
 						"Status",
 						"Call Time",
 						"Duration (seconds)",
+						"Campaign",
 						"Notes",
 					].join(","),
 					// CSV rows
@@ -144,6 +150,7 @@ export default function ActivityPage() {
 							`"${call.callStatus}"`,
 							`"${formatDate(call.callTime)}"`,
 							call.duration || 0,
+							`"${call.lead?.campaign?.name || ""}"`,
 							`"${call.notes || ""}"`,
 						].join(",")
 					),
@@ -376,6 +383,17 @@ export default function ActivityPage() {
 																<span>{formatPhoneNumber(activity.phone)}</span>
 																<span className="text-gray-300">•</span>
 																<span>{formatDate(activity.timestamp)}</span>
+																{activity.campaignName && (
+																	<>
+																		<span className="text-gray-300">•</span>
+																		<Link
+																			to={`/dashboard/campaign/${activity.campaignId}`}
+																			className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium"
+																		>
+																			{activity.campaignName}
+																		</Link>
+																	</>
+																)}
 															</div>
 															{activity.notes && (
 																<div className="text-xs text-gray-500 mt-2 p-2 bg-blue-50 rounded-lg border-l-2 border-blue-200">

@@ -258,4 +258,54 @@ export class CampaignController {
 			);
 		}
 	}
+
+	async startNextCampaign(req: Request, res: Response): Promise<void> {
+		try {
+			const result = await this.campaignService.startNextAvailableCampaign();
+
+			if (result) {
+				ResponseUtils.success(
+					res,
+					result,
+					"Next campaign started successfully"
+				);
+			} else {
+				ResponseUtils.success(res, null, "No available campaigns to start");
+			}
+		} catch (error: any) {
+			console.error("Error starting next campaign:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to start next campaign",
+				400
+			);
+		}
+	}
+
+	async autoStartFirstCampaign(req: Request, res: Response): Promise<void> {
+		try {
+			const result = await this.campaignService.autoStartFirstCampaign();
+
+			if (result) {
+				ResponseUtils.success(
+					res,
+					result,
+					"First campaign auto-started successfully"
+				);
+			} else {
+				ResponseUtils.success(
+					res,
+					null,
+					"No campaigns available for auto-start"
+				);
+			}
+		} catch (error: any) {
+			console.error("Error auto-starting first campaign:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to auto-start first campaign",
+				400
+			);
+		}
+	}
 }

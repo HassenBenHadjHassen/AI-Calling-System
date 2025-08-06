@@ -207,10 +207,10 @@ export default function CampaignPage() {
 								</p>
 							</div>
 							<div className="flex space-x-2">
-								<Button onClick={handleOpenCreateModal}>
+								{/* <Button onClick={handleOpenCreateModal}>
 									<Plus className="h-4 w-4 mr-2" />
 									New Campaign
-								</Button>
+								</Button> */}
 								<Button
 									variant="destructive"
 									onClick={handleCleanAllCampaigns}

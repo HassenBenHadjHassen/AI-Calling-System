@@ -11,9 +11,13 @@ import campaignRoutes from "./routes/campaignRoutes";
 import socketRoutes from "./routes/socketRoutes";
 import { ResponseUtils } from "./utils/responseUtils";
 import { socketService } from "./services/socketService";
+import { CampaignService } from "./services/campaignService";
 
 const app = express();
 const server = createServer(app);
+
+// Initialize campaign service for auto-start functionality
+const campaignService = new CampaignService();
 
 // Middleware
 app.use(
@@ -100,7 +104,7 @@ const PORT = env.PORT;
 // Initialize Socket.IO server
 socketService.initialize(server);
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
 	console.log(`🚀 Server running on port ${PORT}`);
 	console.log(`📊 Environment: ${env.NODE_ENV}`);
 	console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);

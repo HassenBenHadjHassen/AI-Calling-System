@@ -126,6 +126,35 @@ export class LeadController {
 		}
 	}
 
+	async updateLead(req: Request, res: Response): Promise<void> {
+		try {
+			const { id } = req.params;
+			const { name, address, postalCode, city, phone1, phone2 } = req.body;
+
+			if (!name && !address && !postalCode && !city && !phone1 && !phone2) {
+				ResponseUtils.badRequest(
+					res,
+					"At least one field must be provided for update"
+				);
+				return;
+			}
+
+			const lead = await this.leadService.updateLead(id, {
+				name,
+				address,
+				postalCode,
+				city,
+				phone1,
+				phone2,
+			});
+
+			ResponseUtils.success(res, lead, "Lead updated successfully");
+		} catch (error: any) {
+			console.error("Error updating lead:", error);
+			ResponseUtils.error(res, error.message || "Failed to update lead", 400);
+		}
+	}
+
 	async scheduleCall(req: Request, res: Response): Promise<void> {
 		try {
 			const { phoneNumber } = req.params;
@@ -243,12 +272,7 @@ export class LeadController {
 	async cleanAllLeads(req: Request, res: Response): Promise<void> {
 		try {
 			const result = await this.leadService.cleanAllLeads();
-
-			ResponseUtils.success(
-				res,
-				result,
-				`All leads cleaned. Deleted ${result.deletedCount} leads.`
-			);
+			ResponseUtils.success(res, result, "All leads deleted successfully");
 		} catch (error: any) {
 			console.error("Error cleaning all leads:", error);
 			ResponseUtils.error(
@@ -256,6 +280,41 @@ export class LeadController {
 				error.message || "Failed to clean all leads",
 				500
 			);
+		}
+	}
+
+	async deleteLead(req: Request, res: Response): Promise<void> {
+		try {
+			const { id } = req.params;
+			const result = await this.leadService.deleteLead(id);
+			ResponseUtils.success(res, result, "Lead deleted successfully");
+		} catch (error: any) {
+			console.error("Error deleting lead:", error);
+			ResponseUtils.error(res, error.message || "Failed to delete lead", 500);
+		}
+	}
+
+	async deleteLeads(req: Request, res: Response): Promise<void> {
+		try {
+			const { leadIds } = req.body;
+
+			if (!Array.isArray(leadIds) || leadIds.length === 0) {
+				ResponseUtils.badRequest(
+					res,
+					"leadIds array is required and must not be empty"
+				);
+				return;
+			}
+
+			const result = await this.leadService.deleteLeads(leadIds);
+			ResponseUtils.success(
+				res,
+				result,
+				`${result.deletedCount} leads deleted successfully`
+			);
+		} catch (error: any) {
+			console.error("Error deleting leads:", error);
+			ResponseUtils.error(res, error.message || "Failed to delete leads", 500);
 		}
 	}
 }

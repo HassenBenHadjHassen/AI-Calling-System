@@ -262,7 +262,7 @@ export class LeadService {
 		let duplicatesSkipped = 0;
 
 		// Process leads in larger batches for better performance
-		const batchSize = 50; // Increased from 5 to 50 for better performance
+		const batchSize = 5;
 
 		for (let i = 0; i < leads.length; i += batchSize) {
 			const batch = leads.slice(i, i + batchSize);
@@ -584,6 +584,29 @@ export class LeadService {
 		}
 	}
 
+	async updateLead(
+		leadId: string,
+		data: {
+			name?: string;
+			address?: string;
+			postalCode?: string;
+			city?: string;
+			phone1?: string;
+			phone2?: string;
+		}
+	): Promise<any> {
+		try {
+			const lead = await this.leadRepository.findById(leadId);
+			if (!lead) {
+				throw new Error("Lead not found");
+			}
+
+			return await this.leadRepository.update(leadId, data);
+		} catch (error: any) {
+			throw new Error(`Failed to update lead: ${error.message}`);
+		}
+	}
+
 	async scheduleCall(
 		customerPhoneNumber: string,
 		scheduledCallAt: Date,
@@ -728,6 +751,42 @@ export class LeadService {
 			return { deletedCount };
 		} catch (error: any) {
 			throw new Error(`Failed to clean all leads: ${error.message}`);
+		}
+	}
+
+	async deleteLead(leadId: string): Promise<any> {
+		try {
+			const lead = await this.leadRepository.findById(leadId);
+			if (!lead) {
+				throw new Error("Lead not found");
+			}
+
+			await this.leadRepository.deleteById(leadId);
+			return { message: "Lead deleted successfully" };
+		} catch (error: any) {
+			throw new Error(`Failed to delete lead: ${error.message}`);
+		}
+	}
+
+	async deleteLeads(leadIds: string[]): Promise<any> {
+		try {
+			if (leadIds.length === 0) {
+				throw new Error("No lead IDs provided");
+			}
+
+			// Verify all leads exist
+			const existingLeads = await this.leadRepository.findByIds(leadIds);
+			if (existingLeads.length !== leadIds.length) {
+				throw new Error("Some leads not found");
+			}
+
+			const deletedCount = await this.leadRepository.deleteByIds(leadIds);
+			return {
+				message: `${deletedCount} leads deleted successfully`,
+				deletedCount,
+			};
+		} catch (error: any) {
+			throw new Error(`Failed to delete leads: ${error.message}`);
 		}
 	}
 

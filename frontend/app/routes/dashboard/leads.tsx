@@ -49,6 +49,7 @@ export default function LeadsPage() {
 	const [statusFilter, setStatusFilter] = useState<LeadStatus | "ALL">("ALL");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [showCleanWarning, setShowCleanWarning] = useState(false);
+	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
 	const itemsPerPage = 10;
 
 	useEffect(() => {
@@ -72,8 +73,66 @@ export default function LeadsPage() {
 		},
 	});
 
+	const deleteLeadMutation = useMutation({
+		mutationFn: (leadId: string) => leadAPI.deleteLead(leadId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["leads"] });
+		},
+	});
+
+	const deleteLeadsMutation = useMutation({
+		mutationFn: (leadIds: string[]) => leadAPI.deleteLeads(leadIds),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["leads"] });
+			setSelectedLeads([]);
+		},
+	});
+
 	const handleCleanAllLeads = () => {
 		setShowCleanWarning(true);
+	};
+
+	const handleDeleteLead = (leadId: string, leadName: string) => {
+		if (
+			confirm(
+				`Are you sure you want to delete the lead "${leadName}"? This action cannot be undone.`
+			)
+		) {
+			deleteLeadMutation.mutate(leadId);
+		}
+	};
+
+	const handleDeleteSelectedLeads = () => {
+		if (selectedLeads.length === 0) return;
+
+		const leadNames = paginatedLeads
+			.filter((lead) => selectedLeads.includes(lead.id))
+			.map((lead) => lead.name)
+			.join(", ");
+
+		if (
+			confirm(
+				`Are you sure you want to delete ${selectedLeads.length} selected leads?\n\nSelected: ${leadNames}\n\nThis action cannot be undone.`
+			)
+		) {
+			deleteLeadsMutation.mutate(selectedLeads);
+		}
+	};
+
+	const handleSelectLead = (leadId: string) => {
+		setSelectedLeads((prev) =>
+			prev.includes(leadId)
+				? prev.filter((id) => id !== leadId)
+				: [...prev, leadId]
+		);
+	};
+
+	const handleSelectAll = () => {
+		if (selectedLeads.length === paginatedLeads.length) {
+			setSelectedLeads([]);
+		} else {
+			setSelectedLeads(paginatedLeads.map((lead) => lead.id));
+		}
 	};
 
 	const confirmCleanAllLeads = () => {
@@ -137,14 +196,26 @@ export default function LeadsPage() {
 								</h1>
 								<p className="text-gray-600">Manage and track your leads</p>
 							</div>
-							<Button
-								variant="destructive"
-								onClick={handleCleanAllLeads}
-								disabled={cleanAllLeadsMutation.isPending}
-							>
-								<Trash2 className="h-4 w-4 mr-2" />
-								Clean All Leads
-							</Button>
+							<div className="flex space-x-2">
+								{selectedLeads.length > 0 && (
+									<Button
+										variant="destructive"
+										onClick={handleDeleteSelectedLeads}
+										disabled={deleteLeadsMutation.isPending}
+									>
+										<Trash2 className="h-4 w-4 mr-2" />
+										Delete Selected ({selectedLeads.length})
+									</Button>
+								)}
+								<Button
+									variant="destructive"
+									onClick={handleCleanAllLeads}
+									disabled={cleanAllLeadsMutation.isPending}
+								>
+									<Trash2 className="h-4 w-4 mr-2" />
+									Clean All Leads
+								</Button>
+							</div>
 						</div>
 
 						{showCleanWarning && (
@@ -236,6 +307,18 @@ export default function LeadsPage() {
 										<Table>
 											<TableHeader>
 												<TableRow>
+													<TableHead>
+														<input
+															type="checkbox"
+															checked={
+																selectedLeads.length ===
+																	paginatedLeads.length &&
+																paginatedLeads.length > 0
+															}
+															onChange={handleSelectAll}
+															className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+														/>
+													</TableHead>
 													<TableHead>Name</TableHead>
 													<TableHead>Phone</TableHead>
 													<TableHead>Status</TableHead>
@@ -247,6 +330,14 @@ export default function LeadsPage() {
 											<TableBody>
 												{paginatedLeads.map((lead) => (
 													<TableRow key={lead.id}>
+														<TableCell>
+															<input
+																type="checkbox"
+																checked={selectedLeads.includes(lead.id)}
+																onChange={() => handleSelectLead(lead.id)}
+																className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+															/>
+														</TableCell>
 														<TableCell className="font-medium">
 															{lead.name}
 														</TableCell>
@@ -269,15 +360,29 @@ export default function LeadsPage() {
 														<TableCell>{lead.city || "N/A"}</TableCell>
 														<TableCell>{formatDate(lead.createdAt)}</TableCell>
 														<TableCell>
-															<Button
-																variant="outline"
-																size="sm"
-																onClick={() =>
-																	navigate(`/dashboard/leads/${lead.id}`)
-																}
-															>
-																View
-															</Button>
+															<div className="flex space-x-2">
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() =>
+																		navigate(`/dashboard/leads/${lead.id}`)
+																	}
+																>
+																	View
+																</Button>
+																<Button
+																	variant="destructive"
+																	size="sm"
+																	onClick={() =>
+																		handleDeleteLead(lead.id, lead.name)
+																	}
+																	disabled={deleteLeadMutation.isPending}
+																>
+																	{deleteLeadMutation.isPending
+																		? "Deleting..."
+																		: "Delete"}
+																</Button>
+															</div>
 														</TableCell>
 													</TableRow>
 												))}

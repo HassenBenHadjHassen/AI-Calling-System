@@ -34,6 +34,18 @@ router.get(
 	campaignController.getCampaignStats.bind(campaignController)
 );
 
+// Auto-start functionality
+router.post(
+	"/auto-start/first",
+	// authenticateToken, // Commented out for testing
+	campaignController.autoStartFirstCampaign.bind(campaignController)
+);
+router.post(
+	"/auto-start/next",
+	// authenticateToken, // Commented out for testing
+	campaignController.startNextCampaign.bind(campaignController)
+);
+
 // Parameterized routes - these must come after specific routes
 router.get(
 	"/:id",

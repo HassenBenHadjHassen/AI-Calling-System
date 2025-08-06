@@ -111,6 +111,20 @@ export default function LeadDetailPage() {
 		},
 	});
 
+	// Update lead mutation
+	const updateLeadMutation = useMutation({
+		mutationFn: (data: Partial<Lead>) => leadAPI.updateLead(id!, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["lead", id] });
+			queryClient.invalidateQueries({ queryKey: ["leads"] });
+			setIsEditing(false);
+		},
+		onError: (error) => {
+			console.error("Error updating lead:", error);
+			// You could add a toast notification here
+		},
+	});
+
 	// Schedule call mutation
 	const scheduleCallMutation = useMutation({
 		mutationFn: (data: { scheduledCallAt: string; note?: string }) =>
@@ -230,6 +244,36 @@ export default function LeadDetailPage() {
 		triggerCallMutation.mutate();
 	};
 
+	const handleSave = () => {
+		// Only update fields that have actually changed
+		const updatedFields: Partial<Lead> = {};
+
+		if (editedLead.name !== lead.name) updatedFields.name = editedLead.name;
+		if (editedLead.address !== lead.address)
+			updatedFields.address = editedLead.address;
+		if (editedLead.city !== lead.city) updatedFields.city = editedLead.city;
+		if (editedLead.postalCode !== lead.postalCode)
+			updatedFields.postalCode = editedLead.postalCode;
+		if (editedLead.phone1 !== lead.phone1)
+			updatedFields.phone1 = editedLead.phone1;
+		if (editedLead.phone2 !== lead.phone2)
+			updatedFields.phone2 = editedLead.phone2;
+
+		// Only make the API call if there are actual changes
+		if (Object.keys(updatedFields).length > 0) {
+			updateLeadMutation.mutate(updatedFields);
+		} else {
+			// If no changes, just exit edit mode
+			setIsEditing(false);
+		}
+	};
+
+	const handleCancel = () => {
+		// Reset the edited lead data to the original values
+		setEditedLead(lead);
+		setIsEditing(false);
+	};
+
 	return (
 		<div className="flex h-screen bg-gray-100">
 			<Sidebar />
@@ -260,14 +304,19 @@ export default function LeadDetailPage() {
 							<div className="flex space-x-2">
 								{isEditing ? (
 									<>
-										<Button size="sm" onClick={() => setIsEditing(false)}>
+										<Button
+											size="sm"
+											onClick={handleSave}
+											disabled={updateLeadMutation.isPending}
+										>
 											<Save className="h-4 w-4 mr-2" />
-											Save
+											{updateLeadMutation.isPending ? "Saving..." : "Save"}
 										</Button>
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => setIsEditing(false)}
+											onClick={handleCancel}
+											disabled={updateLeadMutation.isPending}
 										>
 											<X className="h-4 w-4 mr-2" />
 											Cancel
@@ -423,6 +472,27 @@ export default function LeadDetailPage() {
 													/>
 												) : (
 													<p className="text-gray-900">{lead.city || "N/A"}</p>
+												)}
+											</div>
+											<div>
+												<Label className="text-sm font-medium text-gray-700">
+													Postal Code
+												</Label>
+												{isEditing ? (
+													<Input
+														value={editedLead.postalCode || ""}
+														onChange={(e) =>
+															setEditedLead({
+																...editedLead,
+																postalCode: e.target.value,
+															})
+														}
+														className="mt-1"
+													/>
+												) : (
+													<p className="text-gray-900">
+														{lead.postalCode || "N/A"}
+													</p>
 												)}
 											</div>
 										</div>

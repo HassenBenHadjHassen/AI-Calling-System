@@ -63,6 +63,21 @@ router.patch(
 	// authenticateToken, // Commented out for testing
 	leadController.updateLeadStatus.bind(leadController)
 );
+router.put(
+	"/:id",
+	// authenticateToken, // Commented out for testing
+	leadController.updateLead.bind(leadController)
+);
+router.delete(
+	"/:id",
+	// authenticateToken, // Commented out for testing
+	leadController.deleteLead.bind(leadController)
+);
+router.post(
+	"/delete/batch",
+	// authenticateToken, // Commented out for testing
+	leadController.deleteLeads.bind(leadController)
+);
 router.post("/schedule", leadController.scheduleCall.bind(leadController));
 router.post("/blacklist", leadController.blacklistLead.bind(leadController));
 

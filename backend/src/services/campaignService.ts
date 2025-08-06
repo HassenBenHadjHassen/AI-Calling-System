@@ -1,5 +1,6 @@
 import { CampaignRepository } from "../repositories/campaignRepository";
 import { LeadRepository } from "../repositories/leadRepository";
+import { CallService } from "./callService";
 import { CampaignStatus, LeadStatus, Campaign, Lead } from "@prisma/client";
 
 // Define a type for Campaign with leads included
@@ -10,10 +11,12 @@ type CampaignWithLeads = Campaign & {
 export class CampaignService {
 	private campaignRepository: CampaignRepository;
 	private leadRepository: LeadRepository;
+	private callService: CallService;
 
 	constructor() {
 		this.campaignRepository = new CampaignRepository();
 		this.leadRepository = new LeadRepository();
+		this.callService = new CallService();
 	}
 
 	async startCampaign(campaignId: string): Promise<any> {
@@ -34,7 +37,36 @@ export class CampaignService {
 			}
 
 			// Start the campaign (this will automatically stop any other active campaign)
-			return await this.campaignRepository.start(campaignId);
+			const startedCampaign = await this.campaignRepository.start(campaignId);
+
+			// Automatically trigger calls for the campaign leads
+			try {
+				const triggeredCalls = await this.callService.triggerCampaignCalls(
+					campaignId,
+					`Campaign: ${campaign.name}`
+				);
+
+				console.log(
+					`🚀 Campaign "${campaign.name}" started and triggered ${triggeredCalls.length} calls`
+				);
+
+				return {
+					...startedCampaign,
+					triggeredCalls: triggeredCalls.length,
+					message: `Campaign started successfully. Triggered ${triggeredCalls.length} calls.`,
+				};
+			} catch (callError: any) {
+				console.error(
+					`Failed to trigger calls for campaign ${campaignId}:`,
+					callError
+				);
+				// Return the started campaign even if calls failed
+				return {
+					...startedCampaign,
+					triggeredCalls: 0,
+					message: `Campaign started successfully but failed to trigger calls: ${callError.message}`,
+				};
+			}
 		} catch (error: any) {
 			throw new Error(`Failed to start campaign: ${error.message}`);
 		}
@@ -46,16 +78,62 @@ export class CampaignService {
 				campaignId
 			)) as CampaignWithLeads | null;
 			if (!campaign) {
-				throw new Error("Campaign not found");
+				throw new Error("Campaign is not active");
 			}
 
 			if (campaign.status !== CampaignStatus.ACTIVE) {
 				throw new Error("Campaign is not active");
 			}
 
-			return await this.campaignRepository.stop(campaignId);
+			const stoppedCampaign = await this.campaignRepository.stop(campaignId);
+
+			// Optionally start the next available campaign
+			try {
+				const nextCampaign = await this.startNextAvailableCampaign();
+				if (nextCampaign) {
+					return {
+						...stoppedCampaign,
+						nextCampaignStarted: true,
+						nextCampaign: nextCampaign,
+						message: `Campaign stopped successfully. Next campaign "${nextCampaign.name}" started automatically.`,
+					};
+				}
+			} catch (nextCampaignError: any) {
+				console.error("Failed to start next campaign:", nextCampaignError);
+			}
+
+			return {
+				...stoppedCampaign,
+				nextCampaignStarted: false,
+				message: "Campaign stopped successfully.",
+			};
 		} catch (error: any) {
 			throw new Error(`Failed to stop campaign: ${error.message}`);
+		}
+	}
+
+	async startNextAvailableCampaign(): Promise<any | null> {
+		try {
+			// Find campaigns that are stopped and have leads
+			const campaigns = await this.campaignRepository.findByStatus(
+				CampaignStatus.STOPPED
+			);
+
+			for (const campaign of campaigns) {
+				const campaignWithLeads = campaign as CampaignWithLeads;
+				if (campaignWithLeads.leads && campaignWithLeads.leads.length > 0) {
+					console.log(
+						`🔄 Automatically starting next available campaign: "${campaignWithLeads.name}"`
+					);
+					return await this.startCampaign(campaignWithLeads.id);
+				}
+			}
+
+			console.log("📭 No available campaigns to start automatically");
+			return null;
+		} catch (error: any) {
+			console.error("Failed to start next available campaign:", error);
+			return null;
 		}
 	}
 
@@ -68,9 +146,64 @@ export class CampaignService {
 				throw new Error("Campaign not found");
 			}
 
-			return await this.campaignRepository.complete(campaignId);
+			const completedCampaign = await this.campaignRepository.complete(
+				campaignId
+			);
+
+			// Automatically start the next available campaign
+			try {
+				const nextCampaign = await this.startNextAvailableCampaign();
+				if (nextCampaign) {
+					return {
+						...completedCampaign,
+						nextCampaignStarted: true,
+						nextCampaign: nextCampaign,
+						message: `Campaign completed successfully. Next campaign "${nextCampaign.name}" started automatically.`,
+					};
+				}
+			} catch (nextCampaignError: any) {
+				console.error("Failed to start next campaign:", nextCampaignError);
+			}
+
+			return {
+				...completedCampaign,
+				nextCampaignStarted: false,
+				message: "Campaign completed successfully.",
+			};
 		} catch (error: any) {
 			throw new Error(`Failed to complete campaign: ${error.message}`);
+		}
+	}
+
+	async autoStartFirstCampaign(): Promise<any | null> {
+		try {
+			// Check if there's already an active campaign
+			const activeCampaign = await this.campaignRepository.findActive();
+			if (activeCampaign) {
+				console.log(`📞 Campaign "${activeCampaign.name}" is already active`);
+				return activeCampaign;
+			}
+
+			// Find the first available campaign with leads
+			const campaigns = await this.campaignRepository.findByStatus(
+				CampaignStatus.STOPPED
+			);
+
+			for (const campaign of campaigns) {
+				const campaignWithLeads = campaign as CampaignWithLeads;
+				if (campaignWithLeads.leads && campaignWithLeads.leads.length > 0) {
+					console.log(
+						`🚀 Auto-starting first available campaign: "${campaignWithLeads.name}"`
+					);
+					return await this.startCampaign(campaignWithLeads.id);
+				}
+			}
+
+			console.log("📭 No campaigns available for auto-start");
+			return null;
+		} catch (error: any) {
+			console.error("Failed to auto-start first campaign:", error);
+			return null;
 		}
 	}
 

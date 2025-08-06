@@ -64,6 +64,20 @@ export class LeadRepository {
 		}
 	}
 
+	async findByIds(ids: string[]): Promise<Lead[]> {
+		try {
+			return await this.prisma.lead.findMany({
+				where: { id: { in: ids } },
+				include: {
+					callHistory: true,
+					campaign: true,
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to find leads by IDs: ${error.message}`);
+		}
+	}
+
 	async findByPhone(phone: string): Promise<Lead | null> {
 		try {
 			return await this.prisma.lead.findFirst({
@@ -293,6 +307,27 @@ export class LeadRepository {
 		}
 	}
 
+	async update(
+		id: string,
+		data: {
+			name?: string;
+			address?: string;
+			postalCode?: string;
+			city?: string;
+			phone1?: string;
+			phone2?: string;
+		}
+	): Promise<Lead> {
+		try {
+			return await this.prisma.lead.update({
+				where: { id },
+				data,
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to update lead: ${error.message}`);
+		}
+	}
+
 	async findAll(): Promise<Lead[]> {
 		try {
 			return await this.prisma.lead.findMany({
@@ -316,6 +351,39 @@ export class LeadRepository {
 			return result.count;
 		} catch (error: any) {
 			throw new Error(`Failed to delete all leads: ${error.message}`);
+		}
+	}
+
+	async deleteById(id: string): Promise<Lead> {
+		try {
+			// First, delete all call history records for this lead to avoid foreign key constraint violations
+			await this.prisma.callHistory.deleteMany({
+				where: { leadId: id },
+			});
+
+			// Then delete the lead
+			return await this.prisma.lead.delete({
+				where: { id },
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to delete lead: ${error.message}`);
+		}
+	}
+
+	async deleteByIds(ids: string[]): Promise<number> {
+		try {
+			// First, delete all call history records for these leads to avoid foreign key constraint violations
+			await this.prisma.callHistory.deleteMany({
+				where: { leadId: { in: ids } },
+			});
+
+			// Then delete all the leads
+			const result = await this.prisma.lead.deleteMany({
+				where: { id: { in: ids } },
+			});
+			return result.count;
+		} catch (error: any) {
+			throw new Error(`Failed to delete leads: ${error.message}`);
 		}
 	}
 

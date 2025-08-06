@@ -18,7 +18,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.create({
 				data: callData,
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -31,7 +35,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findUnique({
 				where: { id },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -44,7 +52,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findFirst({
 				where: { vapiCallId },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -57,7 +69,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findMany({
 				where: { leadId },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -73,7 +89,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findMany({
 				where: { campaignId },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -90,7 +110,11 @@ export class CallRepository {
 				where: { id },
 				data: { callStatus: status },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -112,7 +136,11 @@ export class CallRepository {
 					callStatus: CallStatus.TRANSFERRED,
 				},
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -126,7 +154,11 @@ export class CallRepository {
 				where: { id },
 				data: { duration },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -140,7 +172,11 @@ export class CallRepository {
 				where: { id },
 				data: { notes },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 			});
 		} catch (error: any) {
@@ -153,7 +189,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findMany({
 				where: { callStatus: status },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -169,7 +209,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findMany({
 				where: { transferred: true },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -185,7 +229,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findMany({
 				where: { callStatus: CallStatus.COMPLETED },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -201,7 +249,11 @@ export class CallRepository {
 			return await this.prisma.callHistory.findMany({
 				where: { callStatus: CallStatus.FAILED },
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -216,7 +268,11 @@ export class CallRepository {
 		try {
 			return await this.prisma.callHistory.findMany({
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
@@ -232,7 +288,11 @@ export class CallRepository {
 		try {
 			return await this.prisma.callHistory.findMany({
 				include: {
-					lead: true,
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
 				},
 				orderBy: {
 					callTime: "desc",
