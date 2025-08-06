@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
 	ArrowLeft,
 	Users,
@@ -57,6 +58,7 @@ export default function CampaignDetailPage() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 	const queryClient = useQueryClient();
+	const { t } = useTranslation();
 	const [showAddLeadsModal, setShowAddLeadsModal] = useState(false);
 	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
 
@@ -97,20 +99,6 @@ export default function CampaignDetailPage() {
 			showAddLeadsModal &&
 			availableLeads?.data?.length === 0,
 	});
-
-	// Debug logging
-	useEffect(() => {
-		if (showAddLeadsModal) {
-			console.log("Modal opened, availableLeads:", availableLeads);
-			console.log("availableLeadsLoading:", availableLeadsLoading);
-			console.log("availableLeadsError:", availableLeadsError);
-		}
-	}, [
-		showAddLeadsModal,
-		availableLeads,
-		availableLeadsLoading,
-		availableLeadsError,
-	]);
 
 	// Mutations
 	const startCampaignMutation = useMutation({
@@ -176,20 +164,6 @@ export default function CampaignDetailPage() {
 		},
 	});
 
-	const debugLeadAvailabilityMutation = useMutation({
-		mutationFn: () => leadAPI.debugLeadAvailability(),
-		onSuccess: (data) => {
-			console.log("Debug Info:", data.data);
-			alert(
-				`Debug Info:\nTotal: ${data.data.totalLeads}\nAvailable: ${
-					data.data.availableLeads
-				}\nBy Status: ${JSON.stringify(
-					data.data.leadsByStatus
-				)}\nBy CampaignId: ${JSON.stringify(data.data.leadsByCampaignId)}`
-			);
-		},
-	});
-
 	// Effects
 	useEffect(() => {
 		if (isClient) {
@@ -237,11 +211,7 @@ export default function CampaignDetailPage() {
 	const handleDeleteCampaign = () => {
 		if (!campaign?.data) return;
 
-		if (
-			confirm(
-				"Are you sure you want to delete this campaign? This action cannot be undone."
-			)
-		) {
+		if (confirm(t("campaigns.confirmDeleteCampaign"))) {
 			deleteCampaignMutation.mutate(campaign.data.id);
 		}
 	};
@@ -260,9 +230,7 @@ export default function CampaignDetailPage() {
 	};
 
 	const handleRemoveLead = (leadId: string) => {
-		if (
-			confirm("Are you sure you want to remove this lead from the campaign?")
-		) {
+		if (confirm(t("campaigns.confirmRemoveLead"))) {
 			removeLeadFromCampaignMutation.mutate(leadId);
 		}
 	};
@@ -325,7 +293,9 @@ export default function CampaignDetailPage() {
 				<div className="flex-1 flex flex-col overflow-hidden">
 					<Topbar />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-						<div className="text-center py-8">Loading campaign details...</div>
+						<div className="text-center py-8">
+							{t("campaigns.loadingCampaignDetails")}
+						</div>
 					</main>
 				</div>
 			</div>
@@ -340,7 +310,9 @@ export default function CampaignDetailPage() {
 					<Topbar />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 						<Alert variant="destructive">
-							<AlertDescription>Campaign not found</AlertDescription>
+							<AlertDescription>
+								{t("campaigns.campaignNotFound")}
+							</AlertDescription>
 						</Alert>
 					</main>
 				</div>
@@ -366,13 +338,15 @@ export default function CampaignDetailPage() {
 									onClick={() => navigate("/dashboard/campaign")}
 								>
 									<ArrowLeft className="h-4 w-4 mr-2" />
-									Back to Campaigns
+									{t("campaigns.backToCampaigns")}
 								</Button>
 								<div>
 									<h1 className="text-2xl font-bold text-gray-900">
 										{campaignData.name}
 									</h1>
-									<p className="text-gray-600">Campaign Details</p>
+									<p className="text-gray-600">
+										{t("campaigns.campaignDetails")}
+									</p>
 								</div>
 							</div>
 							<div className="flex items-center space-x-2">
@@ -392,12 +366,12 @@ export default function CampaignDetailPage() {
 									{campaignData.status === "ACTIVE" ? (
 										<>
 											<Square className="h-4 w-4 mr-2" />
-											Stop Campaign
+											{t("campaigns.stopCampaign")}
 										</>
 									) : (
 										<>
 											<Play className="h-4 w-4 mr-2" />
-											Start Campaign
+											{t("campaigns.startCampaign")}
 										</>
 									)}
 								</Button>
@@ -418,26 +392,30 @@ export default function CampaignDetailPage() {
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										Campaign Info
+										{t("campaigns.campaignInfo")}
 									</CardTitle>
 									<Calendar className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
 									<div className="space-y-2">
 										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">Started:</span>
+											<span className="text-sm text-gray-600">
+												{t("campaigns.started")}
+											</span>
 											<span className="text-sm">
 												{campaignData.startedAt
 													? formatDate(campaignData.startedAt)
-													: "Not started"}
+													: t("campaigns.notStarted")}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">Stopped:</span>
+											<span className="text-sm text-gray-600">
+												{t("campaigns.stopped")}
+											</span>
 											<span className="text-sm">
 												{campaignData.stoppedAt
 													? formatDate(campaignData.stoppedAt)
-													: "Not stopped"}
+													: t("campaigns.notStopped")}
 											</span>
 										</div>
 									</div>
@@ -446,7 +424,9 @@ export default function CampaignDetailPage() {
 
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">Leads</CardTitle>
+									<CardTitle className="text-sm font-medium">
+										{t("common.leads")}
+									</CardTitle>
 									<Users className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
@@ -454,7 +434,7 @@ export default function CampaignDetailPage() {
 										{campaignData.leads?.length || 0}
 									</div>
 									<p className="text-xs text-muted-foreground">
-										Total leads in campaign
+										{t("campaigns.totalLeadsInCampaign")}
 									</p>
 								</CardContent>
 							</Card>
@@ -462,25 +442,25 @@ export default function CampaignDetailPage() {
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										Call Stats
+										{t("campaigns.callStats")}
 									</CardTitle>
 									<BarChart3 className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
 									{statsLoading ? (
-										<div className="text-sm">Loading stats...</div>
+										<div className="text-sm">{t("campaigns.loadingStats")}</div>
 									) : (
 										<div className="space-y-1">
 											<div className="flex justify-between text-sm">
-												<span>Total:</span>
+												<span>{t("campaigns.total")}</span>
 												<span>{callStats?.data?.total || 0}</span>
 											</div>
 											<div className="flex justify-between text-sm">
-												<span>Completed:</span>
+												<span>{t("campaigns.completed")}</span>
 												<span>{callStats?.data?.completed || 0}</span>
 											</div>
 											<div className="flex justify-between text-sm">
-												<span>Failed:</span>
+												<span>{t("campaigns.failed")}</span>
 												<span>{callStats?.data?.failed || 0}</span>
 											</div>
 										</div>
@@ -494,9 +474,9 @@ export default function CampaignDetailPage() {
 							<CardHeader>
 								<div className="flex items-center justify-between">
 									<div>
-										<CardTitle>Campaign Leads</CardTitle>
+										<CardTitle>{t("campaigns.campaignLeads")}</CardTitle>
 										<CardDescription>
-											All leads associated with this campaign
+											{t("campaigns.allLeadsAssociated")}
 										</CardDescription>
 									</div>
 									<Button
@@ -504,27 +484,26 @@ export default function CampaignDetailPage() {
 										disabled={campaignData.status === "COMPLETED"}
 									>
 										<Plus className="h-4 w-4 mr-2" />
-										Add Leads
+										{t("campaigns.addLeads")}
 									</Button>
 								</div>
 							</CardHeader>
 							<CardContent>
 								{campaignData.leads?.length === 0 ? (
 									<div className="text-center py-8 text-gray-500">
-										No leads found in this campaign. Click "Add Leads" to add
-										leads to this campaign.
+										{t("campaigns.noLeadsInCampaign")}
 									</div>
 								) : (
 									<div className="overflow-x-auto">
 										<Table>
 											<TableHeader>
 												<TableRow>
-													<TableHead>Name</TableHead>
-													<TableHead>Phone</TableHead>
-													<TableHead>Status</TableHead>
-													<TableHead>City</TableHead>
-													<TableHead>Created</TableHead>
-													<TableHead>Actions</TableHead>
+													<TableHead>{t("common.name")}</TableHead>
+													<TableHead>{t("common.phone")}</TableHead>
+													<TableHead>{t("common.status")}</TableHead>
+													<TableHead>{t("common.city")}</TableHead>
+													<TableHead>{t("common.date")}</TableHead>
+													<TableHead>{t("common.actions")}</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
@@ -568,38 +547,36 @@ export default function CampaignDetailPage() {
 						{/* Call History Section */}
 						<Card>
 							<CardHeader>
-								<CardTitle>Call History</CardTitle>
-								<CardDescription>
-									Recent calls made for this campaign
-								</CardDescription>
+								<CardTitle>{t("leadDetail.callHistory")}</CardTitle>
+								<CardDescription>{t("campaigns.recentCalls")}</CardDescription>
 							</CardHeader>
 							<CardContent>
 								{callHistoryLoading ? (
 									<div className="text-center py-8">
-										Loading call history...
+										{t("campaigns.loadingCallHistory")}
 									</div>
 								) : callHistory?.data?.length === 0 ? (
 									<div className="text-center py-8 text-gray-500">
-										No call history found for this campaign.
+										{t("campaigns.noCallHistoryForCampaign")}
 									</div>
 								) : (
 									<div className="overflow-x-auto">
 										<Table>
 											<TableHeader>
 												<TableRow>
-													<TableHead>Lead</TableHead>
-													<TableHead>Status</TableHead>
-													<TableHead>Duration</TableHead>
-													<TableHead>Transferred</TableHead>
-													<TableHead>Call Time</TableHead>
-													<TableHead>Notes</TableHead>
+													<TableHead>{t("common.leads")}</TableHead>
+													<TableHead>{t("common.status")}</TableHead>
+													<TableHead>{t("common.duration")}</TableHead>
+													<TableHead>{t("campaigns.transferred")}</TableHead>
+													<TableHead>{t("campaigns.callTime")}</TableHead>
+													<TableHead>{t("common.notes")}</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
 												{callHistory?.data?.map((call) => (
 													<TableRow key={call.id}>
 														<TableCell className="font-medium">
-															{call.lead?.name || "Unknown"}
+															{call.lead?.name || t("activity.unknownLead")}
 														</TableCell>
 														<TableCell>
 															<Badge
@@ -612,16 +589,22 @@ export default function CampaignDetailPage() {
 														</TableCell>
 														<TableCell>
 															{call.duration
-																? `${Math.round(call.duration / 60)}m ${
-																		call.duration % 60
-																  }s`
+																? `${Math.round(call.duration / 60)}${t(
+																		"activity.minutes"
+																  )} ${call.duration % 60}${t(
+																		"activity.seconds"
+																  )}`
 																: "-"}
 														</TableCell>
 														<TableCell>
-															{call.transferred ? "Yes" : "No"}
+															{call.transferred
+																? t("leadDetail.yes")
+																: t("leadDetail.no")}
 														</TableCell>
 														<TableCell>{formatDate(call.callTime)}</TableCell>
-														<TableCell>{call.notes || "-"}</TableCell>
+														<TableCell>
+															{call.notes || t("activity.noNotes")}
+														</TableCell>
 													</TableRow>
 												))}
 											</TableBody>
@@ -634,10 +617,11 @@ export default function CampaignDetailPage() {
 						{/* Add Leads Modal */}
 						{showAddLeadsModal && (
 							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-								<div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[80vh] overflow-y-auto">
-									<div className="flex justify-between items-center mb-4">
+								<div className="bg-white rounded-lg w-full max-w-4xl mx-4 max-h-[80vh] flex flex-col">
+									{/* Header */}
+									<div className="flex justify-between items-center p-6 border-b">
 										<h2 className="text-xl font-semibold">
-											Add Leads to Campaign
+											{t("campaigns.addLeadsToCampaign")}
 										</h2>
 										<Button
 											variant="ghost"
@@ -651,186 +635,139 @@ export default function CampaignDetailPage() {
 										</Button>
 									</div>
 
-									{availableLeadsError ? (
-										<div className="text-center py-8 text-red-500">
-											Error loading available leads:{" "}
-											{availableLeadsError.message}
-										</div>
-									) : availableLeadsLoading ? (
-										<div className="text-center py-8">
-											Loading available leads...
-										</div>
-									) : availableLeads?.data?.length === 0 ? (
-										<div className="text-center py-8">
-											<div className="text-gray-500 mb-4">
-												No available leads found. All leads are either assigned
-												to campaigns, blacklisted, or scheduled.
+									{/* Content */}
+									<div className="flex-1 overflow-hidden">
+										{availableLeadsError ? (
+											<div className="text-center py-8 text-red-500">
+												{t("campaigns.errorLoadingLeads")}{" "}
+												{availableLeadsError.message}
 											</div>
-
-											{leadStats?.data && (
-												<div className="text-sm text-gray-400 mb-4 space-y-1">
-													<div>Total leads: {leadStats.data.totalLeads}</div>
-													<div>
-														Available leads: {leadStats.data.availableLeads}
-													</div>
-													<div>
-														Blacklisted: {leadStats.data.blacklistedLeads}
-													</div>
-													<div>Scheduled: {leadStats.data.scheduledLeads}</div>
-													<div>Orphaned: {leadStats.data.orphanedLeads}</div>
-													{Object.entries(leadStats.data.leadsByStatus).map(
-														([status, count]) => (
-															<div key={status}>
-																Status {status}: {count}
-															</div>
-														)
-													)}
+										) : availableLeadsLoading ? (
+											<div className="text-center py-8">
+												{t("campaigns.loadingAvailableLeads")}
+											</div>
+										) : availableLeads?.data?.length === 0 ? (
+											<div className="text-center py-8">
+												<div className="text-gray-500 mb-4">
+													{t("campaigns.noAvailableLeadsFound")}
 												</div>
-											)}
-
-											<div className="flex space-x-2">
-												<Button
-													onClick={() => cleanupOrphanedLeadsMutation.mutate()}
-													disabled={cleanupOrphanedLeadsMutation.isPending}
-													variant="outline"
-												>
-													{cleanupOrphanedLeadsMutation.isPending
-														? "Cleaning..."
-														: "Clean Orphaned Leads"}
-												</Button>
-												<Button
-													onClick={() => resetLeadsForTestingMutation.mutate()}
-													disabled={resetLeadsForTestingMutation.isPending}
-													variant="outline"
-													className="text-orange-600 border-orange-600 hover:bg-orange-50"
-												>
-													{resetLeadsForTestingMutation.isPending
-														? "Resetting..."
-														: "Reset All Leads (Testing)"}
-												</Button>
-												<Button
-													onClick={() => debugLeadAvailabilityMutation.mutate()}
-													disabled={debugLeadAvailabilityMutation.isPending}
-													variant="outline"
-													className="text-blue-600 border-blue-600 hover:bg-blue-50"
-												>
-													{debugLeadAvailabilityMutation.isPending
-														? "Debugging..."
-														: "Debug Lead Availability"}
-												</Button>
 											</div>
-										</div>
-									) : (
-										<div className="space-y-4">
-											<div className="text-sm text-gray-600">
-												Select leads to add to this campaign (max 5 leads per
-												campaign):
-											</div>
+										) : (
+											<div className="p-6 space-y-4">
+												<div className="text-sm text-gray-600">
+													{t("campaigns.selectLeadsToAddToCampaign")}
+												</div>
 
-											<div className="overflow-x-auto">
-												<Table>
-													<TableHeader>
-														<TableRow>
-															<TableHead className="w-12">
-																<input
-																	type="checkbox"
-																	checked={
-																		selectedLeads.length ===
-																		availableLeads?.data?.length
-																	}
-																	onChange={(e) => {
-																		if (e.target.checked) {
-																			setSelectedLeads(
-																				availableLeads?.data?.map(
-																					(lead: Lead) => lead.id
-																				) || []
-																			);
-																		} else {
-																			setSelectedLeads([]);
-																		}
-																	}}
-																/>
-															</TableHead>
-															<TableHead>Name</TableHead>
-															<TableHead>Phone</TableHead>
-															<TableHead>City</TableHead>
-															<TableHead>Created</TableHead>
-														</TableRow>
-													</TableHeader>
-													<TableBody>
-														{availableLeads?.data?.map((lead: Lead) => (
-															<TableRow key={lead.id}>
-																<TableCell>
+												{/* Scrollable Table Container */}
+												<div className="overflow-y-auto max-h-[400px] border rounded-lg">
+													<Table>
+														<TableHeader className="sticky top-0 bg-white z-10">
+															<TableRow>
+																<TableHead className="w-12">
 																	<input
 																		type="checkbox"
-																		checked={selectedLeads.includes(lead.id)}
-																		onChange={(e) =>
-																			handleLeadSelection(
-																				lead.id,
-																				e.target.checked
-																			)
+																		checked={
+																			selectedLeads.length ===
+																			availableLeads?.data?.length
 																		}
+																		onChange={(e) => {
+																			if (e.target.checked) {
+																				setSelectedLeads(
+																					availableLeads?.data?.map(
+																						(lead: Lead) => lead.id
+																					) || []
+																				);
+																			} else {
+																				setSelectedLeads([]);
+																			}
+																		}}
 																	/>
-																</TableCell>
-																<TableCell className="font-medium">
-																	{lead.name}
-																</TableCell>
-																<TableCell>{lead.phone1}</TableCell>
-																<TableCell>{lead.city || "-"}</TableCell>
-																<TableCell>
-																	{formatDate(lead.createdAt)}
-																</TableCell>
+																</TableHead>
+																<TableHead>{t("common.name")}</TableHead>
+																<TableHead>{t("common.phone")}</TableHead>
+																<TableHead>{t("common.city")}</TableHead>
+																<TableHead>{t("common.date")}</TableHead>
 															</TableRow>
-														))}
-													</TableBody>
-												</Table>
-											</div>
-
-											<div className="flex justify-between items-center">
-												<div className="text-sm text-gray-600">
-													Selected: {selectedLeads.length} leads
+														</TableHeader>
+														<TableBody>
+															{availableLeads?.data?.map((lead: Lead) => (
+																<TableRow key={lead.id}>
+																	<TableCell>
+																		<input
+																			type="checkbox"
+																			checked={selectedLeads.includes(lead.id)}
+																			onChange={(e) =>
+																				handleLeadSelection(
+																					lead.id,
+																					e.target.checked
+																				)
+																			}
+																		/>
+																	</TableCell>
+																	<TableCell className="font-medium">
+																		{lead.name}
+																	</TableCell>
+																	<TableCell>{lead.phone1}</TableCell>
+																	<TableCell>{lead.city || "-"}</TableCell>
+																	<TableCell>
+																		{formatDate(lead.createdAt)}
+																	</TableCell>
+																</TableRow>
+															))}
+														</TableBody>
+													</Table>
 												</div>
-												<div className="flex space-x-2">
-													<Button
-														onClick={handleAddLeads}
-														disabled={
-															selectedLeads.length === 0 ||
-															addLeadsToCampaignMutation.isPending ||
-															selectedLeads.length +
-																(campaignData.leads?.length || 0) >
-																5
-														}
-													>
-														{addLeadsToCampaignMutation.isPending
-															? "Adding..."
-															: "Add Selected Leads"}
-													</Button>
-													<Button
-														variant="outline"
-														onClick={() => {
-															setShowAddLeadsModal(false);
-															setSelectedLeads([]);
-														}}
-														disabled={addLeadsToCampaignMutation.isPending}
-													>
-														Cancel
-													</Button>
-												</div>
-											</div>
 
-											{selectedLeads.length +
-												(campaignData.leads?.length || 0) >
-												5 && (
-												<Alert variant="destructive">
-													<AlertDescription>
-														Cannot add more than 5 leads to a campaign. Current:{" "}
-														{campaignData.leads?.length || 0}, Selected:{" "}
-														{selectedLeads.length}
-													</AlertDescription>
-												</Alert>
-											)}
+												{selectedLeads.length +
+													(campaignData.leads?.length || 0) >
+													5 && (
+													<Alert variant="destructive">
+														<AlertDescription>
+															{t("campaigns.cannotAddMoreThan5")}{" "}
+															{campaignData.leads?.length || 0},{" "}
+															{t("campaigns.selected")} {selectedLeads.length}
+														</AlertDescription>
+													</Alert>
+												)}
+											</div>
+										)}
+									</div>
+
+									{/* Footer with Static Buttons */}
+									<div className="border-t p-6 bg-gray-50">
+										<div className="flex justify-between items-center">
+											<div className="text-sm text-gray-600">
+												{t("campaigns.selected")} {selectedLeads.length}{" "}
+												{t("campaigns.leads")}
+											</div>
+											<div className="flex space-x-2">
+												<Button
+													onClick={handleAddLeads}
+													disabled={
+														selectedLeads.length === 0 ||
+														addLeadsToCampaignMutation.isPending ||
+														selectedLeads.length +
+															(campaignData.leads?.length || 0) >
+															5
+													}
+												>
+													{addLeadsToCampaignMutation.isPending
+														? t("campaigns.adding")
+														: t("campaigns.addSelectedLeads")}
+												</Button>
+												<Button
+													variant="outline"
+													onClick={() => {
+														setShowAddLeadsModal(false);
+														setSelectedLeads([]);
+													}}
+													disabled={addLeadsToCampaignMutation.isPending}
+												>
+													{t("common.cancel")}
+												</Button>
+											</div>
 										</div>
-									)}
+									</div>
 								</div>
 							</div>
 						)}
@@ -844,7 +781,7 @@ export default function CampaignDetailPage() {
 							cleanupOrphanedLeadsMutation.isError) && (
 							<Alert variant="destructive">
 								<AlertDescription>
-									Failed to update campaign. Please try again.
+									{t("errors.failedToUpdateCampaign")}
 								</AlertDescription>
 							</Alert>
 						)}

@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -16,6 +17,7 @@ import {
 import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { LanguageSwitcher } from "~/components/language-switcher";
 
 export default function Login() {
 	const [email, setEmail] = useState("");
@@ -25,6 +27,7 @@ export default function Login() {
 
 	const { login } = useAuth();
 	const { isClient, redirectIfAuthenticated } = useClientSideAuth();
+	const { t } = useTranslation();
 
 	useEffect(() => {
 		if (isClient) {
@@ -51,10 +54,10 @@ export default function Login() {
 			if (success) {
 				// Navigation will be handled by the redirectIfAuthenticated hook
 			} else {
-				setError("Invalid email or password");
+				setError(t("auth.invalidCredentials"));
 			}
 		} catch (err) {
-			setError("An error occurred during login");
+			setError(t("auth.loginError"));
 		} finally {
 			setIsLoading(false);
 		}
@@ -62,13 +65,16 @@ export default function Login() {
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+			<div className="absolute top-4 right-4">
+				<LanguageSwitcher />
+			</div>
 			<Card className="w-full max-w-md">
 				<CardHeader className="space-y-1">
 					<CardTitle className="text-2xl font-bold text-center">
-						Sign in
+						{t("auth.signIn")}
 					</CardTitle>
 					<CardDescription className="text-center">
-						Enter your email and password to access the dashboard
+						{t("auth.accessDashboard")}
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
@@ -84,12 +90,12 @@ export default function Login() {
 								htmlFor="email"
 								className="block text-sm font-medium text-gray-700"
 							>
-								Email
+								{t("auth.email")}
 							</Label>
 							<Input
 								id="email"
 								type="email"
-								placeholder="Enter your email"
+								placeholder={t("auth.enterEmail")}
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								required
@@ -102,12 +108,12 @@ export default function Login() {
 								htmlFor="password"
 								className="block text-sm font-medium text-gray-700"
 							>
-								Password
+								{t("auth.password")}
 							</Label>
 							<Input
 								id="password"
 								type="password"
-								placeholder="Enter your password"
+								placeholder={t("auth.enterPassword")}
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
@@ -117,7 +123,7 @@ export default function Login() {
 
 						<Button type="submit" className="w-full" disabled={isLoading}>
 							{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-							Sign in
+							{t("auth.signIn")}
 						</Button>
 					</form>
 				</CardContent>

@@ -1,16 +1,19 @@
 import { Link, NavLink } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Upload, Users, Play, Activity, BarChart3, Phone } from "lucide-react";
 import { cn } from "~/lib/utils";
 
-const navigation = [
-	{ name: "Upload", href: "/dashboard/upload", icon: Upload },
-	{ name: "Leads", href: "/dashboard/leads", icon: Users },
-	{ name: "Campaign", href: "/dashboard/campaign", icon: Play },
-	{ name: "Activity", href: "/dashboard/activity", icon: Activity },
-	{ name: "Stats", href: "/dashboard/stats", icon: BarChart3 },
-];
-
 export function Sidebar() {
+	const { t } = useTranslation();
+
+	const navigation = [
+		{ name: t("nav.upload"), href: "/dashboard/upload", icon: Upload },
+		{ name: t("nav.leads"), href: "/dashboard/leads", icon: Users },
+		{ name: t("nav.campaign"), href: "/dashboard/campaign", icon: Play },
+		{ name: t("nav.activity"), href: "/dashboard/activity", icon: Activity },
+		{ name: t("nav.stats"), href: "/dashboard/stats", icon: BarChart3 },
+	];
+
 	return (
 		<div className="flex flex-col w-64 bg-white shadow-lg">
 			<Link

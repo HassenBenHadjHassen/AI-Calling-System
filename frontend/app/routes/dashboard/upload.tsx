@@ -4,12 +4,8 @@ import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-	Upload,
-	FileSpreadsheet,
-	CheckCircle,
-	AlertCircle,
-} from "lucide-react";
+import { useTranslation } from 'react-i18next';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react';
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -30,6 +26,7 @@ import { leadAPI } from "~/services/api";
 export default function UploadPage() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
+	const { t } = useTranslation();
 	const queryClient = useQueryClient();
 	const [file, setFile] = useState<File | null>(null);
 	const [preview, setPreview] = useState<string[][]>([]);
@@ -53,9 +50,13 @@ export default function UploadPage() {
 				if (fileInputRef.current) {
 					fileInputRef.current.value = "";
 				}
-				// Invalidate leads queries to refresh the leads list and dashboard overview
+				// Invalidate all relevant queries to refresh data across the app
 				queryClient.invalidateQueries({ queryKey: ["leads"] });
 				queryClient.invalidateQueries({ queryKey: ["leads-overview"] });
+				queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+				queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
+				queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+				queryClient.invalidateQueries({ queryKey: ["active-campaigns-overview"] });
 			}
 		},
 		onError: (error) => {
@@ -69,11 +70,27 @@ export default function UploadPage() {
 			// Connect to socket when dashboard loads
 			socketService.connect();
 
+			const socket = socketService.getSocket();
+			if (socket) {
+				// Listen for leads uploaded event to refresh campaign data
+				socket.on("leads-uploaded", (data) => {
+					console.log("Leads uploaded:", data);
+					// Invalidate campaign queries to refresh campaign list
+					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
+					queryClient.invalidateQueries({ queryKey: ["active-campaigns-overview"] });
+				});
+			}
+
 			return () => {
+				if (socket) {
+					socket.off("leads-uploaded");
+				}
 				socketService.disconnect();
 			};
 		}
-	}, [isAuthenticated, isClient]);
+	}, [isAuthenticated, isClient, queryClient]);
 
 	// Show loading state during SSR
 	if (!isClient) {
@@ -195,18 +212,17 @@ export default function UploadPage() {
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 					<div className="space-y-6">
 						<div>
-							<h1 className="text-2xl font-bold text-gray-900">Upload Leads</h1>
+							<h1 className="text-2xl font-bold text-gray-900">{t('upload.title')}</h1>
 							<p className="text-gray-600">
-								Upload Excel or CSV files containing lead information
+								{t('upload.description')}
 							</p>
 						</div>
 
 						<Card>
 							<CardHeader>
-								<CardTitle>File Upload</CardTitle>
+								<CardTitle>{t('upload.fileUpload')}</CardTitle>
 								<CardDescription>
-									Select or drag and drop your Excel/CSV file containing leads
-									data
+									{t('upload.selectFile')}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-4">
@@ -224,17 +240,17 @@ export default function UploadPage() {
 									<Upload className="mx-auto h-12 w-12 text-gray-400" />
 									<div className="mt-4">
 										<p className="text-lg font-medium text-gray-900">
-											Drop your file here, or{" "}
+											{t('upload.dropFile')}{" "}
 											<button
 												type="button"
 												className="text-blue-600 hover:text-blue-500"
 												onClick={() => fileInputRef.current?.click()}
 											>
-												browse
+												{t('upload.browse')}
 											</button>
 										</p>
 										<p className="text-sm text-gray-500 mt-1">
-											Supports Excel (.xlsx) and CSV (.csv) files
+											{t('upload.supportedFormats')}
 										</p>
 									</div>
 									<input
@@ -259,7 +275,7 @@ export default function UploadPage() {
 										{preview.length > 0 && (
 											<div>
 												<h3 className="font-medium mb-2">
-													Preview (first 5 rows):
+													{t('upload.preview')}
 												</h3>
 												<div className="overflow-x-auto">
 													<table className="min-w-full border border-gray-200 rounded-lg">
@@ -293,8 +309,8 @@ export default function UploadPage() {
 											className="w-full"
 										>
 											{uploadMutation.isPending
-												? "Uploading..."
-												: "Upload File"}
+												? t('upload.uploading')
+												: t('upload.uploadFile')}
 										</Button>
 									</div>
 								)}
@@ -304,8 +320,8 @@ export default function UploadPage() {
 										<Progress value={uploadProgress} />
 										<p className="text-sm text-gray-600 text-center">
 											{file?.name.toLowerCase().endsWith(".csv")
-												? "Processing CSV file... This may take a moment for large files."
-												: "Uploading and processing file..."}
+												? t('upload.processingCsv')
+												: t('upload.processingFile')}
 										</p>
 									</div>
 								)}
@@ -315,18 +331,18 @@ export default function UploadPage() {
 										<Alert>
 											<CheckCircle className="h-4 w-4" />
 											<AlertDescription>
-												<strong>File uploaded successfully!</strong>
+												<strong>{t('upload.uploadSuccess')}</strong>
 											</AlertDescription>
 										</Alert>
 
 										<div className="bg-green-50 border border-green-200 rounded-lg p-4">
 											<h4 className="font-medium text-green-800 mb-3">
-												Upload Summary
+												{t('upload.uploadSummary')}
 											</h4>
 											<div className="grid grid-cols-2 gap-4 text-sm">
 												<div>
 													<span className="text-green-700 font-medium">
-														Total leads found:
+														{t('upload.totalLeadsFound')}
 													</span>
 													<span className="ml-2 text-green-600">
 														{uploadMutation.data?.data?.totalLeads}
@@ -334,7 +350,7 @@ export default function UploadPage() {
 												</div>
 												<div>
 													<span className="text-green-700 font-medium">
-														Leads imported:
+														{t('upload.leadsImported')}
 													</span>
 													<span className="ml-2 text-green-600">
 														{uploadMutation.data?.data?.leadsProcessed}
@@ -343,7 +359,7 @@ export default function UploadPage() {
 												{uploadMutation.data?.data?.duplicatesSkipped > 0 ? (
 													<div className="col-span-2">
 														<span className="text-amber-700 font-medium">
-															⚠️ Duplicates skipped:
+															⚠️ {t('upload.duplicatesSkipped')}
 														</span>
 														<span className="ml-2 text-amber-600">
 															{uploadMutation.data?.data?.duplicatesSkipped}
@@ -352,14 +368,14 @@ export default function UploadPage() {
 												) : (
 													<div className="col-span-2">
 														<span className="text-green-700 font-medium">
-															✅ No duplicates found
+															✅ {t('upload.noDuplicates')}
 														</span>
 													</div>
 												)}
 												{uploadMutation.data?.data?.campaignsCreated > 0 && (
 													<div className="col-span-2">
 														<span className="text-blue-700 font-medium">
-															📊 Campaigns created:
+															📊 {t('upload.campaignsCreated')}
 														</span>
 														<span className="ml-2 text-blue-600">
 															{uploadMutation.data?.data?.campaignsCreated}
@@ -375,7 +391,7 @@ export default function UploadPage() {
 									<Alert variant="destructive">
 										<AlertCircle className="h-4 w-4" />
 										<AlertDescription>
-											Failed to upload file. Please try again.
+											{t('upload.uploadFailed')}
 										</AlertDescription>
 									</Alert>
 								)}

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
 	Clock,
 	CheckCircle,
@@ -53,6 +54,7 @@ export default function ActivityPage() {
 	const [activities, setActivities] = useState<ActivityItem[]>([]);
 	const [isDownloading, setIsDownloading] = useState(false);
 	const queryClient = useQueryClient();
+	const { t } = useTranslation();
 
 	useEffect(() => {
 		if (isClient) {
@@ -212,10 +214,10 @@ export default function ActivityPage() {
 					<div className="space-y-8">
 						<div className="text-center">
 							<h1 className="text-3xl font-bold text-gray-900 mb-2">
-								Live Activity Feed
+								{t("activity.liveActivityFeed")}
 							</h1>
 							<p className="text-gray-600 text-lg mb-4">
-								Real-time updates of calling activity
+								{t("activity.realTimeUpdates")}
 							</p>
 							<Button
 								onClick={downloadActivityData}
@@ -225,8 +227,8 @@ export default function ActivityPage() {
 								<Download className="h-4 w-4" />
 								<span>
 									{isDownloading
-										? "Downloading..."
-										: "Download Recent Activity"}
+										? t("activity.downloading")
+										: t("activity.downloadActivity")}
 								</span>
 							</Button>
 						</div>
@@ -241,7 +243,7 @@ export default function ActivityPage() {
 											</div>
 											<div>
 												<p className="text-sm font-medium text-blue-700 mb-1">
-													Active Calls
+													{t("activity.activeCalls")}
 												</p>
 												<p className="text-3xl font-bold text-blue-900">
 													{statsLoading
@@ -263,7 +265,7 @@ export default function ActivityPage() {
 											</div>
 											<div>
 												<p className="text-sm font-medium text-green-700 mb-1">
-													Completed Calls
+													{t("activity.completedCalls")}
 												</p>
 												<p className="text-3xl font-bold text-green-900">
 													{statsLoading
@@ -287,7 +289,7 @@ export default function ActivityPage() {
 											</div>
 											<div>
 												<p className="text-sm font-medium text-orange-700 mb-1">
-													Transferred Calls
+													{t("activity.transferredCalls")}
 												</p>
 												<p className="text-3xl font-bold text-orange-900">
 													{statsLoading
@@ -311,7 +313,7 @@ export default function ActivityPage() {
 											</div>
 											<div>
 												<p className="text-sm font-medium text-red-700 mb-1">
-													Failed Calls
+													{t("activity.failedCalls")}
 												</p>
 												<p className="text-3xl font-bold text-red-900">
 													{statsLoading
@@ -331,23 +333,27 @@ export default function ActivityPage() {
 							<CardHeader className="pb-4">
 								<CardTitle className="text-xl font-bold text-gray-900 flex items-center space-x-2">
 									<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-									<span>Recent Activity</span>
+									<span>{t("activity.recentActivity")}</span>
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="p-0">
 								{callsLoading ? (
 									<div className="text-center py-12">
 										<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-										<p className="text-gray-600">Loading activity...</p>
+										<p className="text-gray-600">
+											{t("activity.loadingActivityData")}
+										</p>
 									</div>
 								) : activities.length === 0 ? (
 									<div className="text-center py-12">
 										<div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
 											<Clock className="h-8 w-8 text-gray-400" />
 										</div>
-										<p className="text-gray-500 text-lg">No recent activity</p>
+										<p className="text-gray-500 text-lg">
+											{t("activity.noActivity")}
+										</p>
 										<p className="text-gray-400 text-sm">
-											Activity will appear here as calls are made
+											{t("activity.activityWillAppearHere")}
 										</p>
 									</div>
 								) : (

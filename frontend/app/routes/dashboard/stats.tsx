@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Progress } from "@radix-ui/react-progress";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
 	Phone,
 	CheckCircle,
@@ -29,6 +30,7 @@ import { callAPI } from "~/services/api";
 export default function StatsPage() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
+	const { t } = useTranslation();
 
 	// Move all hooks to the top, before any conditional logic
 	const { data: stats, isLoading } = useQuery({
@@ -111,8 +113,10 @@ export default function StatsPage() {
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 						<div className="space-y-6">
 							<div>
-								<h1 className="text-2xl font-bold text-gray-900">Statistics</h1>
-								<p className="text-gray-600">Loading statistics...</p>
+								<h1 className="text-2xl font-bold text-gray-900">
+									{t("stats.statistics")}
+								</h1>
+								<p className="text-gray-600">{t("stats.loadingStatistics")}</p>
 							</div>
 						</div>
 					</main>
@@ -130,11 +134,9 @@ export default function StatsPage() {
 					<div className="space-y-6">
 						<div>
 							<h1 className="text-2xl font-bold text-gray-900">
-								Statistics Dashboard
+								{t("stats.statisticsDashboard")}
 							</h1>
-							<p className="text-gray-600">
-								Overview of your calling performance and metrics
-							</p>
+							<p className="text-gray-600">{t("stats.overviewOfCalling")}</p>
 						</div>
 
 						{/* Key Metrics Cards */}
@@ -142,7 +144,7 @@ export default function StatsPage() {
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										Total Calls
+										{t("stats.totalCalls")}
 									</CardTitle>
 									<Phone className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
@@ -151,7 +153,7 @@ export default function StatsPage() {
 										{(callStats.totalCalls || 0).toLocaleString()}
 									</div>
 									<p className="text-xs text-muted-foreground">
-										All time calls made
+										{t("stats.allTimeCalls")}
 									</p>
 								</CardContent>
 							</Card>
@@ -159,7 +161,7 @@ export default function StatsPage() {
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										Successful Calls
+										{t("stats.successfulCalls")}
 									</CardTitle>
 									<CheckCircle className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
@@ -168,7 +170,7 @@ export default function StatsPage() {
 										{(callStats.completedCalls || 0).toLocaleString()}
 									</div>
 									<p className="text-xs text-muted-foreground">
-										{successRate.toFixed(1)}% success rate
+										{successRate.toFixed(1)}% {t("stats.successRate")}
 									</p>
 								</CardContent>
 							</Card>
@@ -176,7 +178,7 @@ export default function StatsPage() {
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										Transfers
+										{t("stats.transfers")}
 									</CardTitle>
 									<ArrowRight className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
@@ -185,7 +187,7 @@ export default function StatsPage() {
 										{(callStats.transferredCalls || 0).toLocaleString()}
 									</div>
 									<p className="text-xs text-muted-foreground">
-										{transferRate.toFixed(1)}% transfer rate
+										{transferRate.toFixed(1)}% {t("stats.transferRate")}
 									</p>
 								</CardContent>
 							</Card>
@@ -193,7 +195,7 @@ export default function StatsPage() {
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
 									<CardTitle className="text-sm font-medium">
-										Conversion Rate
+										{t("stats.conversionRate")}
 									</CardTitle>
 									<TrendingUp className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
@@ -202,7 +204,7 @@ export default function StatsPage() {
 										{conversionRate.toFixed(1)}%
 									</div>
 									<p className="text-xs text-muted-foreground">
-										Success + transfers
+										{t("stats.successPlusTransfers")}
 									</p>
 								</CardContent>
 							</Card>
@@ -212,13 +214,13 @@ export default function StatsPage() {
 						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 							<Card>
 								<CardHeader>
-									<CardTitle>Call Performance</CardTitle>
-									<CardDescription>Breakdown of call outcomes</CardDescription>
+									<CardTitle>{t("stats.callPerformance")}</CardTitle>
+									<CardDescription>{t("stats.callOutcomes")}</CardDescription>
 								</CardHeader>
 								<CardContent className="space-y-4">
 									<div className="space-y-2">
 										<div className="flex justify-between text-sm">
-											<span>Completed Calls</span>
+											<span>{t("stats.completedCalls")}</span>
 											<span>
 												{callStats.completedCalls || 0} (
 												{successRate.toFixed(1)}%)
@@ -229,7 +231,7 @@ export default function StatsPage() {
 
 									<div className="space-y-2">
 										<div className="flex justify-between text-sm">
-											<span>Transferred Calls</span>
+											<span>{t("stats.transferredCalls")}</span>
 											<span>
 												{callStats.transferredCalls || 0} (
 												{transferRate.toFixed(1)}%)
@@ -240,7 +242,7 @@ export default function StatsPage() {
 
 									<div className="space-y-2">
 										<div className="flex justify-between text-sm">
-											<span>Failed Calls</span>
+											<span>{t("stats.failedCalls")}</span>
 											<span>
 												{callStats.failedCalls || 0} (
 												{(
@@ -265,9 +267,9 @@ export default function StatsPage() {
 
 							<Card>
 								<CardHeader>
-									<CardTitle>Call Duration</CardTitle>
+									<CardTitle>{t("stats.callDuration")}</CardTitle>
 									<CardDescription>
-										Average call duration and timing metrics
+										{t("stats.averageDuration")}
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="space-y-4">
@@ -275,11 +277,12 @@ export default function StatsPage() {
 										<Clock className="h-5 w-5 text-gray-600" />
 										<div>
 											<p className="text-sm font-medium text-gray-600">
-												Average Duration
+												{t("stats.averageDurationLabel")}
 											</p>
 											<p className="text-2xl font-bold">
-												{Math.floor(callStats.averageDuration / 60)}m{" "}
-												{callStats.averageDuration % 60}s
+												{Math.floor(callStats.averageDuration / 60)}
+												{t("stats.minutes")} {callStats.averageDuration % 60}
+												{t("stats.seconds")}
 											</p>
 										</div>
 									</div>
@@ -288,7 +291,7 @@ export default function StatsPage() {
 										<Users className="h-5 w-5 text-gray-600" />
 										<div>
 											<p className="text-sm font-medium text-gray-600">
-												Active Calls
+												{t("stats.activeCalls")}
 											</p>
 											<p className="text-2xl font-bold">
 												{callStats.initiatedCalls || 0}
@@ -300,7 +303,7 @@ export default function StatsPage() {
 										<Target className="h-5 w-5 text-gray-600" />
 										<div>
 											<p className="text-sm font-medium text-gray-600">
-												Efficiency Score
+												{t("stats.efficiencyScore")}
 											</p>
 											<p className="text-2xl font-bold">
 												{conversionRate.toFixed(0)}/100
@@ -316,10 +319,10 @@ export default function StatsPage() {
 							<CardHeader>
 								<CardTitle className="flex items-center">
 									<BarChart3 className="h-5 w-5 mr-2" />
-									Performance Summary
+									{t("stats.performanceSummary")}
 								</CardTitle>
 								<CardDescription>
-									Key performance indicators for your calling campaigns
+									{t("stats.keyPerformanceIndicators")}
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
@@ -330,7 +333,7 @@ export default function StatsPage() {
 											{callStats.completedCalls || 0}
 										</p>
 										<p className="text-sm text-gray-600">
-											Successful Connections
+											{t("stats.successfulConnections")}
 										</p>
 									</div>
 
@@ -339,7 +342,9 @@ export default function StatsPage() {
 										<p className="text-2xl font-bold text-yellow-600">
 											{callStats.transferredCalls || 0}
 										</p>
-										<p className="text-sm text-gray-600">Qualified Transfers</p>
+										<p className="text-sm text-gray-600">
+											{t("stats.qualifiedTransfers")}
+										</p>
 									</div>
 
 									<div className="text-center p-4 bg-blue-50 rounded-lg">
@@ -347,7 +352,9 @@ export default function StatsPage() {
 										<p className="text-2xl font-bold text-blue-600">
 											{conversionRate.toFixed(1)}%
 										</p>
-										<p className="text-sm text-gray-600">Overall Conversion</p>
+										<p className="text-sm text-gray-600">
+											{t("stats.overallConversion")}
+										</p>
 									</div>
 								</div>
 							</CardContent>

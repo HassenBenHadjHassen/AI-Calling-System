@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
 	Card,
 	CardContent,
@@ -27,6 +28,7 @@ import {
 export default function DashboardIndex() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
+	const { t } = useTranslation();
 
 	useEffect(() => {
 		if (isClient) {
@@ -103,16 +105,16 @@ export default function DashboardIndex() {
 
 	const dashboardSections = [
 		{
-			title: "Upload Leads",
-			description: "Upload and manage your lead data",
+			title: t("dashboard.uploadLeads"),
+			description: t("dashboard.uploadLeadsDesc"),
 			icon: Upload,
 			href: "/dashboard/upload",
 			color: "bg-blue-500",
 			badge: "New",
 		},
 		{
-			title: "Leads Management",
-			description: "View and manage all your leads",
+			title: t("dashboard.leadsManagement"),
+			description: t("dashboard.leadsManagementDesc"),
 			icon: Users,
 			href: "/dashboard/leads",
 			color: "bg-green-500",
@@ -120,8 +122,8 @@ export default function DashboardIndex() {
 			count: totalLeads,
 		},
 		{
-			title: "Campaigns",
-			description: "Create and manage calling campaigns",
+			title: t("dashboard.campaigns"),
+			description: t("dashboard.campaignsDesc"),
 			icon: Phone,
 			href: "/dashboard/campaign",
 			color: "bg-purple-500",
@@ -129,16 +131,16 @@ export default function DashboardIndex() {
 			count: activeCampaigns,
 		},
 		{
-			title: "Activity",
-			description: "Monitor real-time calling activity",
+			title: t("dashboard.activity"),
+			description: t("dashboard.activityDesc"),
 			icon: Activity,
 			href: "/dashboard/activity",
 			color: "bg-orange-500",
 			badge: "Live",
 		},
 		{
-			title: "Statistics",
-			description: "View detailed analytics and reports",
+			title: t("dashboard.statistics"),
+			description: t("dashboard.statisticsDesc"),
 			icon: BarChart3,
 			href: "/dashboard/stats",
 			color: "bg-indigo-500",
@@ -151,12 +153,9 @@ export default function DashboardIndex() {
 			<div className="container mx-auto px-4 py-8">
 				<div className="mb-8">
 					<h1 className="text-3xl font-bold text-gray-900 mb-2">
-						Dashboard Overview
+						{t("dashboard.title")}
 					</h1>
-					<p className="text-gray-600">
-						Welcome to your AI Calling System dashboard. Manage your leads,
-						campaigns, and monitor performance.
-					</p>
+					<p className="text-gray-600">{t("dashboard.welcome")}</p>
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -203,10 +202,10 @@ export default function DashboardIndex() {
 						<CardHeader>
 							<CardTitle className="flex items-center space-x-2">
 								<TrendingUp className="h-5 w-5" />
-								<span>Quick Stats</span>
+								<span>{t("dashboard.quickStats")}</span>
 							</CardTitle>
 							<CardDescription>
-								Overview of your system performance
+								{t("dashboard.overviewOfSystem")}
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -215,25 +214,33 @@ export default function DashboardIndex() {
 									<div className="text-2xl font-bold text-blue-600">
 										{totalLeads.toLocaleString()}
 									</div>
-									<div className="text-sm text-gray-600">Total Leads</div>
+									<div className="text-sm text-gray-600">
+										{t("dashboard.totalLeads")}
+									</div>
 								</div>
 								<div className="text-center">
 									<div className="text-2xl font-bold text-green-600">
 										{successRate}%
 									</div>
-									<div className="text-sm text-gray-600">Success Rate</div>
+									<div className="text-sm text-gray-600">
+										{t("dashboard.successRate")}
+									</div>
 								</div>
 								<div className="text-center">
 									<div className="text-2xl font-bold text-purple-600">
 										{activeCampaigns}
 									</div>
-									<div className="text-sm text-gray-600">Active Campaigns</div>
+									<div className="text-sm text-gray-600">
+										{t("dashboard.activeCampaigns")}
+									</div>
 								</div>
 								<div className="text-center">
 									<div className="text-2xl font-bold text-orange-600">
 										{totalCalls.toLocaleString()}
 									</div>
-									<div className="text-sm text-gray-600">Total Calls</div>
+									<div className="text-sm text-gray-600">
+										{t("dashboard.totalCalls")}
+									</div>
 								</div>
 							</div>
 						</CardContent>
@@ -243,9 +250,11 @@ export default function DashboardIndex() {
 						<CardHeader>
 							<CardTitle className="flex items-center space-x-2">
 								<Calendar className="h-5 w-5" />
-								<span>Recent Activity</span>
+								<span>{t("dashboard.recentActivity")}</span>
 							</CardTitle>
-							<CardDescription>Latest system activities</CardDescription>
+							<CardDescription>
+								{t("dashboard.latestSystemActivities")}
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<div className="space-y-3">
@@ -260,10 +269,10 @@ export default function DashboardIndex() {
 												<div className="w-2 h-2 bg-green-500 rounded-full"></div>
 												<div className="flex-1">
 													<p className="text-sm font-medium">
-														Active campaign: {campaign.name}
+														{t("dashboard.activeCampaign")}: {campaign.name}
 													</p>
 													<p className="text-xs text-gray-500">
-														Currently running
+														{t("dashboard.currentlyRunning")}
 													</p>
 												</div>
 											</div>
@@ -273,9 +282,11 @@ export default function DashboardIndex() {
 									<div className="flex items-center space-x-3">
 										<div className="w-2 h-2 bg-gray-400 rounded-full"></div>
 										<div className="flex-1">
-											<p className="text-sm font-medium">No active campaigns</p>
+											<p className="text-sm font-medium">
+												{t("dashboard.noActiveCampaigns")}
+											</p>
 											<p className="text-xs text-gray-500">
-												Start a campaign to begin calling
+												{t("dashboard.startCampaign")}
 											</p>
 										</div>
 									</div>
@@ -292,10 +303,10 @@ export default function DashboardIndex() {
 													{callStatsData.data.completedCalls ||
 														callStatsData.data.completed ||
 														0}{" "}
-													calls completed
+													{t("dashboard.callsCompleted")}
 												</p>
 												<p className="text-xs text-gray-500">
-													Today's successful calls
+													{t("dashboard.todaySuccessfulCalls")}
 												</p>
 											</div>
 										</div>
@@ -306,9 +317,11 @@ export default function DashboardIndex() {
 										<div className="w-2 h-2 bg-purple-500 rounded-full"></div>
 										<div className="flex-1">
 											<p className="text-sm font-medium">
-												{leadsData.data.length} leads available
+												{leadsData.data.length} {t("dashboard.leadsAvailable")}
 											</p>
-											<p className="text-xs text-gray-500">Ready for calling</p>
+											<p className="text-xs text-gray-500">
+												{t("dashboard.readyForCalling")}
+											</p>
 										</div>
 									</div>
 								)}

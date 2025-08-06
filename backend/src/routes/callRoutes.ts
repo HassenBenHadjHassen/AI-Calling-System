@@ -21,6 +21,11 @@ router.post(
 	// authenticateToken, // Commented out for testing
 	callController.triggerCampaignCalls.bind(callController)
 );
+router.post(
+	"/trigger/overdue",
+	// authenticateToken, // Commented out for testing
+	callController.handleOverdueRescheduledCalls.bind(callController)
+);
 
 // Webhook handling (no auth required for webhooks)
 router.post("/webhook", callController.handleWebhook.bind(callController));

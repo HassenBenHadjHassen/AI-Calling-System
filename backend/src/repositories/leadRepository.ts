@@ -293,6 +293,26 @@ export class LeadRepository {
 		}
 	}
 
+	async findOverdueScheduledCalls(): Promise<Lead[]> {
+		try {
+			return await this.prisma.lead.findMany({
+				where: {
+					scheduledCallAt: { lte: new Date() },
+					status: LeadStatus.SCHEDULED,
+					blacklisted: false,
+				},
+				include: {
+					callHistory: true,
+					campaign: true,
+				},
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to find overdue scheduled calls: ${error.message}`
+			);
+		}
+	}
+
 	async findAvailableForCampaign(): Promise<Lead[]> {
 		try {
 			// First, cleanup any orphaned leads (leads with campaignId but no campaign)

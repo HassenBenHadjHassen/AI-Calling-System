@@ -235,6 +235,56 @@ export class CallService {
 		}
 	}
 
+	/**
+	 * Handle overdue rescheduled calls that have passed their scheduled time
+	 * without being called. Update their status to "called" and clear the schedule.
+	 */
+	async handleOverdueRescheduledCalls(): Promise<number> {
+		try {
+			const now = new Date();
+
+			// Find leads that have a scheduled call time in the past
+			// and are still in SCHEDULED status (meaning they weren't called)
+			const overdueLeads =
+				await this.leadRepository.findOverdueScheduledCalls();
+
+			let processedCount = 0;
+
+			for (const lead of overdueLeads) {
+				try {
+					// Update lead status to CALLED since the scheduled time has passed
+					await this.leadRepository.updateStatus(lead.id, LeadStatus.CALLED);
+
+					// Clear the scheduled call data
+					await this.leadRepository.clearScheduledCall(lead.id);
+
+					console.log(
+						`📅 Updated overdue rescheduled call for lead ${lead.id} (${
+							lead.name
+						}) - scheduled for ${lead.scheduledCallAt?.toLocaleString()} but not called`
+					);
+
+					processedCount++;
+				} catch (error: any) {
+					console.error(
+						`Failed to handle overdue rescheduled call for lead ${lead.id}:`,
+						error
+					);
+				}
+			}
+
+			if (processedCount > 0) {
+				console.log(`📅 Processed ${processedCount} overdue rescheduled calls`);
+			}
+
+			return processedCount;
+		} catch (error: any) {
+			throw new Error(
+				`Failed to handle overdue rescheduled calls: ${error.message}`
+			);
+		}
+	}
+
 	async triggerCampaignCalls(
 		campaignId: string,
 		title: string

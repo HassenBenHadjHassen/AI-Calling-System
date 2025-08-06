@@ -111,9 +111,16 @@ socketService.initialize(server);
 // Scheduled job to process due scheduled calls
 const processScheduledCalls = async () => {
 	try {
-		const triggeredCalls = await callService.triggerScheduledCalls(
-			"Scheduled Call"
-		);
+		// Handle overdue rescheduled calls first
+		const overdueCount = await callService.handleOverdueRescheduledCalls();
+		if (overdueCount > 0) {
+			console.log(
+				`📅 Updated ${overdueCount} overdue rescheduled calls to CALLED status`
+			);
+		}
+
+		// Then trigger due scheduled calls
+		const triggeredCalls = await callService.triggerScheduledCalls("Monsieur");
 		if (triggeredCalls.length > 0) {
 			console.log(`📞 Triggered ${triggeredCalls.length} scheduled calls`);
 		}

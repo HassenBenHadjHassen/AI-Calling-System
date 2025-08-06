@@ -132,6 +132,32 @@ export class CallController {
 		}
 	}
 
+	async handleOverdueRescheduledCalls(
+		req: Request,
+		res: Response
+	): Promise<void> {
+		try {
+			const processedCount =
+				await this.callService.handleOverdueRescheduledCalls();
+
+			ResponseUtils.success(
+				res,
+				{
+					processedCount,
+					message: `Processed ${processedCount} overdue rescheduled calls`,
+				},
+				"Overdue rescheduled calls processed successfully"
+			);
+		} catch (error: any) {
+			console.error("Error handling overdue rescheduled calls:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to handle overdue rescheduled calls",
+				400
+			);
+		}
+	}
+
 	async getCallStats(req: Request, res: Response): Promise<void> {
 		try {
 			const stats = await this.callService.getCallStats();

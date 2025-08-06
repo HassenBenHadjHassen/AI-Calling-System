@@ -522,6 +522,18 @@ export const callAPI = {
 		);
 	},
 
+	handleOverdueRescheduledCalls: async (): Promise<
+		ApiResponse<{
+			processedCount: number;
+			message: string;
+		}>
+	> => {
+		return apiService.post<{
+			processedCount: number;
+			message: string;
+		}>("/calls/trigger/overdue", {});
+	},
+
 	getCallsByLead: async (
 		leadId: string
 	): Promise<ApiResponse<CallHistory[]>> => {

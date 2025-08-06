@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
 	Select,
 	SelectTrigger,
@@ -45,6 +46,7 @@ export default function LeadsPage() {
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { t } = useTranslation();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState<LeadStatus | "ALL">("ALL");
 	const [currentPage, setCurrentPage] = useState(1);
@@ -95,7 +97,9 @@ export default function LeadsPage() {
 	const handleDeleteLead = (leadId: string, leadName: string) => {
 		if (
 			confirm(
-				`Are you sure you want to delete the lead "${leadName}"? This action cannot be undone.`
+				`${t(
+					"leads.confirmDeleteLead"
+				)} "${leadName}"? This action cannot be undone.`
 			)
 		) {
 			deleteLeadMutation.mutate(leadId);
@@ -112,7 +116,11 @@ export default function LeadsPage() {
 
 		if (
 			confirm(
-				`Are you sure you want to delete ${selectedLeads.length} selected leads?\n\nSelected: ${leadNames}\n\nThis action cannot be undone.`
+				`${t("leads.confirmDeleteSelected")} ${selectedLeads.length} ${t(
+					"leads.selectedLeads"
+				)}\n\n${t(
+					"leads.selected"
+				)} ${leadNames}\n\nThis action cannot be undone.`
 			)
 		) {
 			deleteLeadsMutation.mutate(selectedLeads);
@@ -192,9 +200,9 @@ export default function LeadsPage() {
 						<div className="flex justify-between items-center">
 							<div>
 								<h1 className="text-2xl font-bold text-gray-900">
-									Leads Management
+									{t("leads.title")}
 								</h1>
-								<p className="text-gray-600">Manage and track your leads</p>
+								<p className="text-gray-600">{t("leads.description")}</p>
 							</div>
 							<div className="flex space-x-2">
 								{selectedLeads.length > 0 && (
@@ -204,7 +212,7 @@ export default function LeadsPage() {
 										disabled={deleteLeadsMutation.isPending}
 									>
 										<Trash2 className="h-4 w-4 mr-2" />
-										Delete Selected ({selectedLeads.length})
+										{t("leads.deleteSelected")} ({selectedLeads.length})
 									</Button>
 								)}
 								<Button
@@ -213,7 +221,7 @@ export default function LeadsPage() {
 									disabled={cleanAllLeadsMutation.isPending}
 								>
 									<Trash2 className="h-4 w-4 mr-2" />
-									Clean All Leads
+									{t("leads.cleanAllLeads")}
 								</Button>
 							</div>
 						</div>
@@ -221,22 +229,24 @@ export default function LeadsPage() {
 						{showCleanWarning && (
 							<Card className="border-red-200 bg-red-50">
 								<CardHeader>
-									<CardTitle className="text-red-800">⚠️ Danger Zone</CardTitle>
+									<CardTitle className="text-red-800">
+										{t("leads.dangerZone")}
+									</CardTitle>
 									<CardContent className="text-red-700">
 										<div className="space-y-3">
 											<p className="font-semibold">
-												Are you absolutely sure you want to delete ALL leads?
+												{t("leads.confirmDeleteAll")}
 											</p>
 											<div className="text-sm space-y-2">
-												<p>This action will permanently delete:</p>
+												<p>{t("leads.deleteWarning")}</p>
 												<ul className="list-disc list-inside space-y-1 ml-4">
-													<li>All lead records in the database</li>
-													<li>All associated call history</li>
-													<li>All scheduled calls and notes</li>
-													<li>All lead status and progress data</li>
+													<li>{t("leads.allLeadRecords")}</li>
+													<li>{t("leads.allCallHistory")}</li>
+													<li>{t("leads.allScheduledCalls")}</li>
+													<li>{t("leads.allStatusData")}</li>
 												</ul>
 												<p className="font-semibold text-red-800">
-													⚠️ This action cannot be undone!
+													{t("leads.cannotUndo")}
 												</p>
 											</div>
 											<div className="flex space-x-2 pt-2">
@@ -246,15 +256,15 @@ export default function LeadsPage() {
 													disabled={cleanAllLeadsMutation.isPending}
 												>
 													{cleanAllLeadsMutation.isPending
-														? "Deleting..."
-														: "Yes, Delete All Leads"}
+														? t("leads.deleting")
+														: t("leads.yesDeleteAll")}
 												</Button>
 												<Button
 													variant="outline"
 													onClick={() => setShowCleanWarning(false)}
 													disabled={cleanAllLeadsMutation.isPending}
 												>
-													Cancel
+													{t("common.cancel")}
 												</Button>
 											</div>
 										</div>
@@ -265,12 +275,14 @@ export default function LeadsPage() {
 
 						<Card>
 							<CardHeader>
-								<CardTitle>Leads ({filteredLeads.length})</CardTitle>
+								<CardTitle>
+									{t("leads.leadsCount")} ({filteredLeads.length})
+								</CardTitle>
 								<div className="flex flex-col sm:flex-row gap-4">
 									<div className="relative flex-1">
 										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
 										<Input
-											placeholder="Search by name or phone..."
+											placeholder={t("leads.searchPlaceholder")}
 											value={searchTerm}
 											onChange={(e) => setSearchTerm(e.target.value)}
 											className="pl-10"
@@ -284,24 +296,40 @@ export default function LeadsPage() {
 									>
 										<SelectTrigger className="w-48">
 											<Filter className="h-4 w-4 mr-2" />
-											<SelectValue placeholder="Filter by status" />
+											<SelectValue placeholder={t("leads.filterByStatus")} />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="ALL">All Status</SelectItem>
-											<SelectItem value="NEW">New</SelectItem>
-											<SelectItem value="CALLED">Called</SelectItem>
-											<SelectItem value="INTERESTED">Interested</SelectItem>
-											<SelectItem value="TRANSFERRED">Transferred</SelectItem>
-											<SelectItem value="FAILED">Failed</SelectItem>
-											<SelectItem value="SCHEDULED">Scheduled</SelectItem>
-											<SelectItem value="BLACKLISTED">Blacklisted</SelectItem>
+											<SelectItem value="ALL">
+												{t("leads.allStatus")}
+											</SelectItem>
+											<SelectItem value="NEW">{t("leads.new")}</SelectItem>
+											<SelectItem value="CALLED">
+												{t("leads.called")}
+											</SelectItem>
+											<SelectItem value="INTERESTED">
+												{t("leads.interested")}
+											</SelectItem>
+											<SelectItem value="TRANSFERRED">
+												{t("leads.transferred")}
+											</SelectItem>
+											<SelectItem value="FAILED">
+												{t("leads.failed")}
+											</SelectItem>
+											<SelectItem value="SCHEDULED">
+												{t("leads.scheduled")}
+											</SelectItem>
+											<SelectItem value="BLACKLISTED">
+												{t("leads.blacklisted")}
+											</SelectItem>
 										</SelectContent>
 									</Select>
 								</div>
 							</CardHeader>
 							<CardContent>
 								{isLoading ? (
-									<div className="text-center py-8">Loading leads...</div>
+									<div className="text-center py-8">
+										{t("leads.loadingLeads")}
+									</div>
 								) : (
 									<>
 										<Table>
@@ -319,12 +347,12 @@ export default function LeadsPage() {
 															className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
 														/>
 													</TableHead>
-													<TableHead>Name</TableHead>
-													<TableHead>Phone</TableHead>
-													<TableHead>Status</TableHead>
-													<TableHead>City</TableHead>
-													<TableHead>Created</TableHead>
-													<TableHead>Actions</TableHead>
+													<TableHead>{t("common.name")}</TableHead>
+													<TableHead>{t("common.phone")}</TableHead>
+													<TableHead>{t("common.status")}</TableHead>
+													<TableHead>{t("common.city")}</TableHead>
+													<TableHead>{t("common.created")}</TableHead>
+													<TableHead>{t("common.actions")}</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
@@ -368,7 +396,7 @@ export default function LeadsPage() {
 																		navigate(`/dashboard/leads/${lead.id}`)
 																	}
 																>
-																	View
+																	{t("common.view")}
 																</Button>
 																<Button
 																	variant="destructive"
@@ -379,8 +407,8 @@ export default function LeadsPage() {
 																	disabled={deleteLeadMutation.isPending}
 																>
 																	{deleteLeadMutation.isPending
-																		? "Deleting..."
-																		: "Delete"}
+																		? t("leads.deleting")
+																		: t("common.delete")}
 																</Button>
 															</div>
 														</TableCell>
@@ -392,12 +420,13 @@ export default function LeadsPage() {
 										{totalPages > 1 && (
 											<div className="flex items-center justify-between mt-4">
 												<p className="text-sm text-gray-600">
-													Showing {startIndex + 1} to{" "}
+													{t("leads.showing")} {startIndex + 1} {t("leads.to")}{" "}
 													{Math.min(
 														startIndex + itemsPerPage,
 														filteredLeads.length
 													)}{" "}
-													of {filteredLeads.length} results
+													{t("leads.of")} {filteredLeads.length}{" "}
+													{t("leads.results")}
 												</p>
 												<div className="flex space-x-2">
 													<Button
@@ -408,7 +437,7 @@ export default function LeadsPage() {
 														}
 														disabled={currentPage === 1}
 													>
-														Previous
+														{t("common.previous")}
 													</Button>
 													<Button
 														variant="outline"
@@ -420,7 +449,7 @@ export default function LeadsPage() {
 														}
 														disabled={currentPage === totalPages}
 													>
-														Next
+														{t("common.next")}
 													</Button>
 												</div>
 											</div>

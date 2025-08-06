@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
@@ -73,6 +74,7 @@ export default function LeadDetailPage() {
 	const { id } = useParams();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { t } = useTranslation();
 
 	useEffect(() => {
 		if (isClient) {
@@ -144,7 +146,8 @@ export default function LeadDetailPage() {
 
 	// Trigger call mutation
 	const triggerCallMutation = useMutation({
-		mutationFn: () => callAPI.triggerCall(id!, "Mr", "John Doe"),
+		mutationFn: () =>
+			callAPI.triggerCall(id!, leadTitle, leadData?.data?.name || ""),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["callHistory", id] });
 		},
@@ -192,7 +195,9 @@ export default function LeadDetailPage() {
 				<div className="flex-1 flex flex-col overflow-hidden">
 					<Topbar />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-						<div className="text-center py-8">Loading lead details...</div>
+						<div className="text-center py-8">
+							{t("leadDetail.loadingLeadDetails")}
+						</div>
 					</main>
 				</div>
 			</div>
@@ -208,13 +213,13 @@ export default function LeadDetailPage() {
 					<Topbar />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 						<div className="text-center py-8">
-							<p className="text-gray-600">Lead not found</p>
+							<p className="text-gray-600">{t("leadDetail.leadNotFound")}</p>
 							<Button
 								variant="outline"
 								onClick={() => navigate("/dashboard/leads")}
 								className="mt-4"
 							>
-								Back to Leads
+								{t("leadDetail.backToLeads")}
 							</Button>
 						</div>
 					</main>
@@ -290,15 +295,13 @@ export default function LeadDetailPage() {
 									onClick={() => navigate("/dashboard/leads")}
 								>
 									<ArrowLeft className="h-4 w-4 mr-2" />
-									Back to Leads
+									{t("leadDetail.backToLeads")}
 								</Button>
 								<div>
 									<h1 className="text-2xl font-bold text-gray-900">
-										Lead Details
+										{t("leadDetail.title")}
 									</h1>
-									<p className="text-gray-600">
-										Manage lead information and call history
-									</p>
+									<p className="text-gray-600">{t("leadDetail.description")}</p>
 								</div>
 							</div>
 							<div className="flex space-x-2">
@@ -310,7 +313,9 @@ export default function LeadDetailPage() {
 											disabled={updateLeadMutation.isPending}
 										>
 											<Save className="h-4 w-4 mr-2" />
-											{updateLeadMutation.isPending ? "Saving..." : "Save"}
+											{updateLeadMutation.isPending
+												? t("leadDetail.saving")
+												: t("leadDetail.save")}
 										</Button>
 										<Button
 											variant="outline"
@@ -319,7 +324,7 @@ export default function LeadDetailPage() {
 											disabled={updateLeadMutation.isPending}
 										>
 											<X className="h-4 w-4 mr-2" />
-											Cancel
+											{t("leadDetail.cancel")}
 										</Button>
 									</>
 								) : (
@@ -329,7 +334,7 @@ export default function LeadDetailPage() {
 										onClick={() => setIsEditing(true)}
 									>
 										<Edit className="h-4 w-4 mr-2" />
-										Edit
+										{t("leadDetail.edit")}
 									</Button>
 								)}
 							</div>
@@ -342,20 +347,20 @@ export default function LeadDetailPage() {
 									<CardHeader>
 										<CardTitle className="flex items-center">
 											<User className="h-5 w-5 mr-2" />
-											Lead Information
+											{t("leadDetail.leadInformation")}
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-4">
 										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Title
+													{t("leadDetail.titleLabel")}
 												</Label>
 												<p className="text-gray-900">{leadTitle}</p>
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Name
+													{t("leadDetail.name")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -374,7 +379,7 @@ export default function LeadDetailPage() {
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Status
+													{t("leadDetail.status")}
 												</Label>
 												<div className="flex items-center space-x-2 mt-1">
 													<Badge
@@ -392,7 +397,7 @@ export default function LeadDetailPage() {
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Primary Phone
+													{t("leadDetail.primaryPhone")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -413,7 +418,7 @@ export default function LeadDetailPage() {
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Secondary Phone
+													{t("leadDetail.secondaryPhone")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -430,13 +435,13 @@ export default function LeadDetailPage() {
 													<p className="text-gray-900">
 														{lead.phone2
 															? formatPhoneNumber(lead.phone2)
-															: "N/A"}
+															: t("leadDetail.na")}
 													</p>
 												)}
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Address
+													{t("leadDetail.address")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -451,13 +456,13 @@ export default function LeadDetailPage() {
 													/>
 												) : (
 													<p className="text-gray-900">
-														{lead.address || "N/A"}
+														{lead.address || t("leadDetail.na")}
 													</p>
 												)}
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													City
+													{t("leadDetail.city")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -471,12 +476,14 @@ export default function LeadDetailPage() {
 														className="mt-1"
 													/>
 												) : (
-													<p className="text-gray-900">{lead.city || "N/A"}</p>
+													<p className="text-gray-900">
+														{lead.city || t("leadDetail.na")}
+													</p>
 												)}
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Postal Code
+													{t("leadDetail.postalCode")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -491,7 +498,7 @@ export default function LeadDetailPage() {
 													/>
 												) : (
 													<p className="text-gray-900">
-														{lead.postalCode || "N/A"}
+														{lead.postalCode || t("leadDetail.na")}
 													</p>
 												)}
 											</div>
@@ -499,7 +506,7 @@ export default function LeadDetailPage() {
 										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Created
+													{t("leadDetail.created")}
 												</Label>
 												<p className="text-gray-900">
 													{formatDate(lead.createdAt)}
@@ -507,7 +514,7 @@ export default function LeadDetailPage() {
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Last Updated
+													{t("leadDetail.lastUpdated")}
 												</Label>
 												<p className="text-gray-900">
 													{formatDate(lead.updatedAt)}
@@ -522,26 +529,26 @@ export default function LeadDetailPage() {
 									<CardHeader>
 										<CardTitle className="flex items-center">
 											<Phone className="h-5 w-5 mr-2" />
-											Call History
+											{t("leadDetail.callHistory")}
 										</CardTitle>
 									</CardHeader>
 									<CardContent>
 										{isCallHistoryLoading ? (
 											<div className="text-center py-4">
-												Loading call history...
+												{t("leadDetail.loadingCallHistory")}
 											</div>
 										) : callHistory.length === 0 ? (
 											<div className="text-center py-8 text-gray-500">
-												No call history available
+												{t("leadDetail.noCallHistory")}
 											</div>
 										) : (
 											<Table>
 												<TableHeader>
 													<TableRow>
-														<TableHead>Date</TableHead>
-														<TableHead>Status</TableHead>
-														<TableHead>Duration</TableHead>
-														<TableHead>Notes</TableHead>
+														<TableHead>{t("common.date")}</TableHead>
+														<TableHead>{t("common.status")}</TableHead>
+														<TableHead>{t("common.duration")}</TableHead>
+														<TableHead>{t("common.notes")}</TableHead>
 													</TableRow>
 												</TableHeader>
 												<TableBody>
@@ -564,9 +571,11 @@ export default function LeadDetailPage() {
 															<TableCell>
 																{call.duration
 																	? formatDuration(call.duration)
-																	: "N/A"}
+																	: t("leadDetail.na")}
 															</TableCell>
-															<TableCell>{call.notes || "No notes"}</TableCell>
+															<TableCell>
+																{call.notes || t("leadDetail.noNotes")}
+															</TableCell>
 														</TableRow>
 													))}
 												</TableBody>
@@ -583,7 +592,7 @@ export default function LeadDetailPage() {
 									<CardHeader>
 										<CardTitle className="flex items-center">
 											<CheckCircle className="h-5 w-5 mr-2" />
-											Update Status
+											{t("leadDetail.updateStatus")}
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-4">
@@ -594,7 +603,9 @@ export default function LeadDetailPage() {
 											}
 										>
 											<SelectTrigger>
-												<SelectValue placeholder="Select new status" />
+												<SelectValue
+													placeholder={t("leadDetail.selectNewStatus")}
+												/>
 											</SelectTrigger>
 											<SelectContent>
 												{Object.entries(statusLabels).map(([key, label]) => (
@@ -606,10 +617,14 @@ export default function LeadDetailPage() {
 										</Select>
 										<Button
 											onClick={handleStatusUpdate}
-											disabled={!newStatus || newStatus === lead.status}
+											disabled={
+												!newStatus ||
+												lead.status === "SCHEDULED" ||
+												newStatus === lead.status
+											}
 											className="w-full"
 										>
-											Update Status
+											{t("leadDetail.updateStatusBtn")}
 										</Button>
 									</CardContent>
 								</Card>
@@ -619,7 +634,7 @@ export default function LeadDetailPage() {
 									<CardHeader>
 										<CardTitle className="flex items-center">
 											<PhoneCall className="h-5 w-5 mr-2" />
-											Trigger Call
+											{t("leadDetail.triggerCall")}
 										</CardTitle>
 									</CardHeader>
 									<CardContent>
@@ -629,8 +644,8 @@ export default function LeadDetailPage() {
 											className="w-full"
 										>
 											{triggerCallMutation.isPending
-												? "Triggering..."
-												: "Call Now"}
+												? t("leadDetail.triggering")
+												: t("leadDetail.callNow")}
 										</Button>
 									</CardContent>
 								</Card>
@@ -640,13 +655,13 @@ export default function LeadDetailPage() {
 									<CardHeader>
 										<CardTitle className="flex items-center">
 											<CalendarDays className="h-5 w-5 mr-2" />
-											Schedule Call
+											{t("leadDetail.scheduleCall")}
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-4">
 										<div>
 											<Label className="text-sm font-medium text-gray-700">
-												Date & Time
+												{t("leadDetail.dateTime")}
 											</Label>
 											<Input
 												type="datetime-local"
@@ -657,12 +672,12 @@ export default function LeadDetailPage() {
 										</div>
 										<div>
 											<Label className="text-sm font-medium text-gray-700">
-												Note
+												{t("leadDetail.note")}
 											</Label>
 											<Textarea
 												value={scheduleNote}
 												onChange={(e) => setScheduleNote(e.target.value)}
-												placeholder="Add a note for the scheduled call..."
+												placeholder={t("leadDetail.addNote")}
 												className="mt-1"
 												rows={3}
 											/>
@@ -673,8 +688,8 @@ export default function LeadDetailPage() {
 											className="w-full"
 										>
 											{scheduleCallMutation.isPending
-												? "Scheduling..."
-												: "Schedule Call"}
+												? t("leadDetail.scheduling")
+												: t("leadDetail.scheduleCallBtn")}
 										</Button>
 									</CardContent>
 								</Card>
@@ -685,13 +700,13 @@ export default function LeadDetailPage() {
 										<CardHeader>
 											<CardTitle className="flex items-center">
 												<Clock className="h-5 w-5 mr-2" />
-												Scheduled Call
+												{t("leadDetail.scheduledCall")}
 											</CardTitle>
 										</CardHeader>
 										<CardContent className="space-y-2">
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													Scheduled For
+													{t("leadDetail.scheduledFor")}
 												</Label>
 												<p className="text-gray-900">
 													{formatDate(lead.scheduledCallAt)}
@@ -700,7 +715,7 @@ export default function LeadDetailPage() {
 											{lead.scheduledCallNote && (
 												<div>
 													<Label className="text-sm font-medium text-gray-700">
-														Note
+														{t("leadDetail.note")}
 													</Label>
 													<p className="text-gray-900">
 														{lead.scheduledCallNote}

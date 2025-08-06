@@ -8,13 +8,16 @@ import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
 } from "@radix-ui/react-dropdown-menu";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../hooks/use-auth";
 import { LogOut, ChevronDown } from "lucide-react";
 import { Button } from "../ui/button";
 import { useState } from "react";
+import { LanguageSwitcher } from "../language-switcher";
 
 export function Topbar() {
 	const { user, logout } = useAuth();
+	const { t } = useTranslation();
 	const [isOpen, setIsOpen] = useState(false);
 
 	const handleLogout = () => {
@@ -33,11 +36,13 @@ export function Topbar() {
 						<h1 className="text-xl font-bold text-gray-900">
 							AI Calling System
 						</h1>
-						<p className="text-xs text-gray-500">Dashboard</p>
+						<p className="text-xs text-gray-500">{t("dashboard.title")}</p>
 					</div>
 				</div>
 
-				<div className="flex items-center">
+				<div className="flex items-center space-x-4">
+					<LanguageSwitcher />
+
 					<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -103,7 +108,7 @@ export function Topbar() {
 								<div className="mr-3 p-1.5 rounded-md bg-red-100 group-hover:bg-red-200 transition-colors">
 									<LogOut className="h-4 w-4" />
 								</div>
-								<span className="text-sm font-medium">Sign out</span>
+								<span className="text-sm font-medium">{t("auth.signOut")}</span>
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
