@@ -47,6 +47,8 @@ const resources = {
 				duration: "Duration",
 				notes: "Notes",
 				actions: "Actions",
+				leads: "Leads",
+				created: "Created",
 			},
 
 			// Authentication
@@ -264,6 +266,11 @@ const resources = {
 					"Are you sure you want to remove this lead from the campaign?",
 				confirmDeleteCampaign:
 					"Are you sure you want to delete this campaign? This action cannot be undone.",
+				idCopiedToClipboard: "Campaign ID copied to clipboard!",
+				campaignCreatedSuccessfully: "Campaign created successfully!",
+				failedToCreateCampaign: "Failed to create campaign. Please try again.",
+				campaignNameRequired: "Campaign name is required.",
+				campaignNameAlreadyExists: "A campaign with this name already exists.",
 				// Campaign detail specific
 				campaignNotFound: "Campaign not found",
 				loadingCampaignDetails: "Loading campaign details...",
@@ -332,6 +339,12 @@ const resources = {
 				noNotes: "No notes",
 				minutes: "m",
 				seconds: "s",
+				// Status translations
+				initiated: "Initiated",
+				completed: "Completed",
+				transferred: "Transferred",
+				failed: "Failed",
+				scheduled: "Scheduled",
 			},
 
 			// Statistics
@@ -499,6 +512,8 @@ const resources = {
 				duration: "Durée",
 				notes: "Notes",
 				actions: "Actions",
+				leads: "Prospects",
+				created: "Créé",
 			},
 
 			// Authentication
@@ -721,6 +736,12 @@ const resources = {
 					"Êtes-vous sûr de vouloir retirer ce prospect de la campagne?",
 				confirmDeleteCampaign:
 					"Êtes-vous sûr de vouloir supprimer cette campagne? Cette action ne peut pas être annulée.",
+				idCopiedToClipboard: "ID de campagne copié dans le presse-papiers !",
+				campaignCreatedSuccessfully: "Campagne créée avec succès !",
+				failedToCreateCampaign:
+					"Échec de la création de la campagne. Veuillez réessayer.",
+				campaignNameRequired: "Le nom de la campagne est requis.",
+				campaignNameAlreadyExists: "Une campagne avec ce nom existe déjà.",
 				// Campaign detail specific
 				campaignNotFound: "Campagne non trouvée",
 				loadingCampaignDetails: "Chargement des détails de la campagne...",
@@ -792,6 +813,12 @@ const resources = {
 				noNotes: "Aucune note",
 				minutes: "m",
 				seconds: "s",
+				// Status translations
+				initiated: "Initié",
+				completed: "Terminé",
+				transferred: "Transféré",
+				failed: "Échoué",
+				scheduled: "Programmé",
 			},
 
 			// Statistics
@@ -919,13 +946,26 @@ const resources = {
 	},
 };
 
+// Get saved language from localStorage or default to 'en'
+const savedLanguage =
+	typeof window !== "undefined"
+		? localStorage.getItem("i18n_language") || "en"
+		: "en";
+
 i18n.use(initReactI18next).init({
 	resources,
-	lng: "en", // default language
+	lng: savedLanguage, // Use saved language or default to 'en'
 	fallbackLng: "en",
 	interpolation: {
 		escapeValue: false, // React already escapes values
 	},
+});
+
+// Save language to localStorage when it changes
+i18n.on("languageChanged", (lng) => {
+	if (typeof window !== "undefined") {
+		localStorage.setItem("i18n_language", lng);
+	}
 });
 
 export default i18n;

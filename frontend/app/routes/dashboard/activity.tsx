@@ -56,6 +56,24 @@ export default function ActivityPage() {
 	const queryClient = useQueryClient();
 	const { t } = useTranslation();
 
+	// Function to translate status
+	const translateStatus = (status: string) => {
+		switch (status) {
+			case "INITIATED":
+				return t("activity.initiated");
+			case "COMPLETED":
+				return t("activity.completed");
+			case "TRANSFERRED":
+				return t("activity.transferred");
+			case "FAILED":
+				return t("activity.failed");
+			case "SCHEDULED":
+				return t("activity.scheduled");
+			default:
+				return status;
+		}
+	};
+
 	useEffect(() => {
 		if (isClient) {
 			redirectIfNotAuthenticated("/login");
@@ -143,32 +161,38 @@ export default function ActivityPage() {
 			const response = await callAPI.getRecentCalls(1000);
 			if (response.success && response.data) {
 				const csvData = [
-					// CSV header
+					// CSV header with translated titles based on current language
 					[
-						"Lead Name",
-						"Phone",
-						"Status",
-						"Call Time",
-						"Duration (seconds)",
-						"Campaign",
-						"Notes",
+						t("activity.leadName"),
+						t("activity.phone"),
+						t("activity.status"),
+						t("activity.callTime"),
+						t("activity.durationSeconds"),
+						t("activity.campaign"),
+						"Campaign ID", // Keep ID in English as it's a technical field
+						t("activity.notes"),
 					].join(","),
 					// CSV rows
 					...response.data.map((call) =>
 						[
-							`"${call.lead?.name || "Unknown"}"`,
+							`"${call.lead?.name || t("activity.unknownLead")}"`,
 							`"${call.lead?.phone1 || ""}"`,
 							`"${call.callStatus}"`,
 							`"${formatDate(call.callTime)}"`,
 							call.duration || 0,
 							`"${call.lead?.campaign?.name || ""}"`,
+							`"${call.lead?.campaign?.id || ""}"`,
 							`"${call.notes || ""}"`,
 						].join(",")
 					),
 				].join("\n");
 
-				// Create and download file
-				const blob = new Blob([csvData], { type: "text/csv" });
+				// Create and download file with proper UTF-8 encoding
+				const BOM = "\uFEFF"; // UTF-8 BOM
+				const csvDataWithBOM = BOM + csvData;
+				const blob = new Blob([csvDataWithBOM], {
+					type: "text/csv;charset=utf-8",
+				});
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement("a");
 				a.href = url;
@@ -385,7 +409,7 @@ export default function ActivityPage() {
 																	}
 																	className="text-xs font-medium"
 																>
-																	{activity.status}
+																	{translateStatus(activity.status)}
 																</Badge>
 																{activity.duration && (
 																	<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
@@ -407,6 +431,10 @@ export default function ActivityPage() {
 																		>
 																			{activity.campaignName}
 																		</Link>
+																		<span className="text-gray-300">•</span>
+																		<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+																			ID: {activity.campaignId}
+																		</span>
 																	</>
 																)}
 															</div>

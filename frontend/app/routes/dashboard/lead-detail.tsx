@@ -58,15 +58,7 @@ const statusColors: Record<LeadStatus, string> = {
 	SCHEDULED: "outline",
 };
 
-const statusLabels: Record<LeadStatus, string> = {
-	NEW: "New Lead",
-	CALLED: "Called",
-	INTERESTED: "Interested",
-	TRANSFERRED: "Transferred",
-	FAILED: "Failed",
-	BLACKLISTED: "Blacklisted",
-	SCHEDULED: "Scheduled",
-};
+// Function to translate status - will be defined inside component
 
 export default function LeadDetailPage() {
 	const { isAuthenticated } = useAuth();
@@ -75,6 +67,28 @@ export default function LeadDetailPage() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { t } = useTranslation();
+
+	// Function to translate status
+	const translateStatus = (status: LeadStatus) => {
+		switch (status) {
+			case "NEW":
+				return t("leads.new");
+			case "CALLED":
+				return t("leads.called");
+			case "INTERESTED":
+				return t("leads.interested");
+			case "TRANSFERRED":
+				return t("leads.transferred");
+			case "FAILED":
+				return t("leads.failed");
+			case "BLACKLISTED":
+				return t("leads.blacklisted");
+			case "SCHEDULED":
+				return t("leads.scheduled");
+			default:
+				return status;
+		}
+	};
 
 	useEffect(() => {
 		if (isClient) {
@@ -360,7 +374,7 @@ export default function LeadDetailPage() {
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													{t("leadDetail.name")}
+													{t("common.name")}
 												</Label>
 												{isEditing ? (
 													<Input
@@ -379,7 +393,7 @@ export default function LeadDetailPage() {
 											</div>
 											<div>
 												<Label className="text-sm font-medium text-gray-700">
-													{t("leadDetail.status")}
+													{t("common.status")}
 												</Label>
 												<div className="flex items-center space-x-2 mt-1">
 													<Badge
@@ -391,7 +405,7 @@ export default function LeadDetailPage() {
 																| "outline"
 														}
 													>
-														{statusLabels[lead.status]}
+														{translateStatus(lead.status)}
 													</Badge>
 												</div>
 											</div>
@@ -608,11 +622,25 @@ export default function LeadDetailPage() {
 												/>
 											</SelectTrigger>
 											<SelectContent>
-												{Object.entries(statusLabels).map(([key, label]) => (
-													<SelectItem key={key} value={key}>
-														{label}
-													</SelectItem>
-												))}
+												<SelectItem value="NEW">{t("leads.new")}</SelectItem>
+												<SelectItem value="CALLED">
+													{t("leads.called")}
+												</SelectItem>
+												<SelectItem value="INTERESTED">
+													{t("leads.interested")}
+												</SelectItem>
+												<SelectItem value="TRANSFERRED">
+													{t("leads.transferred")}
+												</SelectItem>
+												<SelectItem value="FAILED">
+													{t("leads.failed")}
+												</SelectItem>
+												<SelectItem value="BLACKLISTED">
+													{t("leads.blacklisted")}
+												</SelectItem>
+												<SelectItem value="SCHEDULED">
+													{t("leads.scheduled")}
+												</SelectItem>
 											</SelectContent>
 										</Select>
 										<Button

@@ -26,6 +26,7 @@ import {
 	type CreateCampaignRequest,
 } from "~/services/api";
 import { formatDate } from "~/lib/utils";
+import { useToast } from "~/components/ui/toast";
 
 export default function CampaignPage() {
 	const navigate = useNavigate();
@@ -33,6 +34,7 @@ export default function CampaignPage() {
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 	const { t } = useTranslation();
 	const queryClient = useQueryClient();
+	const { addToast } = useToast();
 	const [showCleanWarning, setShowCleanWarning] = useState(false);
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [newCampaignName, setNewCampaignName] = useState("");
@@ -64,6 +66,15 @@ export default function CampaignPage() {
 			});
 			setShowCreateModal(false);
 			setNewCampaignName("");
+			addToast(t("campaigns.campaignCreatedSuccessfully"), "success");
+		},
+		onError: (error: any) => {
+			// Handle duplicate name error
+			if (error?.error?.includes("already exists")) {
+				addToast(error.error, "error");
+			} else {
+				addToast(t("campaigns.failedToCreateCampaign"), "error");
+			}
 		},
 	});
 
@@ -239,9 +250,23 @@ export default function CampaignPage() {
 	};
 
 	const handleCreateCampaign = () => {
-		if (newCampaignName.trim()) {
-			createCampaignMutation.mutate({ name: newCampaignName.trim() });
+		const trimmedName = newCampaignName.trim();
+		if (!trimmedName) {
+			addToast(t("campaigns.campaignNameRequired"), "error");
+			return;
 		}
+
+		// Check if campaign name already exists in current campaigns
+		const existingCampaign = campaigns?.data?.find(
+			(campaign) => campaign.name.toLowerCase() === trimmedName.toLowerCase()
+		);
+
+		if (existingCampaign) {
+			addToast(t("campaigns.campaignNameAlreadyExists"), "error");
+			return;
+		}
+
+		createCampaignMutation.mutate({ name: trimmedName });
 	};
 
 	const handleDeleteCampaign = (campaignId: string) => {
@@ -333,7 +358,25 @@ export default function CampaignPage() {
 														handleCreateCampaign();
 													}
 												}}
+												className={
+													campaigns?.data?.find(
+														(campaign) =>
+															campaign.name.toLowerCase() ===
+															newCampaignName.trim().toLowerCase()
+													) !== undefined
+														? "border-red-500 focus:border-red-500"
+														: ""
+												}
 											/>
+											{campaigns?.data?.find(
+												(campaign) =>
+													campaign.name.toLowerCase() ===
+													newCampaignName.trim().toLowerCase()
+											) !== undefined && (
+												<p className="text-sm text-red-600 mt-1">
+													{t("campaigns.campaignNameAlreadyExists")}
+												</p>
+											)}
 										</div>
 										<div className="text-sm text-gray-600">
 											{t("campaigns.addLeadsNote")}
@@ -343,7 +386,12 @@ export default function CampaignPage() {
 												onClick={handleCreateCampaign}
 												disabled={
 													!newCampaignName.trim() ||
-													createCampaignMutation.isPending
+													createCampaignMutation.isPending ||
+													campaigns?.data?.find(
+														(campaign) =>
+															campaign.name.toLowerCase() ===
+															newCampaignName.trim().toLowerCase()
+													) !== undefined
 												}
 												className="flex-1"
 											>
@@ -420,6 +468,9 @@ export default function CampaignPage() {
 														{campaign.name}
 													</h3>
 													<p className="text-sm text-gray-600">
+														ID: {campaign.id}
+													</p>
+													<p className="text-sm text-gray-600">
 														{t("campaigns.started")}{" "}
 														{campaign.startedAt
 															? formatDate(campaign.startedAt) ?? ""
@@ -481,6 +532,19 @@ export default function CampaignPage() {
 														</Badge>
 													</div>
 													<div className="mt-1 text-sm text-gray-600 space-y-1">
+														<p
+															className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+															onClick={() => {
+																navigator.clipboard.writeText(campaign.id);
+																addToast(
+																	t("campaigns.idCopiedToClipboard"),
+																	"success"
+																);
+															}}
+															title="Click to copy ID"
+														>
+															ID: {campaign.id}
+														</p>
 														<p>
 															{t("campaigns.started")}{" "}
 															{campaign.startedAt

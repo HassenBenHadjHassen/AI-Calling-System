@@ -239,6 +239,14 @@ export class CampaignService {
 		try {
 			return await this.campaignRepository.create({ name });
 		} catch (error: any) {
+			// Check if it's a duplicate name error
+			if (
+				error.message.includes("Unique constraint failed") ||
+				error.message.includes("duplicate key") ||
+				error.message.includes("E11000")
+			) {
+				throw new Error(`Campaign with name "${name}" already exists`);
+			}
 			throw new Error(`Failed to create campaign: ${error.message}`);
 		}
 	}

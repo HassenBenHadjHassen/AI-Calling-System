@@ -51,6 +51,7 @@ import {
 	type CallHistory,
 } from "~/services/api";
 import { formatDate } from "~/lib/utils";
+import { useToast } from "~/components/ui/toast";
 
 export default function CampaignDetailPage() {
 	const { id } = useParams<{ id: string }>();
@@ -59,6 +60,7 @@ export default function CampaignDetailPage() {
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 	const queryClient = useQueryClient();
 	const { t } = useTranslation();
+	const { addToast } = useToast();
 	const [showAddLeadsModal, setShowAddLeadsModal] = useState(false);
 	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
 
@@ -399,6 +401,22 @@ export default function CampaignDetailPage() {
 								<CardContent>
 									<div className="space-y-2">
 										<div className="flex justify-between">
+											<span className="text-sm text-gray-600">ID</span>
+											<span
+												className="text-sm font-mono cursor-pointer hover:text-blue-600 transition-colors"
+												onClick={() => {
+													navigator.clipboard.writeText(campaignData.id);
+													addToast(
+														t("campaigns.idCopiedToClipboard"),
+														"success"
+													);
+												}}
+												title="Click to copy ID"
+											>
+												{campaignData.id}
+											</span>
+										</div>
+										<div className="flex justify-between">
 											<span className="text-sm text-gray-600">
 												{t("campaigns.started")}
 											</span>
@@ -517,23 +535,34 @@ export default function CampaignDetailPage() {
 															<Badge
 																variant={getLeadStatusColor(lead.status) as any}
 															>
-																{lead.status}
+																{t(`status.${lead.status.toLowerCase()}`)}
 															</Badge>
 														</TableCell>
 														<TableCell>{lead.city || "-"}</TableCell>
 														<TableCell>{formatDate(lead.createdAt)}</TableCell>
 														<TableCell>
-															<Button
-																variant="ghost"
-																size="sm"
-																className="text-red-600 hover:text-red-700"
-																onClick={() => handleRemoveLead(lead.id)}
-																disabled={
-																	removeLeadFromCampaignMutation.isPending
-																}
-															>
-																<Trash2 className="h-4 w-4" />
-															</Button>
+															<div className="flex items-center space-x-2">
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() =>
+																		navigate(`/dashboard/lead/${lead.id}`)
+																	}
+																>
+																	{t("campaigns.viewDetails")}
+																</Button>
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="text-red-600 hover:text-red-700"
+																	onClick={() => handleRemoveLead(lead.id)}
+																	disabled={
+																		removeLeadFromCampaignMutation.isPending
+																	}
+																>
+																	<Trash2 className="h-4 w-4" />
+																</Button>
+															</div>
 														</TableCell>
 													</TableRow>
 												))}
@@ -584,7 +613,7 @@ export default function CampaignDetailPage() {
 																	getCallStatusColor(call.callStatus) as any
 																}
 															>
-																{call.callStatus}
+																{t(`status.${call.callStatus.toLowerCase()}`)}
 															</Badge>
 														</TableCell>
 														<TableCell>

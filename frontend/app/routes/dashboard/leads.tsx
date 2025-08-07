@@ -54,6 +54,33 @@ export default function LeadsPage() {
 	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
 	const itemsPerPage = 10;
 
+	// Reset current page when status filter or search term changes
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [statusFilter, searchTerm]);
+
+	// Function to translate status
+	const translateStatus = (status: LeadStatus) => {
+		switch (status) {
+			case "NEW":
+				return t("leads.new");
+			case "CALLED":
+				return t("leads.called");
+			case "INTERESTED":
+				return t("leads.interested");
+			case "TRANSFERRED":
+				return t("leads.transferred");
+			case "FAILED":
+				return t("leads.failed");
+			case "BLACKLISTED":
+				return t("leads.blacklisted");
+			case "SCHEDULED":
+				return t("leads.scheduled");
+			default:
+				return status;
+		}
+	};
+
 	useEffect(() => {
 		if (isClient) {
 			redirectIfNotAuthenticated("/login");
@@ -66,6 +93,22 @@ export default function LeadsPage() {
 			leadAPI.getLeads(statusFilter === "ALL" ? undefined : statusFilter),
 		enabled: isAuthenticated, // Only run query when authenticated
 	});
+
+	// Ensure current page is valid after filtering
+	useEffect(() => {
+		if (leads?.data) {
+			const filteredLeads = leads.data.filter(
+				(lead) =>
+					lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					lead.phone1.includes(searchTerm)
+			);
+			const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+			const validCurrentPage = Math.min(currentPage, Math.max(1, totalPages));
+			if (validCurrentPage !== currentPage && totalPages > 0) {
+				setCurrentPage(validCurrentPage);
+			}
+		}
+	}, [leads?.data, searchTerm, currentPage, itemsPerPage]);
 
 	const cleanAllLeadsMutation = useMutation({
 		mutationFn: () => leadAPI.cleanAllLeads(),
@@ -382,7 +425,7 @@ export default function LeadsPage() {
 																		| "outline"
 																}
 															>
-																{lead.status}
+																{translateStatus(lead.status)}
 															</Badge>
 														</TableCell>
 														<TableCell>{lead.city || "N/A"}</TableCell>
