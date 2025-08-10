@@ -41,6 +41,8 @@ app.get("/health", (req, res) => {
 		status: "healthy",
 		timestamp: new Date().toISOString(),
 		service: "AI Calling System API",
+		version: process.env.npm_package_version,
+		environment: process.env.NODE_ENV,
 	});
 });
 
