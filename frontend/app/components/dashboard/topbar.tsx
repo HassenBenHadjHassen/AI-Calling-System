@@ -14,6 +14,7 @@ import { LogOut, ChevronDown } from "lucide-react";
 import { Button } from "../ui/button";
 import { useState } from "react";
 import { LanguageSwitcher } from "../language-switcher";
+import { ClientOnly } from "../client-only";
 
 export function Topbar() {
 	const { user, logout } = useAuth();
@@ -41,7 +42,9 @@ export function Topbar() {
 				</div>
 
 				<div className="flex items-center space-x-4">
-					<LanguageSwitcher />
+					<ClientOnly>
+						<LanguageSwitcher />
+					</ClientOnly>
 
 					<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
 						<DropdownMenuTrigger asChild>

@@ -21,13 +21,11 @@ interface EnvConfig {
 function validateEnv(): EnvConfig {
 	const requiredVars = [
 		"DATABASE_URL",
-		"TWILIO_ACCOUNT_SID",
-		"TWILIO_AUTH_TOKEN",
-		"TWILIO_FROM_NUMBER",
-		"TWILIO_TWIML_URL",
 		"VAPI_API_KEY",
 		"VAPI_PHONE_NUMBER_ID",
 		"VAPI_ASSISTANT_ID",
+		"VAPI_WORKFLOW_ID",
+		"JWT_SECRET",
 	];
 
 	const missing = requiredVars.filter((varName) => !process.env[varName]);

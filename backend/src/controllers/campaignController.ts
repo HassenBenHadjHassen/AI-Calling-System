@@ -23,7 +23,7 @@ export class CampaignController {
 			const campaign = await this.campaignService.createCampaign(name);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-created", {
+			socketService.emitToAll("campaign-created", {
 				campaign,
 				timestamp: new Date().toISOString(),
 			});
@@ -89,7 +89,7 @@ export class CampaignController {
 			const campaign = await this.campaignService.startCampaign(id);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-started", {
+			socketService.emitToAll("campaign-started", {
 				campaign,
 				timestamp: new Date().toISOString(),
 			});
@@ -111,7 +111,7 @@ export class CampaignController {
 			const campaign = await this.campaignService.stopCampaign(id);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-stopped", {
+			socketService.emitToAll("campaign-stopped", {
 				campaign,
 				timestamp: new Date().toISOString(),
 			});
@@ -129,7 +129,7 @@ export class CampaignController {
 			const campaign = await this.campaignService.completeCampaign(id);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-completed", {
+			socketService.emitToAll("campaign-completed", {
 				campaign,
 				timestamp: new Date().toISOString(),
 			});
@@ -151,7 +151,7 @@ export class CampaignController {
 			await this.campaignService.deleteCampaign(id);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-deleted", {
+			socketService.emitToAll("campaign-deleted", {
 				campaignId: id,
 				timestamp: new Date().toISOString(),
 			});
@@ -183,7 +183,7 @@ export class CampaignController {
 			);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-leads-added", {
+			socketService.emitToAll("campaign-leads-added", {
 				campaign,
 				leadIds,
 				timestamp: new Date().toISOString(),
@@ -219,7 +219,7 @@ export class CampaignController {
 			);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaign-lead-removed", {
+			socketService.emitToAll("campaign-lead-removed", {
 				campaign,
 				leadId,
 				timestamp: new Date().toISOString(),
@@ -305,7 +305,7 @@ export class CampaignController {
 			const result = await this.campaignService.cleanAllCampaigns();
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("campaigns-cleaned", {
+			socketService.emitToAll("campaigns-cleaned", {
 				deletedCount: result.deletedCount,
 				timestamp: new Date().toISOString(),
 			});
@@ -350,13 +350,19 @@ export class CampaignController {
 
 	async autoStartFirstCampaign(req: Request, res: Response): Promise<void> {
 		try {
-			const result = await this.campaignService.autoStartFirstCampaign();
+			const campaign = await this.campaignService.autoStartFirstCampaign();
 
-			if (result) {
+			if (campaign) {
+				// Emit real-time update to all connected clients
+				socketService.emitToAll("campaign-auto-started", {
+					campaign,
+					timestamp: new Date().toISOString(),
+				});
+
 				ResponseUtils.success(
 					res,
-					result,
-					"First campaign auto-started successfully"
+					campaign,
+					"First available campaign started automatically"
 				);
 			} else {
 				ResponseUtils.success(
@@ -370,6 +376,35 @@ export class CampaignController {
 			ResponseUtils.error(
 				res,
 				error.message || "Failed to auto-start first campaign",
+				400
+			);
+		}
+	}
+
+	async hangUpCampaignCalls(req: Request, res: Response): Promise<void> {
+		try {
+			const { id } = req.params;
+			const hangUpResults = await this.campaignService.hangUpAllCampaignCalls(
+				id
+			);
+
+			// Emit real-time update to all connected clients
+			socketService.emitToAll("campaign-calls-hung-up", {
+				campaignId: id,
+				hangUpResults,
+				timestamp: new Date().toISOString(),
+			});
+
+			ResponseUtils.success(
+				res,
+				hangUpResults,
+				`Successfully hung up ${hangUpResults.successfulHangUps}/${hangUpResults.totalCalls} active calls for campaign`
+			);
+		} catch (error: any) {
+			console.error("Error hanging up campaign calls:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to hang up campaign calls",
 				400
 			);
 		}

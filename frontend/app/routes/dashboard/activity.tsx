@@ -9,6 +9,8 @@ import {
 	XCircle,
 	ArrowRight,
 	Download,
+	RefreshCw,
+	AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { ScrollArea } from "~/components/ui/scroll-area";
@@ -94,6 +96,14 @@ export default function ActivityPage() {
 		queryFn: () => callAPI.getRecentCalls(50),
 		enabled: isAuthenticated,
 		refetchInterval: 10000, // Refresh every 10 seconds
+	});
+
+	// Fetch call management statistics
+	const { data: callManagementData, isLoading: managementLoading } = useQuery({
+		queryKey: ["call-management-stats"],
+		queryFn: () => callAPI.getCallManagementStats(),
+		enabled: isAuthenticated,
+		refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
 	});
 
 	useEffect(() => {
@@ -272,7 +282,9 @@ export default function ActivityPage() {
 												<p className="text-3xl font-bold text-blue-900">
 													{statsLoading
 														? "..."
-														: callHistoryData?.data?.initiatedCalls || 0}
+														: callManagementData?.data?.activeCalls ||
+														  callHistoryData?.data?.initiatedCalls ||
+														  0}
 												</p>
 											</div>
 										</div>
@@ -352,6 +364,134 @@ export default function ActivityPage() {
 								</CardContent>
 							</Card>
 						</div>
+
+						{/* Call Management Queue Stats */}
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div className="flex items-center space-x-4">
+											<div className="p-3 bg-purple-500 rounded-xl group-hover:bg-purple-600 transition-colors duration-300">
+												<Clock className="h-6 w-6 text-white" />
+											</div>
+											<div>
+												<p className="text-sm font-medium text-purple-700 mb-1">
+													{t("activity.callQueue")}
+												</p>
+												<p className="text-3xl font-bold text-purple-900">
+													{managementLoading
+														? "..."
+														: callManagementData?.data?.queueLength || 0}
+												</p>
+											</div>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+
+							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div className="flex items-center space-x-4">
+											<div className="p-3 bg-orange-500 rounded-xl group-hover:bg-orange-600 transition-colors duration-300">
+												<Clock className="h-6 w-6 text-white" />
+											</div>
+											<div>
+												<p className="text-sm font-medium text-orange-700 mb-1">
+													{t("activity.scheduledInQueue")}
+												</p>
+												<p className="text-3xl font-bold text-orange-900">
+													{managementLoading
+														? "..."
+														: callManagementData?.data?.scheduledInQueue || 0}
+												</p>
+											</div>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+
+							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100">
+								<CardContent className="p-6">
+									<div className="flex items-center justify-between">
+										<div className="flex items-center space-x-4">
+											<div className="p-3 bg-indigo-500 rounded-xl group-hover:bg-indigo-600 transition-colors duration-300">
+												<Clock className="h-6 w-6 text-white" />
+											</div>
+											<div>
+												<p className="text-sm font-medium text-indigo-700 mb-1">
+													{t("activity.campaignInQueue")}
+												</p>
+												<p className="text-3xl font-bold text-indigo-900">
+													{managementLoading
+														? "..."
+														: callManagementData?.data?.campaignInQueue || 0}
+												</p>
+											</div>
+										</div>
+									</div>
+								</CardContent>
+							</Card>
+						</div>
+
+						{/* Stale Calls Management Section */}
+						<Card className="border-0 shadow-xl bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400">
+							<CardHeader className="pb-4">
+								<CardTitle className="text-xl font-bold text-amber-900 flex items-center space-x-2">
+									<AlertTriangle className="h-5 w-5 text-amber-600" />
+									<span>Stale Calls Management</span>
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="p-6">
+								<div className="flex items-center justify-between">
+									<div className="flex-1">
+										<p className="text-sm text-amber-700 mb-2">
+											Some calls may remain in "INITIATED" status if webhooks
+											were missed. This can happen due to network issues or
+											Vapi.ai service interruptions.
+										</p>
+										<p className="text-xs text-amber-600">
+											The system automatically reconciles stale calls every 5
+											minutes, but you can also trigger it manually.
+										</p>
+									</div>
+									<Button
+										variant="outline"
+										onClick={async () => {
+											try {
+												const result =
+													await callAPI.reconcileStaleCallsViaScheduler();
+												if (result.success) {
+													// Show success message
+													console.log(
+														`Reconciled ${result.data.finalized} stale calls`
+													);
+													// Refresh data
+													queryClient.invalidateQueries({
+														queryKey: ["call-history"],
+													});
+													queryClient.invalidateQueries({
+														queryKey: ["recent-calls"],
+													});
+													queryClient.invalidateQueries({
+														queryKey: ["call-management"],
+													});
+												}
+											} catch (error) {
+												console.error(
+													"Failed to reconcile stale calls:",
+													error
+												);
+											}
+										}}
+										className="ml-4 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300"
+									>
+										<RefreshCw className="h-4 w-4 mr-2" />
+										Reconcile Stale Calls
+									</Button>
+								</div>
+							</CardContent>
+						</Card>
 
 						<Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
 							<CardHeader className="pb-4">

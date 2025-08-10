@@ -109,4 +109,23 @@ router.delete(
 	leadController.cleanAllLeads.bind(leadController)
 );
 
+// Orphaned scheduled calls routes
+router.get(
+	"/orphaned-scheduled-calls",
+	// authenticateToken, // Commented out for testing
+	leadController.getOrphanedScheduledCalls.bind(leadController)
+);
+
+router.post(
+	"/reassign-orphaned-call",
+	// authenticateToken, // Commented out for testing
+	leadController.reassignOrphanedScheduledCall.bind(leadController)
+);
+
+router.get(
+	"/orphaned-scheduled-calls/count",
+	// authenticateToken, // Commented out for testing
+	leadController.getOrphanedScheduledCallsCount.bind(leadController)
+);
+
 export default router;

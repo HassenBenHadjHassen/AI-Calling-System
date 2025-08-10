@@ -78,19 +78,47 @@ export class CampaignService {
 				campaignId
 			)) as CampaignWithLeads | null;
 			if (!campaign) {
-				throw new Error("Campaign is not active");
+				throw new Error("Campaign not found");
+			}
+
+			// If campaign is already stopped or completed, return success without doing anything
+			if (
+				campaign.status === CampaignStatus.STOPPED ||
+				campaign.status === CampaignStatus.COMPLETED
+			) {
+				return {
+					...campaign,
+					nextCampaignStarted: false,
+					hangUpResults: {
+						totalCalls: 0,
+						successfulHangUps: 0,
+						failedHangUps: 0,
+						errors: [],
+					},
+					message: `Campaign is already ${campaign.status.toLowerCase()}.`,
+				};
 			}
 
 			if (campaign.status !== CampaignStatus.ACTIVE) {
 				throw new Error("Campaign is not active");
 			}
 
+			// Hang up on all active calls for this campaign
+			console.log(
+				`🛑 Stopping campaign "${campaign.name}" and hanging up on all active calls...`
+			);
+			const hangUpResults = await this.callService.hangUpAllCampaignCalls(
+				campaignId
+			);
+
+			// Stop the campaign
 			const stoppedCampaign = await this.campaignRepository.stop(campaignId);
 
 			return {
 				...stoppedCampaign,
 				nextCampaignStarted: false,
-				message: "Campaign stopped successfully.",
+				hangUpResults,
+				message: `Campaign stopped successfully. ${hangUpResults.successfulHangUps}/${hangUpResults.totalCalls} active calls were hung up.`,
 			};
 		} catch (error: any) {
 			throw new Error(`Failed to stop campaign: ${error.message}`);
@@ -374,6 +402,19 @@ export class CampaignService {
 			return { deletedCount };
 		} catch (error: any) {
 			throw new Error(`Failed to clean all campaigns: ${error.message}`);
+		}
+	}
+
+	async hangUpAllCampaignCalls(campaignId: string): Promise<{
+		totalCalls: number;
+		successfulHangUps: number;
+		failedHangUps: number;
+		errors: string[];
+	}> {
+		try {
+			return await this.callService.hangUpAllCampaignCalls(campaignId);
+		} catch (error: any) {
+			throw new Error(`Failed to hang up campaign calls: ${error.message}`);
 		}
 	}
 }

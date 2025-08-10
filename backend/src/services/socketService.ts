@@ -1,162 +1,194 @@
 import { Server as SocketIOServer } from "socket.io";
 import { Server as HTTPServer } from "http";
-import { env } from "../config/env";
+import { vapiService } from "./vapiService";
 
-export class SocketService {
+class SocketService {
 	private io: SocketIOServer | null = null;
+	private activeCallListeners: Map<string, any> = new Map(); // Store WebSocket connections for call listening
 
 	initialize(server: HTTPServer) {
 		this.io = new SocketIOServer(server, {
 			cors: {
-				origin:
-					env.NODE_ENV === "production"
-						? ["https://your-frontend-domain.com"] // Update with your frontend URL
-						: ["http://localhost:5173"], // Vite default ports
+				origin: process.env.FRONTEND_URL || "http://localhost:5173",
 				methods: ["GET", "POST"],
-				credentials: true,
 			},
-			transports: ["websocket", "polling"],
 		});
-
-		this.setupEventHandlers();
-		console.log("🔌 Socket.IO server initialized");
-	}
-
-	private setupEventHandlers() {
-		if (!this.io) return;
 
 		this.io.on("connection", (socket) => {
-			console.log(`🔗 Client connected: ${socket.id}`);
+			console.log("Client connected:", socket.id);
 
-			// Join a call room
+			// Join call room for real-time updates
 			socket.on("join-call", (callId: string) => {
 				socket.join(`call-${callId}`);
-				console.log(`📞 Client ${socket.id} joined call room: ${callId}`);
-
-				// Notify others in the room
-				socket.to(`call-${callId}`).emit("user-joined-call", {
-					userId: socket.id,
-					timestamp: new Date().toISOString(),
-				});
+				console.log(`Client ${socket.id} joined call room: ${callId}`);
 			});
 
-			// Leave a call room
-			socket.on("leave-call", (callId: string) => {
-				socket.leave(`call-${callId}`);
-				console.log(`📞 Client ${socket.id} left call room: ${callId}`);
-
-				// Notify others in the room
-				socket.to(`call-${callId}`).emit("user-left-call", {
-					userId: socket.id,
-					timestamp: new Date().toISOString(),
-				});
+			// Start listening to call audio
+			socket.on("start-call-listening", async (callId: string) => {
+				try {
+					await this.startCallListening(callId, socket);
+				} catch (error: any) {
+					console.error("Error starting call listening:", error);
+					socket.emit("call-listening-error", {
+						callId,
+						error: error.message,
+					});
+				}
 			});
 
-			// Handle real-time transcript updates
-			socket.on(
-				"transcript-update",
-				(data: {
-					callId: string;
-					transcript: string;
-					speaker: "user" | "agent";
-					timestamp: string;
-				}) => {
-					console.log(
-						`📝 Transcript update for call ${data.callId}: ${data.transcript}`
-					);
+			// Stop listening to call audio
+			socket.on("stop-call-listening", (callId: string) => {
+				this.stopCallListening(callId);
+				socket.emit("call-listening-stopped", { callId });
+			});
 
-					// Broadcast to all clients in the call room
-					this.io?.to(`call-${data.callId}`).emit("transcript-updated", {
-						...data,
-						timestamp: new Date().toISOString(),
-					});
-				}
-			);
-
-			// Handle voice activity detection
-			socket.on(
-				"voice-activity",
-				(data: {
-					callId: string;
-					isSpeaking: boolean;
-					speaker: "user" | "agent";
-					audioLevel?: number;
-				}) => {
-					console.log(
-						`🎤 Voice activity for call ${data.callId}: ${data.speaker} ${
-							data.isSpeaking ? "speaking" : "silent"
-						}`
-					);
-
-					// Broadcast to all clients in the call room
-					this.io?.to(`call-${data.callId}`).emit("voice-activity-detected", {
-						...data,
-						timestamp: new Date().toISOString(),
-					});
-				}
-			);
-
-			// Handle call status updates
-			socket.on(
-				"call-status-update",
-				(data: {
-					callId: string;
-					status: "connecting" | "connected" | "disconnected" | "failed";
-					duration?: number;
-					metadata?: any;
-				}) => {
-					console.log(
-						`📞 Call status update for ${data.callId}: ${data.status}`
-					);
-
-					// Broadcast to all clients in the call room
-					this.io?.to(`call-${data.callId}`).emit("call-status-changed", {
-						...data,
-						timestamp: new Date().toISOString(),
-					});
-				}
-			);
-
-			// Handle disconnection
-			socket.on("disconnect", (reason) => {
-				console.log(`🔌 Client disconnected: ${socket.id}, reason: ${reason}`);
+			socket.on("disconnect", () => {
+				console.log("Client disconnected:", socket.id);
+				// Clean up any active listeners for this socket
+				this.cleanupSocketListeners(socket.id);
 			});
 		});
 	}
 
-	// Public methods for emitting events from other parts of the application
+	/**
+	 * Start listening to a call's audio stream
+	 */
+	private async startCallListening(callId: string, socket: any) {
+		try {
+			// Get the listen URL from Vapi
+			const urls = await vapiService.getCallMonitoringUrls(callId);
+
+			if (!urls.listenUrl) {
+				throw new Error("Listen URL not available for this call");
+			}
+
+			// Create WebSocket connection to Vapi's listen URL
+			const WebSocket = require("ws");
+			const ws = new WebSocket(urls.listenUrl);
+
+			ws.on("open", () => {
+				console.log(`Started listening to call ${callId}`);
+				socket.emit("call-listening-started", { callId });
+			});
+
+			ws.on("message", (data: Buffer, isBinary: boolean) => {
+				if (isBinary) {
+					// Audio data - emit to connected clients
+					this.io?.to(`call-${callId}`).emit("call-audio-data", {
+						callId,
+						audioData: data.toString("base64"), // Convert to base64 for transmission
+						timestamp: new Date().toISOString(),
+					});
+				} else {
+					// Text message - parse and emit
+					try {
+						const message = JSON.parse(data.toString());
+						this.io?.to(`call-${callId}`).emit("call-message", {
+							callId,
+							message,
+							timestamp: new Date().toISOString(),
+						});
+					} catch (error) {
+						console.error("Error parsing call message:", error);
+					}
+				}
+			});
+
+			ws.on("close", () => {
+				console.log(`Stopped listening to call ${callId}`);
+				this.io
+					?.to(`call-${callId}`)
+					.emit("call-listening-stopped", { callId });
+				this.activeCallListeners.delete(callId);
+			});
+
+			ws.on("error", (error: any) => {
+				console.error(`Error listening to call ${callId}:`, error);
+				this.io?.to(`call-${callId}`).emit("call-listening-error", {
+					callId,
+					error: error.message,
+				});
+				this.activeCallListeners.delete(callId);
+			});
+
+			// Store the WebSocket connection
+			this.activeCallListeners.set(callId, ws);
+		} catch (error: any) {
+			console.error("Error starting call listening:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Stop listening to a call's audio stream
+	 */
+	private stopCallListening(callId: string) {
+		const ws = this.activeCallListeners.get(callId);
+		if (ws) {
+			ws.close();
+			this.activeCallListeners.delete(callId);
+			console.log(`Stopped listening to call ${callId}`);
+		}
+	}
+
+	/**
+	 * Clean up listeners when a socket disconnects
+	 */
+	private cleanupSocketListeners(socketId: string) {
+		// This could be enhanced to track which socket started which listener
+		// For now, we'll keep all active listeners running
+	}
+
+	/**
+	 * Emit event to all clients in a specific call room
+	 */
 	emitToCall(callId: string, event: string, data: any) {
-		this.io?.to(`call-${callId}`).emit(event, {
-			...data,
-			timestamp: new Date().toISOString(),
-		});
+		this.io?.to(`call-${callId}`).emit(event, data);
 	}
 
-	emitToUser(userId: string, event: string, data: any) {
-		this.io?.to(userId).emit(event, {
-			...data,
-			timestamp: new Date().toISOString(),
-		});
+	/**
+	 * Emit event to all connected clients
+	 */
+	emitToAll(event: string, data: any) {
+		this.io?.emit(event, data);
 	}
 
-	broadcastToAll(event: string, data: any) {
-		this.io?.emit(event, {
-			...data,
-			timestamp: new Date().toISOString(),
-		});
+	/**
+	 * Get active call listeners
+	 */
+	getActiveCallListeners(): string[] {
+		return Array.from(this.activeCallListeners.keys());
 	}
 
-	getConnectedClients() {
+	/**
+	 * Get all connected clients
+	 */
+	getConnectedClients(): any[] {
 		if (!this.io) return [];
-		return Array.from(this.io.sockets.sockets.keys());
+		const sockets = this.io.sockets.sockets;
+		return Array.from(sockets.values()).map((socket: any) => ({
+			id: socket.id,
+			rooms: Array.from(socket.rooms),
+			connectedAt: socket.handshake.time,
+		}));
 	}
 
-	getCallParticipants(callId: string) {
+	/**
+	 * Get participants in a specific call
+	 */
+	getCallParticipants(callId: string): any[] {
 		if (!this.io) return [];
 		const room = this.io.sockets.adapter.rooms.get(`call-${callId}`);
-		return room ? Array.from(room) : [];
+		if (!room) return [];
+
+		return Array.from(room).map((socketId: string) => {
+			const socket = this.io!.sockets.sockets.get(socketId);
+			return {
+				id: socketId,
+				connectedAt: socket?.handshake.time,
+			};
+		});
 	}
 }
 
-// Export singleton instance
 export const socketService = new SocketService();

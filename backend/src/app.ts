@@ -1,144 +1,77 @@
 import express from "express";
 import cors from "cors";
-import morgan from "morgan";
-import path from "path";
-import { createServer } from "http";
-import { env } from "./config/env";
-import callRoutes from "./routes/callRoutes";
+import { config } from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import leadRoutes from "./routes/leadRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
+import callRoutes from "./routes/callRoutes";
 import socketRoutes from "./routes/socketRoutes";
-import { ResponseUtils } from "./utils/responseUtils";
+import schedulerRoutes from "./routes/schedulerRoutes";
 import { socketService } from "./services/socketService";
-import { CampaignService } from "./services/campaignService";
-import { CallService } from "./services/callService";
+import getScheduler from "./services/schedulerInstance";
+import { callStatusPoller } from "./services/callStatusPoller";
+
+config();
 
 const app = express();
-const server = createServer(app);
-
-// Initialize services
-const campaignService = new CampaignService();
-const callService = new CallService();
+const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(
-	cors({
-		origin: "*",
-		credentials: true,
-	})
-);
-app.use(morgan(env.NODE_ENV === "development" ? "dev" : "combined"));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cors());
+app.use(express.json());
 
-// Serve static files for uploaded files (with authentication in production)
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// Initialize a single scheduled call scheduler instance
+const scheduledCallScheduler = getScheduler();
+scheduledCallScheduler.start();
+
+// Initialize the enhanced call status polling system
+callStatusPoller.startBatchReconciliation();
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/calls", callRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/campaigns", campaignRoutes);
+app.use("/api/calls", callRoutes);
 app.use("/api/socket", socketRoutes);
+app.use("/api/scheduler", schedulerRoutes);
 
-// Health check
-app.get("/api/health", (req, res) => {
-	ResponseUtils.success(res, {
-		status: "ok",
+// Health check endpoint
+app.get("/health", (req, res) => {
+	res.json({
+		status: "healthy",
 		timestamp: new Date().toISOString(),
-		environment: env.NODE_ENV,
-		version: "1.0.0",
+		service: "AI Calling System API",
 	});
 });
 
-// 404 handler
-app.use((req, res) => {
-	ResponseUtils.notFound(res, `Route not found: ${req.originalUrl}`);
+// Note: Scheduler status/trigger endpoints are exposed via /api/scheduler routes
+
+// Start server
+const server = app.listen(PORT, () => {
+	console.log(`🚀 Server running on port ${PORT}`);
+	console.log(`📞 Scheduled Call Scheduler: ACTIVE`);
 });
 
-// Global error handling
-app.use(
-	(
-		err: any,
-		req: express.Request,
-		res: express.Response,
-		next: express.NextFunction
-	) => {
-		console.error("Global error handler:", err);
-
-		// Handle specific error types
-		if (err.name === "ValidationError") {
-			return ResponseUtils.badRequest(res, err.message);
-		}
-
-		if (err.name === "UnauthorizedError") {
-			return ResponseUtils.unauthorized(res);
-		}
-
-		if (err.code === "LIMIT_FILE_SIZE") {
-			return ResponseUtils.error(res, "File too large", 413);
-		}
-
-		// Default error response
-		const message =
-			env.NODE_ENV === "production"
-				? "Internal Server Error"
-				: err.message || "Internal Server Error";
-
-		ResponseUtils.error(res, message);
-	}
-);
+// Initialize socket service
+socketService.initialize(server);
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-	console.log("SIGTERM received, shutting down gracefully");
-	clearInterval(scheduledCallsInterval);
-	process.exit(0);
+	console.log("🛑 SIGTERM received, shutting down gracefully...");
+	scheduledCallScheduler.stop();
+	callStatusPoller.stopAllPolling();
+	server.close(() => {
+		console.log("✅ Server closed");
+		process.exit(0);
+	});
 });
 
 process.on("SIGINT", () => {
-	console.log("SIGINT received, shutting down gracefully");
-	clearInterval(scheduledCallsInterval);
-	process.exit(0);
-});
-
-const PORT = env.PORT;
-
-// Initialize Socket.IO server
-socketService.initialize(server);
-
-// Scheduled job to process due scheduled calls
-const processScheduledCalls = async () => {
-	try {
-		// Handle overdue rescheduled calls first
-		const overdueCount = await callService.handleOverdueRescheduledCalls();
-		if (overdueCount > 0) {
-			console.log(
-				`📅 Updated ${overdueCount} overdue rescheduled calls to CALLED status`
-			);
-		}
-
-		// Then trigger due scheduled calls
-		const triggeredCalls = await callService.triggerScheduledCalls("Monsieur");
-		if (triggeredCalls.length > 0) {
-			console.log(`📞 Triggered ${triggeredCalls.length} scheduled calls`);
-		}
-	} catch (error) {
-		console.error("❌ Error processing scheduled calls:", error);
-	}
-};
-
-// Start scheduled job to check for due scheduled calls every minute
-const scheduledCallsInterval = setInterval(processScheduledCalls, 60000); // 60 seconds
-
-// Initial run after 10 seconds to allow server to fully start
-setTimeout(processScheduledCalls, 10000);
-
-server.listen(PORT, async () => {
-	console.log(`🚀 Server running on port ${PORT}`);
-	console.log(`📊 Environment: ${env.NODE_ENV}`);
-	console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-	console.log(`🔌 Socket.IO server ready for real-time communication`);
-	console.log(`⏰ Scheduled calls processor started (runs every minute)`);
+	console.log("🛑 SIGINT received, shutting down gracefully...");
+	scheduledCallScheduler.stop();
+	callStatusPoller.stopAllPolling();
+	server.close(() => {
+		console.log("✅ Server closed");
+		process.exit(0);
+	});
 });

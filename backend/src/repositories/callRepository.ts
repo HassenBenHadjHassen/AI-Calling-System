@@ -1,10 +1,11 @@
 import { PrismaClient, CallHistory, CallStatus } from "@prisma/client";
+import prismaSingleton from "../db/prisma";
 
 export class CallRepository {
 	private prisma: PrismaClient;
 
 	constructor() {
-		this.prisma = new PrismaClient();
+		this.prisma = prismaSingleton;
 	}
 
 	async create(callData: {
@@ -27,6 +28,20 @@ export class CallRepository {
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to create call record: ${error.message}`);
+		}
+	}
+
+	async updateVapiCallId(id: string, vapiCallId: string): Promise<CallHistory> {
+		try {
+			return await this.prisma.callHistory.update({
+				where: { id },
+				data: { vapiCallId },
+				include: {
+					lead: { include: { campaign: true } },
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to update Vapi call ID: ${error.message}`);
 		}
 	}
 
@@ -148,11 +163,18 @@ export class CallRepository {
 		}
 	}
 
-	async updateDuration(id: string, duration: number): Promise<CallHistory> {
+	async updateDuration(
+		id: string,
+		duration: number,
+		cost?: number
+	): Promise<CallHistory> {
 		try {
 			return await this.prisma.callHistory.update({
 				where: { id },
-				data: { duration },
+				data: {
+					duration,
+					...(cost !== undefined && { cost }),
+				},
 				include: {
 					lead: {
 						include: {
@@ -163,6 +185,24 @@ export class CallRepository {
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to update call duration: ${error.message}`);
+		}
+	}
+
+	async updateCost(id: string, cost: number): Promise<CallHistory> {
+		try {
+			return await this.prisma.callHistory.update({
+				where: { id },
+				data: { cost },
+				include: {
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to update call cost: ${error.message}`);
 		}
 	}
 
@@ -201,6 +241,32 @@ export class CallRepository {
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to find calls by status: ${error.message}`);
+		}
+	}
+
+	async findStaleInitiatedWithVapiId(
+		olderThan: Date,
+		limit: number = 100
+	): Promise<CallHistory[]> {
+		try {
+			return await this.prisma.callHistory.findMany({
+				where: {
+					callStatus: CallStatus.INITIATED,
+					vapiCallId: { not: null },
+					callTime: { lt: olderThan },
+				},
+				include: {
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
+				},
+				orderBy: { callTime: "asc" },
+				take: limit,
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to find stale initiated calls: ${error.message}`);
 		}
 	}
 
@@ -261,6 +327,32 @@ export class CallRepository {
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to find failed calls: ${error.message}`);
+		}
+	}
+
+	async findActiveCallsByCampaign(campaignId: string): Promise<CallHistory[]> {
+		try {
+			return await this.prisma.callHistory.findMany({
+				where: {
+					campaignId,
+					callStatus: CallStatus.INITIATED,
+					vapiCallId: { not: null },
+				},
+				include: {
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
+				},
+				orderBy: {
+					callTime: "desc",
+				},
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to find active calls by campaign: ${error.message}`
+			);
 		}
 	}
 

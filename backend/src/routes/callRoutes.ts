@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { CallController } from "../controllers/callController";
+import { CallService } from "../services/callService";
 // import { authenticateToken } from "../middleware/auth"; // Commented out for testing
 
 const router = Router();
@@ -27,14 +28,18 @@ router.post(
 	callController.handleOverdueRescheduledCalls.bind(callController)
 );
 
-// Webhook handling (no auth required for webhooks)
-router.post("/webhook", callController.handleWebhook.bind(callController));
+// Webhook routes removed - replaced with enhanced polling system
 
 // Call statistics and reporting - these must come BEFORE parameterized routes
 router.get(
 	"/stats",
 	// authenticateToken, // Commented out for testing
 	callController.getCallStats.bind(callController)
+);
+router.get(
+	"/management-stats",
+	// authenticateToken, // Commented out for testing
+	callController.getCallManagementStats.bind(callController)
 );
 router.get(
 	"/transferred",
@@ -56,6 +61,66 @@ router.get(
 	// authenticateToken, // Commented out for testing
 	callController.getRecentCalls.bind(callController)
 );
+
+// ===== LIVE CALL CONTROL ROUTES =====
+// These routes allow real-time control of active calls
+
+// Make the assistant say a specific message during a live call
+router.post(
+	"/control/:vapiCallId/say",
+	// authenticateToken, // Commented out for testing
+	callController.sayMessage.bind(callController)
+);
+
+// Add a message to the conversation history
+router.post(
+	"/control/:vapiCallId/conversation",
+	// authenticateToken, // Commented out for testing
+	callController.addMessageToConversation.bind(callController)
+);
+
+// Control assistant behavior (mute/unmute)
+router.post(
+	"/control/:vapiCallId/assistant",
+	// authenticateToken, // Commented out for testing
+	callController.controlAssistant.bind(callController)
+);
+
+// End the call programmatically
+router.post(
+	"/control/:vapiCallId/end",
+	// authenticateToken, // Commented out for testing
+	callController.endCall.bind(callController)
+);
+
+// Transfer the call to another number
+router.post(
+	"/control/:vapiCallId/transfer",
+	// authenticateToken, // Commented out for testing
+	callController.transferCall.bind(callController)
+);
+
+// Get call monitoring URLs for real-time control and audio streaming
+router.get(
+	"/control/:vapiCallId/monitoring-urls",
+	// authenticateToken, // Commented out for testing
+	callController.getCallMonitoringUrls.bind(callController)
+);
+
+// Maintenance: reconcile stale calls (missed webhooks)
+router.post("/reconcile/stale", async (req, res) => {
+	try {
+		const { lookbackMinutes = 60, batchSize = 100 } = req.body || {};
+		const svc = new CallService();
+		const result = await svc.reconcileStaleInitiatedCalls(
+			Number(lookbackMinutes),
+			Number(batchSize)
+		);
+		res.json({ success: true, data: result });
+	} catch (e: any) {
+		res.status(500).json({ success: false, error: e.message });
+	}
+});
 
 // Call history and details - parameterized routes must come AFTER specific routes
 router.get(

@@ -25,6 +25,9 @@ export default [
 	// /dashboard/campaign/:id
 	route("dashboard/campaign/:id", "routes/dashboard/campaign-detail.tsx"),
 
+	// /dashboard/calls/:id
+	route("dashboard/calls/:id", "routes/dashboard/call-detail.tsx"),
+
 	// /dashboard/activity
 	route("dashboard/activity", "routes/dashboard/activity.tsx"),
 

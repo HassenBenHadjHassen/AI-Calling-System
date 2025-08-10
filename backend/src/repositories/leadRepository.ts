@@ -5,12 +5,13 @@ import {
 	ScheduledCallStatus,
 	CampaignStatus,
 } from "@prisma/client";
+import prismaSingleton from "../db/prisma";
 
 export class LeadRepository {
 	private prisma: PrismaClient;
 
 	constructor() {
-		this.prisma = new PrismaClient();
+		this.prisma = prismaSingleton;
 	}
 
 	async create(leadData: {
@@ -140,6 +141,21 @@ export class LeadRepository {
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to update lead status: ${error.message}`);
+		}
+	}
+
+	async incrementRetryCount(id: string): Promise<Lead> {
+		try {
+			return await this.prisma.lead.update({
+				where: { id },
+				data: {
+					retryCount: {
+						increment: 1,
+					},
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to increment retry count: ${error.message}`);
 		}
 	}
 
@@ -610,6 +626,65 @@ export class LeadRepository {
 			};
 		} catch (error: any) {
 			throw new Error(`Failed to debug lead availability: ${error.message}`);
+		}
+	}
+
+	async findOrphanedScheduledCalls(): Promise<Lead[]> {
+		try {
+			return await this.prisma.lead.findMany({
+				where: {
+					campaignId: null,
+					scheduledCallStatus: ScheduledCallStatus.ORPHANED,
+					scheduledCallAt: { not: null },
+				},
+				include: {
+					callHistory: true,
+					campaign: true,
+				},
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to find orphaned scheduled calls: ${error.message}`
+			);
+		}
+	}
+
+	async reassignOrphanedScheduledCall(
+		leadId: string,
+		campaignId: string
+	): Promise<Lead> {
+		try {
+			return await this.prisma.lead.update({
+				where: { id: leadId },
+				data: {
+					campaignId,
+					scheduledCallStatus: ScheduledCallStatus.PENDING,
+				},
+				include: {
+					callHistory: true,
+					campaign: true,
+				},
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to reassign orphaned scheduled call: ${error.message}`
+			);
+		}
+	}
+
+	async getOrphanedScheduledCallsCount(): Promise<number> {
+		try {
+			return await this.prisma.lead.count({
+				where: {
+					campaignId: null,
+					scheduledCallStatus: ScheduledCallStatus.ORPHANED,
+					scheduledCallAt: { not: null },
+				},
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to count orphaned scheduled calls: ${error.message}`
+			);
 		}
 	}
 }

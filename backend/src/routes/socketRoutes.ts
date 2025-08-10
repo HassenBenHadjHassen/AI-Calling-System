@@ -52,7 +52,7 @@ router.post("/broadcast", (req, res) => {
 		return ResponseUtils.badRequest(res, "Event and data are required");
 	}
 
-	socketService.broadcastToAll(event, data);
+	socketService.emitToAll(event, data);
 
 	ResponseUtils.success(res, {
 		message: `Event '${event}' broadcasted to all clients`,

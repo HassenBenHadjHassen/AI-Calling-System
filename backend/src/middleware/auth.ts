@@ -9,7 +9,7 @@ const HARDCODED_USERS = [
     password: "admin123",
     role: "admin",
   },
-  {
+  { 
     id: 2,
     email: "user@prestalib.com",
     password: "admin123",

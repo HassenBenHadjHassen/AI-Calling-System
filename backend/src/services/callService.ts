@@ -4,16 +4,129 @@ import { CampaignRepository } from "../repositories/campaignRepository";
 import { vapiService } from "./vapiService";
 import { CallStatus, LeadStatus, ScheduledCallStatus } from "@prisma/client";
 import { socketService } from "./socketService";
+import { callStatusPoller } from "./callStatusPoller";
 
 export class CallService {
 	private callRepository: CallRepository;
 	private leadRepository: LeadRepository;
 	private campaignRepository: CampaignRepository;
 
+	// Active status polling now handled by CallStatusPoller
+
+	// Global call management
+	private activeCalls: Set<string> = new Set(); // Track active call IDs
+	private readonly maxGlobalCalls: number = 5; // Global call limit
+	private callQueue: Array<{
+		leadId: string;
+		title: string;
+		isScheduled: boolean;
+		priority: number; // Higher number = higher priority
+		timestamp: Date;
+	}> = [];
+
 	constructor() {
 		this.callRepository = new CallRepository();
 		this.leadRepository = new LeadRepository();
 		this.campaignRepository = new CampaignRepository();
+	}
+
+	/**
+	 * Get current active call count
+	 */
+	private getActiveCallCount(): number {
+		return this.activeCalls.size;
+	}
+
+	/**
+	 * Check if we can make a new call
+	 */
+	private canMakeCall(): boolean {
+		return this.getActiveCallCount() < this.maxGlobalCalls;
+	}
+
+	/**
+	 * Add a call to the active calls set
+	 */
+	private addActiveCall(callId: string): void {
+		this.activeCalls.add(callId);
+	}
+
+	/**
+	 * Remove a call from the active calls set
+	 */
+	private removeActiveCall(callId: string): void {
+		this.activeCalls.delete(callId);
+	}
+
+	/**
+	 * Add a call to the queue with priority
+	 */
+	private addToQueue(
+		leadId: string,
+		title: string,
+		isScheduled: boolean
+	): void {
+		const priority = isScheduled ? 2 : 1; // Scheduled calls have higher priority
+		this.callQueue.push({
+			leadId,
+			title,
+			isScheduled,
+			priority,
+			timestamp: new Date(),
+		});
+
+		// Sort queue by priority (highest first) and then by timestamp (oldest first)
+		this.callQueue.sort((a, b) => {
+			if (a.priority !== b.priority) {
+				return b.priority - a.priority; // Higher priority first
+			}
+			return a.timestamp.getTime() - b.timestamp.getTime(); // Older first
+		});
+	}
+
+	/**
+	 * Process the call queue
+	 */
+	private async processQueue(): Promise<void> {
+		while (this.callQueue.length > 0 && this.canMakeCall()) {
+			const queuedCall = this.callQueue.shift();
+			if (queuedCall) {
+				try {
+					await this.triggerCall(queuedCall.leadId, queuedCall.title);
+				} catch (error) {
+					console.error(
+						`Failed to process queued call for lead ${queuedCall.leadId}:`,
+						error
+					);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Get call statistics including queue information
+	 */
+	async getCallManagementStats(): Promise<{
+		activeCalls: number;
+		maxCalls: number;
+		queueLength: number;
+		scheduledInQueue: number;
+		campaignInQueue: number;
+	}> {
+		const scheduledInQueue = this.callQueue.filter(
+			(call) => call.isScheduled
+		).length;
+		const campaignInQueue = this.callQueue.filter(
+			(call) => !call.isScheduled
+		).length;
+
+		return {
+			activeCalls: this.getActiveCallCount(),
+			maxCalls: this.maxGlobalCalls,
+			queueLength: this.callQueue.length,
+			scheduledInQueue,
+			campaignInQueue,
+		};
 	}
 
 	/**
@@ -43,7 +156,86 @@ export class CallService {
 		return nextRetryTime;
 	}
 
-	async triggerCall(leadId: string, title: string): Promise<any> {
+	/**
+	 * Format phone number to E.164 format for Vapi.ai
+	 */
+	private formatPhoneNumber(phone: string): string {
+		if (!phone) {
+			throw new Error("Phone number is required");
+		}
+
+		// Remove all non-digit characters except +
+		let cleaned = phone.replace(/[^\d+]/g, "");
+
+		// Already valid E.164 format
+		if (cleaned.startsWith("+")) {
+			return cleaned;
+		}
+
+		// ---------- Tunisian formats ----------
+		const tunisianMobileWithZero = cleaned.match(/^0(2\d{7})$/);
+		if (tunisianMobileWithZero) {
+			return `+216${tunisianMobileWithZero[1]}`;
+		}
+
+		const tunisianLandlineWithZero = cleaned.match(/^0(7\d{7})$/);
+		if (tunisianLandlineWithZero) {
+			return `+216${tunisianLandlineWithZero[1]}`;
+		}
+
+		if (cleaned.length === 8 && /^[27]/.test(cleaned)) {
+			return `+216${cleaned}`;
+		}
+
+		if (
+			(cleaned.length === 10 || cleaned.length === 11) &&
+			cleaned.startsWith("216")
+		) {
+			return `+${cleaned}`;
+		}
+
+		// ---------- French formats ----------
+		const frenchWithZero = cleaned.match(/^0(\d{9})$/);
+		if (frenchWithZero) {
+			return `+33${frenchWithZero[1]}`;
+		}
+
+		if (cleaned.length === 9 && /^\d{9}$/.test(cleaned)) {
+			return `+33${cleaned}`;
+		}
+
+		if (cleaned.length === 10 && cleaned.startsWith("0")) {
+			return `+33${cleaned.substring(1)}`;
+		}
+
+		if (cleaned.length === 10 && !cleaned.startsWith("0")) {
+			return `+33${cleaned}`;
+		}
+
+		if (cleaned.length === 11 && cleaned.startsWith("33")) {
+			return `+${cleaned}`;
+		}
+
+		// ---------- US formats ----------
+		// US numbers are typically 10 digits (area code + 7-digit number)
+		if (cleaned.length === 10 && /^\d{10}$/.test(cleaned)) {
+			return `+1${cleaned}`;
+		}
+
+		// US numbers with country code already (1 + 10 digits)
+		if (cleaned.length === 11 && cleaned.startsWith("1")) {
+			return `+${cleaned}`;
+		}
+
+		// ---------- Fallback ----------
+		return cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
+	}
+
+	async triggerCall(
+		leadId: string,
+		title: string,
+		isScheduled: boolean = false
+	): Promise<any> {
 		try {
 			const lead = await this.leadRepository.findById(leadId);
 			if (!lead) {
@@ -54,9 +246,36 @@ export class CallService {
 				throw new Error("Cannot call blacklisted lead");
 			}
 
+			// Allow calls for NEW leads or SCHEDULED leads when isScheduled is true
+			if (
+				lead.status !== LeadStatus.NEW &&
+				!(isScheduled && lead.status === LeadStatus.SCHEDULED)
+			) {
+				throw new Error(
+					`Cannot call lead with status: ${lead.status}. Only NEW leads can be called, or SCHEDULED leads when executing scheduled calls.`
+				);
+			}
+
 			// if a call is scheduled make sure it doesnt call before the scheduled time
 			if (lead.scheduledCallAt && lead.scheduledCallAt > new Date()) {
 				throw new Error("Cannot call before scheduled time");
+			}
+
+			// Check if we can make a call right now
+			if (!this.canMakeCall()) {
+				// Add to queue instead
+				this.addToQueue(leadId, title, isScheduled);
+				console.log(
+					`📞 Call for lead ${leadId} queued (${this.getActiveCallCount()}/${
+						this.maxGlobalCalls
+					} active calls)`
+				);
+				return {
+					queued: true,
+					queuePosition: this.callQueue.length,
+					activeCalls: this.getActiveCallCount(),
+					maxCalls: this.maxGlobalCalls,
+				};
 			}
 
 			// Create call record
@@ -67,24 +286,46 @@ export class CallService {
 			});
 
 			try {
+				// Add to active calls
+				this.addActiveCall(callRecord.id);
+
+				// Format phone number to E.164 format for Vapi.ai
+				const formattedPhoneNumber = this.formatPhoneNumber(lead.phone1);
+
 				// Trigger call via Vapi.ai
 				const vapiResponse = await vapiService.createCall({
-					phoneNumber: lead.phone1,
+					phoneNumber: formattedPhoneNumber,
 					name: lead.name,
-					title: title, // Default title, could be made configurable
+					title: title,
 				});
 
 				// Update call record with Vapi call ID
-				await this.callRepository.updateStatus(
-					callRecord.id,
-					CallStatus.INITIATED
+				const vapiCallId = (vapiResponse as any).id;
+				if (vapiCallId) {
+					await this.callRepository.updateVapiCallId(callRecord.id, vapiCallId);
+					// Start enhanced polling for call status
+					callStatusPoller.startPolling(vapiCallId, callRecord.id);
+				}
+
+				console.log(
+					`📞 Call initiated for lead ${leadId} (${this.getActiveCallCount()}/${
+						this.maxGlobalCalls
+					} active calls)`
 				);
 
+				// Process queue after successful call initiation
+				setTimeout(() => this.processQueue(), 1000);
+
 				return {
+					callId: callRecord.id,
 					callRecord,
-					vapiCallId: (vapiResponse as any).id,
+					vapiCallId,
+					activeCalls: this.getActiveCallCount(),
 				};
 			} catch (error: any) {
+				// Remove from active calls on failure
+				this.removeActiveCall(callRecord.id);
+
 				// Update call record as failed
 				await this.callRepository.updateStatus(
 					callRecord.id,
@@ -122,91 +363,10 @@ export class CallService {
 		}
 	}
 
-	async handleWebhook(webhookData: any): Promise<void> {
-		try {
-			const { callId, status, duration, transferred, transferTo } = webhookData;
+	// Webhook handling removed - replaced with enhanced polling system
+	// All call status updates now handled by CallStatusPoller
 
-			// Find call record by Vapi call ID
-			const callRecord = await this.callRepository.findByVapiCallId(callId);
-			if (!callRecord) {
-				console.error("Call record not found for webhook:", callId);
-				return;
-			}
-
-			// Update call status based on webhook
-			if (status === "completed") {
-				await this.callRepository.updateStatus(
-					callRecord.id,
-					CallStatus.COMPLETED
-				);
-				if (duration) {
-					await this.callRepository.updateDuration(callRecord.id, duration);
-				}
-			} else if (status === "failed") {
-				await this.callRepository.updateStatus(
-					callRecord.id,
-					CallStatus.FAILED
-				);
-			}
-
-			// Handle transfer
-			if (transferred && transferTo) {
-				await this.callRepository.updateTransfer(
-					callRecord.id,
-					true,
-					transferTo
-				);
-			}
-
-			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("call-status-updated", {
-				callId: callRecord.id,
-				vapiCallId: callId,
-				status,
-				duration,
-				transferred,
-				transferTo,
-				leadId: callRecord.leadId,
-				campaignId: callRecord.campaignId,
-				timestamp: new Date().toISOString(),
-			});
-
-			// Update lead status based on call outcome
-			const lead = await this.leadRepository.findById(callRecord.leadId);
-			if (lead) {
-				if (status === "completed") {
-					await this.leadRepository.updateStatus(lead.id, LeadStatus.CALLED);
-				} else if (status === "failed") {
-					// Check retry count to prevent infinite retries
-					const maxRetries = 3;
-					if (lead.retryCount >= maxRetries) {
-						// Max retries reached, mark as permanently failed
-						await this.leadRepository.updateStatus(lead.id, LeadStatus.FAILED);
-						console.log(
-							`Lead ${lead.id} has reached max retries (${maxRetries}), marking as permanently failed`
-						);
-					} else {
-						// Schedule a retry
-						const nextRetryTime = this.calculateNextRetryTime();
-						await this.leadRepository.updateScheduledCall(
-							lead.id,
-							nextRetryTime,
-							`Retry ${
-								lead.retryCount + 1
-							}/${maxRetries} scheduled after failed call at ${new Date().toLocaleString()}`
-						);
-						console.log(
-							`Scheduled retry ${lead.retryCount + 1}/${maxRetries} for lead ${
-								lead.id
-							} at ${nextRetryTime.toLocaleString()}`
-						);
-					}
-				}
-			}
-		} catch (error: any) {
-			throw new Error(`Failed to handle webhook: ${error.message}`);
-		}
-	}
+	// Old polling methods removed - replaced with CallStatusPoller
 
 	async triggerScheduledCalls(title: string): Promise<any[]> {
 		try {
@@ -216,7 +376,7 @@ export class CallService {
 
 			for (const lead of dueScheduledCalls) {
 				try {
-					const result = await this.triggerCall(lead.id, title);
+					const result = await this.triggerCall(lead.id, title, true); // isScheduled = true
 					triggeredCalls.push(result);
 
 					// Clear the scheduled call since it has been triggered
@@ -300,16 +460,16 @@ export class CallService {
 			}
 
 			const triggeredCalls = [];
-			const maxSimultaneousCalls = 5;
 
 			// Ensure campaign has leads property
 			const campaignWithLeads = campaign as any;
 			const leads = campaignWithLeads.leads || [];
 
-			for (const lead of leads.slice(0, maxSimultaneousCalls)) {
+			// Process all eligible leads (global limit is handled in triggerCall)
+			for (const lead of leads) {
 				if (lead.status === LeadStatus.NEW && !lead.blacklisted) {
 					try {
-						const result = await this.triggerCall(lead.id, title);
+						const result = await this.triggerCall(lead.id, title, false); // isScheduled = false
 						triggeredCalls.push(result);
 					} catch (error: any) {
 						console.error(`Failed to trigger call for lead ${lead.id}:`, error);
@@ -396,10 +556,293 @@ export class CallService {
 	}
 
 	async getCallByVapiId(vapiCallId: string): Promise<any> {
+		return await this.callRepository.findByVapiCallId(vapiCallId);
+	}
+
+	/**
+	 * Reconcile stale calls that remained INITIATED due to missed webhooks.
+	 * Looks back a window and polls Vapi to finalize status.
+	 */
+	async reconcileStaleInitiatedCalls(
+		lookbackMinutes: number = 60,
+		batchSize: number = 100
+	): Promise<{
+		scanned: number;
+		finalized: number;
+		errors: string[];
+	}> {
+		// Delegate to the new CallStatusPoller for reconciliation
+		return await callStatusPoller.reconcileStaleCalls();
+	}
+
+	// ===== LIVE CALL CONTROL METHODS =====
+
+	/**
+	 * Make the assistant say a specific message during a live call
+	 */
+	async sayMessage(
+		vapiCallId: string,
+		message: string,
+		endCallAfterSpoken: boolean = false
+	): Promise<void> {
 		try {
-			return await this.callRepository.findByVapiCallId(vapiCallId);
+			await vapiService.sayMessage(vapiCallId, message, endCallAfterSpoken);
+
+			// Emit real-time update
+			socketService.emitToCall(vapiCallId, "message-sent", {
+				callId: vapiCallId,
+				message,
+				endCallAfterSpoken,
+				timestamp: new Date().toISOString(),
+			});
+
+			// Update call record with the action
+			const callRecord = await this.getCallByVapiId(vapiCallId);
+			if (callRecord) {
+				await this.callRepository.updateNotes(
+					callRecord.id,
+					`[${new Date().toISOString()}] Manual message sent: "${message}"`
+				);
+			}
 		} catch (error: any) {
-			throw new Error(`Failed to get call by Vapi ID: ${error.message}`);
+			console.error("Error saying message:", error);
+			throw new Error(`Failed to say message: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Add a message to the conversation history
+	 */
+	async addMessageToConversation(
+		vapiCallId: string,
+		message: { role: "system" | "user" | "assistant"; content: string },
+		triggerResponse: boolean = true
+	): Promise<void> {
+		try {
+			await vapiService.addMessageToConversation(
+				vapiCallId,
+				message,
+				triggerResponse
+			);
+
+			// Emit real-time update
+			socketService.emitToCall(vapiCallId, "conversation-message-added", {
+				callId: vapiCallId,
+				message,
+				triggerResponse,
+				timestamp: new Date().toISOString(),
+			});
+
+			// Update call record with the action
+			const callRecord = await this.getCallByVapiId(vapiCallId);
+			if (callRecord) {
+				await this.callRepository.updateNotes(
+					callRecord.id,
+					`[${new Date().toISOString()}] Message added to conversation: ${
+						message.role
+					}: "${message.content}"`
+				);
+			}
+		} catch (error: any) {
+			console.error("Error adding message to conversation:", error);
+			throw new Error(
+				`Failed to add message to conversation: ${error.message}`
+			);
+		}
+	}
+
+	/**
+	 * Control assistant behavior (mute/unmute)
+	 */
+	async controlAssistant(
+		vapiCallId: string,
+		control: "mute-assistant" | "unmute-assistant" | "say-first-message"
+	): Promise<void> {
+		try {
+			await vapiService.controlAssistant(vapiCallId, control);
+
+			// Emit real-time update
+			socketService.emitToCall(vapiCallId, "assistant-controlled", {
+				callId: vapiCallId,
+				control,
+				timestamp: new Date().toISOString(),
+			});
+
+			// Update call record with the action
+			const callRecord = await this.getCallByVapiId(vapiCallId);
+			if (callRecord) {
+				const actionText =
+					control === "mute-assistant"
+						? "Assistant muted"
+						: control === "unmute-assistant"
+						? "Assistant unmuted"
+						: "Assistant first message triggered";
+				await this.callRepository.updateNotes(
+					callRecord.id,
+					`[${new Date().toISOString()}] ${actionText}`
+				);
+			}
+		} catch (error: any) {
+			console.error("Error controlling assistant:", error);
+			throw new Error(`Failed to control assistant: ${error.message}`);
+		}
+	}
+
+	/**
+	 * End the call programmatically
+	 */
+	async endCall(vapiCallId: string): Promise<void> {
+		try {
+			await vapiService.endCall(vapiCallId);
+
+			// Emit real-time update
+			socketService.emitToCall(vapiCallId, "call-ended", {
+				callId: vapiCallId,
+				reason: "manual_end",
+				timestamp: new Date().toISOString(),
+			});
+
+			// Update call record
+			const callRecord = await this.getCallByVapiId(vapiCallId);
+			if (callRecord) {
+				// Mark as FAILED in our domain when manually ended via control
+				await this.callRepository.updateStatus(
+					callRecord.id,
+					CallStatus.FAILED
+				);
+				await this.callRepository.updateNotes(
+					callRecord.id,
+					`[${new Date().toISOString()}] Call ended manually`
+				);
+			}
+		} catch (error: any) {
+			console.error("Error ending call:", error);
+			throw new Error(`Failed to end call: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Transfer the call to another number
+	 */
+	async transferCall(
+		vapiCallId: string,
+		destinationNumber: string,
+		transferMessage?: string
+	): Promise<void> {
+		try {
+			// Format destination phone number to E.164 format
+			const formattedDestinationNumber =
+				this.formatPhoneNumber(destinationNumber);
+
+			await vapiService.transferCall(
+				vapiCallId,
+				formattedDestinationNumber,
+				transferMessage
+			);
+
+			// Emit real-time update
+			socketService.emitToCall(vapiCallId, "call-transferred", {
+				callId: vapiCallId,
+				destinationNumber: formattedDestinationNumber,
+				transferMessage,
+				timestamp: new Date().toISOString(),
+			});
+
+			// Update call record
+			const callRecord = await this.getCallByVapiId(vapiCallId);
+			if (callRecord) {
+				await this.callRepository.updateStatus(
+					callRecord.id,
+					CallStatus.TRANSFERRED
+				);
+				await this.callRepository.updateNotes(
+					callRecord.id,
+					`[${new Date().toISOString()}] Call transferred to ${formattedDestinationNumber}`
+				);
+			}
+		} catch (error: any) {
+			console.error("Error transferring call:", error);
+			throw new Error(`Failed to transfer call: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Get call monitoring URLs for real-time control and audio streaming
+	 */
+	async getCallMonitoringUrls(
+		vapiCallId: string
+	): Promise<{ listenUrl?: string; controlUrl?: string }> {
+		try {
+			return await vapiService.getCallMonitoringUrls(vapiCallId);
+		} catch (error: any) {
+			console.error("Error getting call monitoring URLs:", error);
+			throw new Error(`Failed to get call monitoring URLs: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Hang up on all active calls for a campaign
+	 */
+	async hangUpAllCampaignCalls(campaignId: string): Promise<{
+		totalCalls: number;
+		successfulHangUps: number;
+		failedHangUps: number;
+		errors: string[];
+	}> {
+		try {
+			// Find all active calls for the campaign
+			const activeCalls = await this.callRepository.findActiveCallsByCampaign(
+				campaignId
+			);
+
+			if (activeCalls.length === 0) {
+				return {
+					totalCalls: 0,
+					successfulHangUps: 0,
+					failedHangUps: 0,
+					errors: [],
+				};
+			}
+
+			const results = {
+				totalCalls: activeCalls.length,
+				successfulHangUps: 0,
+				failedHangUps: 0,
+				errors: [] as string[],
+			};
+
+			// End each active call
+			for (const call of activeCalls) {
+				if (call.vapiCallId) {
+					try {
+						await this.endCall(call.vapiCallId);
+						results.successfulHangUps++;
+
+						console.log(
+							`📞 Successfully hung up call ${call.vapiCallId} for campaign ${campaignId}`
+						);
+					} catch (error: any) {
+						results.failedHangUps++;
+						const errorMsg = `Failed to hang up call ${call.vapiCallId}: ${error.message}`;
+						results.errors.push(errorMsg);
+						console.error(errorMsg);
+					}
+				} else {
+					results.failedHangUps++;
+					const errorMsg = `Call ${call.id} has no Vapi call ID`;
+					results.errors.push(errorMsg);
+					console.error(errorMsg);
+				}
+			}
+
+			console.log(
+				`📞 Campaign ${campaignId} hang up results: ${results.successfulHangUps}/${results.totalCalls} successful`
+			);
+
+			return results;
+		} catch (error: any) {
+			console.error("Error hanging up campaign calls:", error);
+			throw new Error(`Failed to hang up campaign calls: ${error.message}`);
 		}
 	}
 }

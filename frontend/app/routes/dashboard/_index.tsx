@@ -110,7 +110,7 @@ export default function DashboardIndex() {
 			icon: Upload,
 			href: "/dashboard/upload",
 			color: "bg-blue-500",
-			badge: "New",
+			badge: t("dashboard.badges.new"),
 		},
 		{
 			title: t("dashboard.leadsManagement"),
@@ -118,7 +118,7 @@ export default function DashboardIndex() {
 			icon: Users,
 			href: "/dashboard/leads",
 			color: "bg-green-500",
-			badge: "Active",
+			badge: t("dashboard.badges.active"),
 			count: totalLeads,
 		},
 		{
@@ -127,7 +127,10 @@ export default function DashboardIndex() {
 			icon: Phone,
 			href: "/dashboard/campaign",
 			color: "bg-purple-500",
-			badge: activeCampaigns > 0 ? "Live" : "Ready",
+			badge:
+				activeCampaigns > 0
+					? t("dashboard.badges.live")
+					: t("dashboard.badges.ready"),
 			count: activeCampaigns,
 		},
 		{
@@ -136,7 +139,7 @@ export default function DashboardIndex() {
 			icon: Activity,
 			href: "/dashboard/activity",
 			color: "bg-orange-500",
-			badge: "Live",
+			badge: t("dashboard.badges.live"),
 		},
 		{
 			title: t("dashboard.statistics"),
@@ -144,7 +147,7 @@ export default function DashboardIndex() {
 			icon: BarChart3,
 			href: "/dashboard/stats",
 			color: "bg-indigo-500",
-			badge: "Updated",
+			badge: t("dashboard.badges.updated"),
 		},
 	];
 

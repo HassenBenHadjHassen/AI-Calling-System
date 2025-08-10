@@ -90,6 +90,13 @@ router.delete(
 	campaignController.removeLeadFromCampaign.bind(campaignController)
 );
 
+// Campaign call control
+router.post(
+	"/:id/hang-up-calls",
+	// authenticateToken, // Commented out for testing
+	campaignController.hangUpCampaignCalls.bind(campaignController)
+);
+
 // Clean all campaigns
 router.delete(
 	"/clean/all",

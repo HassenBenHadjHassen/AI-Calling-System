@@ -97,6 +97,14 @@ const resources = {
 				latestSystemActivities: "Latest system activities",
 				activeCampaign: "Active campaign",
 				currentlyRunning: "Currently running",
+				// Badge translations
+				badges: {
+					new: "New",
+					active: "Active",
+					live: "Live",
+					ready: "Ready",
+					updated: "Updated",
+				},
 			},
 
 			// Upload
@@ -157,7 +165,7 @@ const resources = {
 				lastUpdated: "Last Updated",
 				leadDetails: "Lead Details",
 				manageLeadInfo: "Manage lead information and call history",
-				backToLeads: "Back to Leads",
+				backToLeads: "Go Back",
 				leadInformation: "Lead Information",
 				primaryPhone: "Primary Phone",
 				secondaryPhone: "Secondary Phone",
@@ -288,6 +296,14 @@ const resources = {
 					"Cannot add more than 5 leads to a campaign. Current:",
 				loadingStats: "Loading stats...",
 
+				// Stop Campaign Modal
+				stopCampaignWarning: "Stop Campaign Warning",
+				stopCampaignDescription:
+					"Stopping this campaign will immediately end all active calls for this campaign. This action cannot be undone.",
+				stopCampaignAlert:
+					"⚠️ All active calls in this campaign will be terminated immediately.",
+				stopping: "Stopping...",
+
 				leadStatus: {
 					new: "NEW",
 					called: "CALLED",
@@ -345,6 +361,10 @@ const resources = {
 				transferred: "Transferred",
 				failed: "Failed",
 				scheduled: "Scheduled",
+				// Call management
+				callQueue: "Call Queue",
+				scheduledInQueue: "Scheduled in Queue",
+				campaignInQueue: "Campaign in Queue",
 			},
 
 			// Statistics
@@ -390,7 +410,7 @@ const resources = {
 			leadDetail: {
 				title: "Lead Details",
 				description: "Manage lead information and call history",
-				backToLeads: "Back to Leads",
+				backToLeads: "Go Back",
 				leadInformation: "Lead Information",
 				titleLabel: "Title",
 				monsieur: "Monsieur",
@@ -428,7 +448,6 @@ const resources = {
 				interested: "Interested",
 				transferred: "Transferred",
 				failed: "Failed",
-				blacklisted: "Blacklisted",
 				scheduled: "Scheduled",
 				// Additional lead detail keys
 				loadingCallHistory: "Loading call history...",
@@ -442,6 +461,57 @@ const resources = {
 				edit: "Edit",
 				save: "Save",
 				cancel: "Cancel",
+				onlyNewLeads: "Only NEW leads can be called",
+				blacklisted: "Lead is blacklisted",
+				cannotScheduleInPast:
+					"Cannot schedule a call in the past. Please select a future date and time.",
+				viewDetails: "View Details",
+			},
+
+			// Call Detail
+			callDetail: {
+				title: "Call Details",
+				description: "Detailed information about this call",
+				back: "Back",
+				callInformation: "Call Information",
+				leadInformation: "Lead Information",
+				campaignInformation: "Campaign Information",
+				actions: "Actions",
+				callId: "Call ID",
+				vapiCallId: "Vapi Call ID",
+				fromNumber: "From Number",
+				toNumber: "To Number",
+				startTime: "Start Time",
+				duration: "Duration",
+				cost: "Cost",
+				costTooltip: "Euro calculation may not be 100% accurate",
+				transferred: "Transferred",
+				transferTo: "Transfer To",
+				yes: "Yes",
+				no: "No",
+				notes: "Notes",
+				noNotes: "No notes available",
+				primaryPhone: "Primary Phone",
+				secondaryPhone: "Secondary Phone",
+				address: "Address",
+				campaignName: "Campaign Name",
+				campaignStatus: "Campaign Status",
+				viewLead: "View Lead",
+				viewCampaign: "View Campaign",
+				callNotFound: "Call not found",
+				backToLeads: "Back to Leads",
+				loadingCallDetails: "Loading call details...",
+				loading: "Loading...",
+				na: "N/A",
+			},
+
+			// Calls
+			calls: {
+				initiated: "Initiated",
+				completed: "Completed",
+				transferred: "Transferred",
+				failed: "Failed",
+				scheduled: "Scheduled",
 			},
 
 			// Status labels
@@ -562,6 +632,14 @@ const resources = {
 				latestSystemActivities: "Dernières activités du système",
 				activeCampaign: "Campagne active",
 				currentlyRunning: "Actuellement en cours",
+				// Badge translations
+				badges: {
+					new: "Nouveau",
+					active: "Actif",
+					live: "En Direct",
+					ready: "Prêt",
+					updated: "Mis à Jour",
+				},
 			},
 
 			// Upload
@@ -626,7 +704,7 @@ const resources = {
 				leadDetails: "Détails du Prospect",
 				manageLeadInfo:
 					"Gérer les informations du prospect et l'historique des appels",
-				backToLeads: "Retour aux Prospects",
+				backToLeads: "Retour",
 				leadInformation: "Informations du Prospect",
 				primaryPhone: "Téléphone Principal",
 				secondaryPhone: "Téléphone Secondaire",
@@ -634,7 +712,7 @@ const resources = {
 				selectNewStatus: "Sélectionner un nouveau statut",
 				updateStatusBtn: "Mettre à Jour le Statut",
 				triggerCall: "Déclencher un Appel",
-				callNow: "Appeler Maintenant",
+				callNow: "Appeler",
 				triggering: "Déclenchement...",
 				scheduleCall: "Programmer un Appel",
 				dateTime: "Date et Heure",
@@ -760,6 +838,15 @@ const resources = {
 				cannotAddMoreThan5:
 					"Impossible d'ajouter plus de 5 prospects à une campagne. Actuel:",
 				loadingStats: "Chargement des statistiques...",
+
+				// Stop Campaign Modal
+				stopCampaignWarning: "Avertissement d'Arrêt de Campagne",
+				stopCampaignDescription:
+					"Arrêter cette campagne mettra immédiatement fin à tous les appels actifs pour cette campagne. Cette action ne peut pas être annulée.",
+				stopCampaignAlert:
+					"⚠️ Tous les appels actifs de cette campagne seront terminés immédiatement.",
+				stopping: "Arrêt...",
+
 				leadStatus: {
 					new: "NOUVEAU",
 					called: "APPELÉ",
@@ -819,6 +906,10 @@ const resources = {
 				transferred: "Transféré",
 				failed: "Échoué",
 				scheduled: "Programmé",
+				// Call management
+				callQueue: "File d'Attente d'Appels",
+				scheduledInQueue: "Programmés en File",
+				campaignInQueue: "Campagne en File",
 			},
 
 			// Statistics
@@ -865,7 +956,7 @@ const resources = {
 				title: "Détails du Prospect",
 				description:
 					"Gérer les informations du prospect et l'historique des appels",
-				backToLeads: "Retour aux Prospects",
+				backToLeads: "Retour",
 				leadInformation: "Informations du Prospect",
 				titleLabel: "Titre",
 				monsieur: "Monsieur",
@@ -881,7 +972,7 @@ const resources = {
 				selectNewStatus: "Sélectionner un nouveau statut",
 				updateStatusBtn: "Mettre à Jour le Statut",
 				triggerCall: "Déclencher un Appel",
-				callNow: "Appeler Maintenant",
+				callNow: "Appeler",
 				triggering: "Déclenchement...",
 				scheduleCall: "Programmer un Appel",
 				dateTime: "Date et Heure",
@@ -903,7 +994,6 @@ const resources = {
 				interested: "Intéressé",
 				transferred: "Transféré",
 				failed: "Échoué",
-				blacklisted: "Liste Noire",
 				scheduled: "Programmé",
 				// Additional lead detail keys
 				loadingCallHistory: "Chargement de l'historique des appels...",
@@ -917,6 +1007,55 @@ const resources = {
 				edit: "Modifier",
 				save: "Enregistrer",
 				cancel: "Annuler",
+				onlyNewLeads: "NOUVEAUX uniquement",
+				blacklisted: "Liste noire",
+				cannotScheduleInPast:
+					"Impossible de programmer un appel dans le passé. Veuillez sélectionner une date et heure futures.",
+				viewDetails: "Voir les Détails",
+			},
+
+			// Call Detail
+			callDetail: {
+				title: "Détails de l'Appel",
+				description: "Informations détaillées sur cet appel",
+				back: "Retour",
+				callInformation: "Informations de l'Appel",
+				leadInformation: "Informations du Prospect",
+				campaignInformation: "Informations de la Campagne",
+				actions: "Actions",
+				callId: "ID de l'Appel",
+				vapiCallId: "ID d'Appel Vapi",
+				fromNumber: "Numéro d'Origine",
+				toNumber: "Numéro de Destination",
+				startTime: "Heure de Début",
+				duration: "Durée",
+				cost: "Coût",
+				costTooltip: "Le calcul en euros peut ne pas être 100% précis",
+				transferred: "Transféré",
+				transferTo: "Transféré Vers",
+				notes: "Notes",
+				noNotes: "Aucune note disponible",
+				primaryPhone: "Téléphone Principal",
+				secondaryPhone: "Téléphone Secondaire",
+				address: "Adresse",
+				campaignName: "Nom de la Campagne",
+				campaignStatus: "Statut de la Campagne",
+				viewLead: "Voir le Prospect",
+				viewCampaign: "Voir la Campagne",
+				callNotFound: "Appel non trouvé",
+				backToLeads: "Retour aux Prospects",
+				loadingCallDetails: "Chargement des détails de l'appel...",
+				loading: "Chargement...",
+				na: "N/A",
+			},
+
+			// Calls
+			calls: {
+				initiated: "Initié",
+				completed: "Terminé",
+				transferred: "Transféré",
+				failed: "Échoué",
+				scheduled: "Programmé",
 			},
 
 			// Status labels
@@ -946,26 +1085,29 @@ const resources = {
 	},
 };
 
-// Get saved language from localStorage or default to 'en'
-const savedLanguage =
-	typeof window !== "undefined"
-		? localStorage.getItem("i18n_language") || "en"
-		: "en";
-
+// Initialize i18n with a consistent default language for SSR
+// We'll handle language switching on the client side after hydration
 i18n.use(initReactI18next).init({
 	resources,
-	lng: savedLanguage, // Use saved language or default to 'en'
+	lng: "en", // Always start with English for SSR consistency
 	fallbackLng: "en",
 	interpolation: {
 		escapeValue: false, // React already escapes values
 	},
 });
 
-// Save language to localStorage when it changes
-i18n.on("languageChanged", (lng) => {
-	if (typeof window !== "undefined") {
-		localStorage.setItem("i18n_language", lng);
+// Handle language switching on the client side only
+if (typeof window !== "undefined") {
+	// Get saved language from localStorage
+	const savedLanguage = localStorage.getItem("i18n_language");
+	if (savedLanguage && savedLanguage !== "en") {
+		i18n.changeLanguage(savedLanguage);
 	}
-});
+
+	// Save language to localStorage when it changes
+	i18n.on("languageChanged", (lng) => {
+		localStorage.setItem("i18n_language", lng);
+	});
+}
 
 export default i18n;

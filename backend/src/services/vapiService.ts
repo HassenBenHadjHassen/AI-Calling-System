@@ -1,5 +1,22 @@
 import { Vapi, VapiClient } from "@vapi-ai/server-sdk";
 import { env } from "../config/env";
+
+interface CallControlPayload {
+	type: "say" | "add-message" | "control" | "end-call" | "transfer";
+	content?: string;
+	endCallAfterSpoken?: boolean;
+	message?: {
+		role: "system" | "user" | "assistant";
+		content: string;
+	};
+	triggerResponseEnabled?: boolean;
+	control?: "mute-assistant" | "unmute-assistant" | "say-first-message";
+	destination?: {
+		type: "number";
+		number: string;
+	};
+}
+
 class VapiService {
 	private client: VapiClient;
 	private phoneNumberId: string;
@@ -24,7 +41,6 @@ class VapiService {
 				},
 				workflowId: workflowId,
 				name: callRequest.name,
-				assistantId: env.VAPI_ASSISTANT_ID,
 				workflowOverrides: {
 					variableValues: {
 						title: callRequest.title,
@@ -75,6 +91,137 @@ class VapiService {
 		} catch (error) {
 			console.error("Error fetching Vapi call:", error);
 			throw new Error("Failed to fetch call from Vapi.ai");
+		}
+	}
+
+	/**
+	 * Control a live call using Vapi's call control features
+	 * @param callId - The Vapi call ID
+	 * @param controlPayload - The control action to perform
+	 */
+	async controlCall(
+		callId: string,
+		controlPayload: CallControlPayload
+	): Promise<void> {
+		try {
+			// First get the call to obtain the control URL
+			const call = await this.getCall(callId);
+
+			if (!call.monitor?.controlUrl) {
+				throw new Error(
+					"Call control URL not available - call may not be active"
+				);
+			}
+
+			const response = await fetch(call.monitor.controlUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(controlPayload),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.text();
+				throw new Error(
+					`Call control failed: ${response.status} - ${errorData}`
+				);
+			}
+
+			console.log(
+				`Call control action '${controlPayload.type}' executed successfully for call ${callId}`
+			);
+		} catch (error: any) {
+			console.error("Error controlling call:", error);
+			throw new Error(`Failed to control call: ${error.message}`);
+		}
+	}
+
+	/**
+	 * Make the assistant say a specific message during the call
+	 */
+	async sayMessage(
+		callId: string,
+		message: string,
+		endCallAfterSpoken: boolean = false
+	): Promise<void> {
+		await this.controlCall(callId, {
+			type: "say",
+			content: message,
+			endCallAfterSpoken,
+		});
+	}
+
+	/**
+	 * Add a message to the conversation history
+	 */
+	async addMessageToConversation(
+		callId: string,
+		message: { role: "system" | "user" | "assistant"; content: string },
+		triggerResponse: boolean = true
+	): Promise<void> {
+		await this.controlCall(callId, {
+			type: "add-message",
+			message,
+			triggerResponseEnabled: triggerResponse,
+		});
+	}
+
+	/**
+	 * Control assistant behavior (mute/unmute)
+	 */
+	async controlAssistant(
+		callId: string,
+		control: "mute-assistant" | "unmute-assistant" | "say-first-message"
+	): Promise<void> {
+		await this.controlCall(callId, {
+			type: "control",
+			control,
+		});
+	}
+
+	/**
+	 * End the call programmatically
+	 */
+	async endCall(callId: string): Promise<void> {
+		await this.controlCall(callId, {
+			type: "end-call",
+		});
+	}
+
+	/**
+	 * Transfer the call to another number
+	 */
+	async transferCall(
+		callId: string,
+		destinationNumber: string,
+		transferMessage?: string
+	): Promise<void> {
+		await this.controlCall(callId, {
+			type: "transfer",
+			destination: {
+				type: "number",
+				number: destinationNumber,
+			},
+			content: transferMessage || "Transferring your call now",
+		});
+	}
+
+	/**
+	 * Get call monitoring URLs for real-time control and audio streaming
+	 */
+	async getCallMonitoringUrls(
+		callId: string
+	): Promise<{ listenUrl?: string; controlUrl?: string }> {
+		try {
+			const call = await this.getCall(callId);
+			return {
+				listenUrl: call.monitor?.listenUrl,
+				controlUrl: call.monitor?.controlUrl,
+			};
+		} catch (error) {
+			console.error("Error getting call monitoring URLs:", error);
+			throw new Error("Failed to get call monitoring URLs");
 		}
 	}
 }

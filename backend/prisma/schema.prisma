@@ -53,6 +53,7 @@ model CallHistory {
   transferred Boolean    @default(false)
   transferTo  String?
   duration    Int?
+  cost        Float? // Cost in dollars from Vapi.ai
   callTime    DateTime   @default(now())
   vapiCallId  String?
   notes       String?
@@ -89,4 +90,5 @@ enum ScheduledCallStatus {
   FAILED
   CANCELLED
   RESCHEDULED
+  ORPHANED
 }

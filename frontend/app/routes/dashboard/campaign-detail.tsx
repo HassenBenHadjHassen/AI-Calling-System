@@ -41,7 +41,6 @@ import {
 import { Sidebar } from "~/components/dashboard/sidebar";
 import { Topbar } from "~/components/dashboard/topbar";
 import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
-import { socketService } from "~/lib/socket";
 import {
 	campaignAPI,
 	callAPI,
@@ -63,18 +62,23 @@ export default function CampaignDetailPage() {
 	const { addToast } = useToast();
 	const [showAddLeadsModal, setShowAddLeadsModal] = useState(false);
 	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+	const [showStopCampaignModal, setShowStopCampaignModal] = useState(false);
 
 	// Queries
 	const { data: campaign, isLoading: campaignLoading } = useQuery({
 		queryKey: ["campaign", id],
 		queryFn: () => campaignAPI.getCampaign(id!),
 		enabled: isAuthenticated && !!id,
+		refetchInterval: 3000, // Refresh every 3 seconds
+		refetchIntervalInBackground: true, // Continue refreshing even when tab is not active
 	});
 
 	const { data: callHistory, isLoading: callHistoryLoading } = useQuery({
 		queryKey: ["campaign-calls", id],
 		queryFn: () => callAPI.getCallHistory({ campaignId: id! }),
 		enabled: isAuthenticated && !!id,
+		refetchInterval: 5000, // Refresh every 5 seconds
+		refetchIntervalInBackground: true, // Continue refreshing even when tab is not active
 	});
 
 	const { data: callStats, isLoading: statsLoading } = useQuery({
@@ -109,6 +113,7 @@ export default function CampaignDetailPage() {
 			queryClient.invalidateQueries({ queryKey: ["campaign", id] });
 			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 			queryClient.invalidateQueries({ queryKey: ["active-campaign"] });
+			queryClient.invalidateQueries({ queryKey: ["campaign-calls", id] });
 		},
 	});
 
@@ -173,14 +178,39 @@ export default function CampaignDetailPage() {
 		}
 	}, [isClient, redirectIfNotAuthenticated]);
 
+	// Socket connection is handled by the dashboard layout
+	// No need to connect/disconnect here
+
+	// Auto-stop campaign when all calls are completed
 	useEffect(() => {
-		if (isAuthenticated && isClient) {
-			socketService.connect();
-			return () => {
-				socketService.disconnect();
-			};
+		if (
+			campaign?.data?.status === "ACTIVE" &&
+			callHistory?.data &&
+			campaign?.data?.leads &&
+			!stopCampaignMutation.isPending
+		) {
+			const totalLeads = campaign.data.leads.length;
+			const completedCalls = callHistory.data.filter(
+				(call) =>
+					call.callStatus === "COMPLETED" ||
+					call.callStatus === "FAILED" ||
+					call.callStatus === "TRANSFERRED"
+			).length;
+
+			// If all leads have been called (completed, failed, or transferred), auto-stop the campaign
+			if (completedCalls >= totalLeads && totalLeads > 0) {
+				console.log(
+					`Auto-stopping campaign: ${completedCalls}/${totalLeads} calls completed`
+				);
+				stopCampaignMutation.mutate(campaign.data.id);
+			}
 		}
-	}, [isAuthenticated, isClient]);
+	}, [
+		campaign?.data?.status,
+		callHistory?.data,
+		campaign?.data?.leads,
+		stopCampaignMutation.isPending,
+	]);
 
 	// Loading states
 	if (!isClient) {
@@ -204,8 +234,14 @@ export default function CampaignDetailPage() {
 		if (!campaign?.data) return;
 
 		if (campaign.data.status === "ACTIVE") {
-			stopCampaignMutation.mutate(campaign.data.id);
+			setShowStopCampaignModal(true);
+		} else if (
+			campaign.data.status === "STOPPED" ||
+			campaign.data.status === "COMPLETED"
+		) {
+			startCampaignMutation.mutate(campaign.data.id);
 		} else {
+			// For any other status, try to start the campaign
 			startCampaignMutation.mutate(campaign.data.id);
 		}
 	};
@@ -235,6 +271,24 @@ export default function CampaignDetailPage() {
 		if (confirm(t("campaigns.confirmRemoveLead"))) {
 			removeLeadFromCampaignMutation.mutate(leadId);
 		}
+	};
+
+	const handleConfirmStopCampaign = () => {
+		if (!campaign?.data) return;
+
+		// Check if campaign is still active before attempting to stop it
+		if (campaign.data.status !== "ACTIVE") {
+			addToast(t("campaigns.campaignAlreadyStopped"), "info");
+			setShowStopCampaignModal(false);
+			return;
+		}
+
+		stopCampaignMutation.mutate(campaign.data.id);
+		setShowStopCampaignModal(false);
+	};
+
+	const handleCancelStopCampaign = () => {
+		setShowStopCampaignModal(false);
 	};
 
 	const getStatusColor = (status: string) => {
@@ -535,7 +589,7 @@ export default function CampaignDetailPage() {
 															<Badge
 																variant={getLeadStatusColor(lead.status) as any}
 															>
-																{t(`status.${lead.status.toLowerCase()}`)}
+																{t(`leads.${lead.status.toLowerCase()}`)}
 															</Badge>
 														</TableCell>
 														<TableCell>{lead.city || "-"}</TableCell>
@@ -546,7 +600,7 @@ export default function CampaignDetailPage() {
 																	variant="outline"
 																	size="sm"
 																	onClick={() =>
-																		navigate(`/dashboard/lead/${lead.id}`)
+																		navigate(`/dashboard/leads/${lead.id}`)
 																	}
 																>
 																	{t("campaigns.viewDetails")}
@@ -613,7 +667,9 @@ export default function CampaignDetailPage() {
 																	getCallStatusColor(call.callStatus) as any
 																}
 															>
-																{t(`status.${call.callStatus.toLowerCase()}`)}
+																{t(
+																	`campaigns.callStatus.${call.callStatus.toLowerCase()}`
+																)}
 															</Badge>
 														</TableCell>
 														<TableCell>
@@ -795,6 +851,84 @@ export default function CampaignDetailPage() {
 													{t("common.cancel")}
 												</Button>
 											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Stop Campaign Confirmation Modal */}
+						{showStopCampaignModal && (
+							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+								<div className="bg-white rounded-lg w-full max-w-md mx-4">
+									{/* Header */}
+									<div className="flex justify-between items-center p-6 border-b">
+										<h2 className="text-xl font-semibold text-red-600">
+											{t("campaigns.stopCampaign")}
+										</h2>
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={handleCancelStopCampaign}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+
+									{/* Content */}
+									<div className="p-6">
+										<div className="space-y-4">
+											<div className="flex items-start space-x-3">
+												<div className="flex-shrink-0 mt-1">
+													<div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center">
+														<Square className="h-4 w-4 text-red-600" />
+													</div>
+												</div>
+												<div className="flex-1">
+													<h3 className="text-lg font-medium text-gray-900">
+														{t("campaigns.stopCampaignWarning")}
+													</h3>
+													<p className="text-sm text-gray-600 mt-2">
+														{t("campaigns.stopCampaignDescription")}
+													</p>
+												</div>
+											</div>
+
+											<Alert variant="destructive">
+												<AlertDescription>
+													{t("campaigns.stopCampaignAlert")}
+												</AlertDescription>
+											</Alert>
+										</div>
+									</div>
+
+									{/* Footer */}
+									<div className="border-t p-6 bg-gray-50">
+										<div className="flex justify-end space-x-3">
+											<Button
+												variant="outline"
+												onClick={handleCancelStopCampaign}
+												disabled={stopCampaignMutation.isPending}
+											>
+												{t("common.cancel")}
+											</Button>
+											<Button
+												variant="destructive"
+												onClick={handleConfirmStopCampaign}
+												disabled={stopCampaignMutation.isPending}
+											>
+												{stopCampaignMutation.isPending ? (
+													<>
+														<RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+														{t("campaigns.stopping")}
+													</>
+												) : (
+													<>
+														<Square className="h-4 w-4 mr-2" />
+														{t("campaigns.stopCampaign")}
+													</>
+												)}
+											</Button>
 										</div>
 									</div>
 								</div>

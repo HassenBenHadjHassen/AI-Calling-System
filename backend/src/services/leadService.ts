@@ -301,34 +301,79 @@ export class LeadService {
 		};
 	}
 
+	/**
+	 * Format phone number to E.164 format for Vapi.ai
+	 */
 	private formatPhoneNumber(phone: string): string {
 		if (!phone) {
 			throw new Error("Phone number is required");
 		}
 
 		// Remove all non-digit characters except +
-		const cleaned = phone.replace(/[^\d+]/g, "");
+		let cleaned = phone.replace(/[^\d+]/g, "");
 
-		// If already in E.164 format (starts with +), return as is
+		// Already valid E.164 format
 		if (cleaned.startsWith("+")) {
 			return cleaned;
 		}
 
-		// Match French numbers starting with 0 and followed by 9 digits
-		const match = cleaned.match(/^0(\d{9})$/);
-
-		if (match) {
-			// Convert to E.164 by replacing leading 0 with +33
-			return `+33${match[1]}`;
+		// ---------- Tunisian formats ----------
+		const tunisianMobileWithZero = cleaned.match(/^0(2\d{7})$/);
+		if (tunisianMobileWithZero) {
+			return `+216${tunisianMobileWithZero[1]}`;
 		}
 
-		// If it's a valid number without country code, assume it's French
+		const tunisianLandlineWithZero = cleaned.match(/^0(7\d{7})$/);
+		if (tunisianLandlineWithZero) {
+			return `+216${tunisianLandlineWithZero[1]}`;
+		}
+
+		if (cleaned.length === 8 && /^[27]/.test(cleaned)) {
+			return `+216${cleaned}`;
+		}
+
+		if (
+			(cleaned.length === 10 || cleaned.length === 11) &&
+			cleaned.startsWith("216")
+		) {
+			return `+${cleaned}`;
+		}
+
+		// ---------- French formats ----------
+		const frenchWithZero = cleaned.match(/^0(\d{9})$/);
+		if (frenchWithZero) {
+			return `+33${frenchWithZero[1]}`;
+		}
+
+		if (cleaned.length === 9 && /^\d{9}$/.test(cleaned)) {
+			return `+33${cleaned}`;
+		}
+
 		if (cleaned.length === 10 && cleaned.startsWith("0")) {
 			return `+33${cleaned.substring(1)}`;
 		}
 
-		// Return as is if no pattern matches
-		return phone;
+		if (cleaned.length === 10 && !cleaned.startsWith("0")) {
+			return `+33${cleaned}`;
+		}
+
+		if (cleaned.length === 11 && cleaned.startsWith("33")) {
+			return `+${cleaned}`;
+		}
+
+		// ---------- US formats ----------
+		// US numbers are typically 10 digits (area code + 7-digit number)
+		if (cleaned.length === 10 && /^\d{10}$/.test(cleaned)) {
+			return `+1${cleaned}`;
+		}
+
+		// US numbers with country code already (1 + 10 digits)
+		if (cleaned.length === 11 && cleaned.startsWith("1")) {
+			return `+${cleaned}`;
+		}
+
+		// ---------- Fallback ----------
+		return cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
 	}
 
 	private async checkForExistingLeads(phoneNumbers: string[]): Promise<any[]> {
@@ -883,6 +928,53 @@ export class LeadService {
 			return await this.leadRepository.debugLeadAvailability();
 		} catch (error: any) {
 			throw new Error(`Failed to debug lead availability: ${error.message}`);
+		}
+	}
+
+	async getOrphanedScheduledCalls(): Promise<any[]> {
+		try {
+			return await this.leadRepository.findOrphanedScheduledCalls();
+		} catch (error: any) {
+			throw new Error(
+				`Failed to get orphaned scheduled calls: ${error.message}`
+			);
+		}
+	}
+
+	async reassignOrphanedScheduledCall(
+		leadId: string,
+		campaignId: string
+	): Promise<any> {
+		try {
+			// Verify the campaign exists and has capacity
+			const campaign = await this.campaignRepository.findById(campaignId);
+			if (!campaign) {
+				throw new Error("Campaign not found");
+			}
+
+			// Check if campaign has capacity (leads array is included in findById)
+			if ((campaign as any).leads && (campaign as any).leads.length >= 5) {
+				throw new Error("Campaign is full (maximum 5 leads)");
+			}
+
+			return await this.leadRepository.reassignOrphanedScheduledCall(
+				leadId,
+				campaignId
+			);
+		} catch (error: any) {
+			throw new Error(
+				`Failed to reassign orphaned scheduled call: ${error.message}`
+			);
+		}
+	}
+
+	async getOrphanedScheduledCallsCount(): Promise<number> {
+		try {
+			return await this.leadRepository.getOrphanedScheduledCallsCount();
+		} catch (error: any) {
+			throw new Error(
+				`Failed to get orphaned scheduled calls count: ${error.message}`
+			);
 		}
 	}
 }

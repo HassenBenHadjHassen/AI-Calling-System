@@ -6,7 +6,8 @@ class ApiService {
 		endpoint: string,
 		options: RequestInit = {}
 	): Promise<ApiResponse<T>> {
-		const token = localStorage.getItem("authToken");
+		const token =
+			typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
 
 		const config: RequestInit = {
 			headers: {
@@ -173,6 +174,7 @@ export interface CallHistory {
 	transferred: boolean;
 	transferTo?: string;
 	duration?: number;
+	cost?: number; // Cost in dollars from Vapi.ai
 	callTime: string;
 	vapiCallId?: string;
 	notes?: string;
@@ -274,7 +276,8 @@ export const leadAPI = {
 		const formData = new FormData();
 		formData.append("file", file);
 
-		const token = localStorage.getItem("authToken");
+		const token =
+			typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
 		const response = await fetch(`${API_BASE_URL}/leads/upload`, {
 			method: "POST",
 			headers: {
@@ -411,6 +414,24 @@ export const leadAPI = {
 			availableLeads: number;
 		}>("/leads/debug/availability");
 	},
+	getOrphanedScheduledCalls: async (): Promise<ApiResponse<Lead[]>> => {
+		return apiService.get<Lead[]>("/leads/orphaned-scheduled-calls");
+	},
+
+	reassignOrphanedScheduledCall: async (data: {
+		leadId: string;
+		campaignId: string;
+	}): Promise<ApiResponse<Lead>> => {
+		return apiService.post<Lead>("/leads/reassign-orphaned-call", data);
+	},
+
+	getOrphanedScheduledCallsCount: async (): Promise<
+		ApiResponse<{ count: number }>
+	> => {
+		return apiService.get<{ count: number }>(
+			"/leads/orphaned-scheduled-calls/count"
+		);
+	},
 };
 
 // Campaign API
@@ -498,13 +519,10 @@ export const callAPI = {
 	): Promise<ApiResponse<CallHistory>> => {
 		return apiService.post<CallHistory>(`/calls/trigger/${leadId}`, {
 			title,
-			name,
 		});
 	},
 
-	handleWebhook: async (webhookData: any): Promise<ApiResponse<null>> => {
-		return apiService.post<null>("/calls/webhook", webhookData);
-	},
+	// Webhook handling removed - replaced with enhanced polling system
 
 	triggerScheduledCalls: async (
 		title: string
@@ -592,6 +610,37 @@ export const callAPI = {
 		return apiService.get<CallHistory[]>("/calls/recent");
 	},
 
+	reconcileStaleCalls: async (params?: {
+		lookbackMinutes?: number;
+		batchSize?: number;
+	}): Promise<
+		ApiResponse<{
+			scanned: number;
+			finalized: number;
+			errors: string[];
+		}>
+	> => {
+		return apiService.post<{
+			scanned: number;
+			finalized: number;
+			errors: string[];
+		}>("/calls/reconcile/stale", params || {});
+	},
+
+	reconcileStaleCallsViaScheduler: async (): Promise<
+		ApiResponse<{
+			scanned: number;
+			finalized: number;
+			errors: string[];
+		}>
+	> => {
+		return apiService.post<{
+			scanned: number;
+			finalized: number;
+			errors: string[];
+		}>("/scheduler/reconcile-stale", {});
+	},
+
 	getCallStats: async (params?: {
 		campaignId?: string;
 	}): Promise<ApiResponse<CallStats>> => {
@@ -600,6 +649,76 @@ export const callAPI = {
 		const queryString = queryParams.toString();
 		const endpoint = `/calls/stats${queryString ? `?${queryString}` : ""}`;
 		return apiService.get<CallStats>(endpoint);
+	},
+
+	getCallManagementStats: async (): Promise<
+		ApiResponse<{
+			activeCalls: number;
+			maxCalls: number;
+			queueLength: number;
+			scheduledInQueue: number;
+			campaignInQueue: number;
+		}>
+	> => {
+		return apiService.get<{
+			activeCalls: number;
+			maxCalls: number;
+			queueLength: number;
+			scheduledInQueue: number;
+			campaignInQueue: number;
+		}>("/calls/management-stats");
+	},
+
+	// ===== Live Call Control =====
+	getMonitoringUrls: async (
+		vapiCallId: string
+	): Promise<ApiResponse<{ listenUrl?: string; controlUrl?: string }>> => {
+		return apiService.get<{ listenUrl?: string; controlUrl?: string }>(
+			`/calls/control/${vapiCallId}/monitoring-urls`
+		);
+	},
+
+	sayMessage: async (
+		vapiCallId: string,
+		params: { message: string; endCallAfterSpoken?: boolean }
+	): Promise<ApiResponse<null>> => {
+		return apiService.post<null>(`/calls/control/${vapiCallId}/say`, params);
+	},
+
+	addConversationMessage: async (
+		vapiCallId: string,
+		params: {
+			message: { role: "system" | "user" | "assistant"; content: string };
+			triggerResponse?: boolean;
+		}
+	): Promise<ApiResponse<null>> => {
+		return apiService.post<null>(
+			`/calls/control/${vapiCallId}/conversation`,
+			params
+		);
+	},
+
+	controlAssistant: async (
+		vapiCallId: string,
+		control: "mute-assistant" | "unmute-assistant" | "say-first-message"
+	): Promise<ApiResponse<null>> => {
+		return apiService.post<null>(`/calls/control/${vapiCallId}/assistant`, {
+			control,
+		});
+	},
+
+	endCall: async (vapiCallId: string): Promise<ApiResponse<null>> => {
+		return apiService.post<null>(`/calls/control/${vapiCallId}/end`, {});
+	},
+
+	transferCall: async (
+		vapiCallId: string,
+		params: { destinationNumber: string; transferMessage?: string }
+	): Promise<ApiResponse<null>> => {
+		return apiService.post<null>(
+			`/calls/control/${vapiCallId}/transfer`,
+			params
+		);
 	},
 };
 
@@ -619,6 +738,42 @@ export const healthAPI = {
 			environment: string;
 			version: string;
 		}>("/health");
+	},
+};
+
+// Scheduler API
+export const schedulerAPI = {
+	getSchedulerStatus: async (): Promise<
+		ApiResponse<{
+			isRunning: boolean;
+			nextCheckTime: Date;
+			dueCallsCount: number;
+			orphanedCallsCount: number;
+		}>
+	> => {
+		return apiService.get<{
+			isRunning: boolean;
+			nextCheckTime: Date;
+			dueCallsCount: number;
+			orphanedCallsCount: number;
+		}>("/scheduler/status");
+	},
+
+	triggerDueCalls: async (): Promise<
+		ApiResponse<{ processedCount: number; errors: string[] }>
+	> => {
+		return apiService.post<{ processedCount: number; errors: string[] }>(
+			"/scheduler/trigger",
+			{}
+		);
+	},
+
+	startScheduler: async (): Promise<ApiResponse<{ message: string }>> => {
+		return apiService.post<{ message: string }>("/scheduler/start", {});
+	},
+
+	stopScheduler: async (): Promise<ApiResponse<{ message: string }>> => {
+		return apiService.post<{ message: string }>("/scheduler/stop", {});
 	},
 };
 

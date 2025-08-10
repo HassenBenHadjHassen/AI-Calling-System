@@ -316,6 +316,18 @@
 					}
 				},
 				{
+					"name": "Hang Up Campaign Calls",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/campaigns/{{campaignId}}/hang-up-calls",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "campaigns", "{{campaignId}}", "hang-up-calls"]
+						}
+					}
+				},
+				{
 					"name": "Get Active Campaign",
 					"request": {
 						"method": "GET",
@@ -510,6 +522,139 @@
 							"path": ["api", "calls", "{{callId}}", "notes"]
 						}
 					}
+				},
+				{
+					"name": "Live Call Control",
+					"item": [
+						{
+							"name": "Say Message",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "Authorization", "value": "Bearer {{token}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"message\": \"Welcome to Vapi, this message was injected during the call.\",\n  \"endCallAfterSpoken\": false\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/calls/control/{{vapiCallId}}/say",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "calls", "control", "{{vapiCallId}}", "say"]
+								}
+							}
+						},
+						{
+							"name": "Add Message to Conversation",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "Authorization", "value": "Bearer {{token}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"message\": {\n    \"role\": \"system\",\n    \"content\": \"New message added to conversation\"\n  },\n  \"triggerResponse\": true\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/calls/control/{{vapiCallId}}/conversation",
+									"host": ["{{baseUrl}}"],
+									"path": [
+										"api",
+										"calls",
+										"control",
+										"{{vapiCallId}}",
+										"conversation"
+									]
+								}
+							}
+						},
+						{
+							"name": "Control Assistant",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "Authorization", "value": "Bearer {{token}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"control\": \"mute-assistant\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/calls/control/{{vapiCallId}}/assistant",
+									"host": ["{{baseUrl}}"],
+									"path": [
+										"api",
+										"calls",
+										"control",
+										"{{vapiCallId}}",
+										"assistant"
+									]
+								}
+							}
+						},
+						{
+							"name": "End Call",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{token}}" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/calls/control/{{vapiCallId}}/end",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "calls", "control", "{{vapiCallId}}", "end"]
+								}
+							}
+						},
+						{
+							"name": "Transfer Call",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Content-Type", "value": "application/json" },
+									{ "key": "Authorization", "value": "Bearer {{token}}" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"destinationNumber\": \"+1234567890\",\n  \"transferMessage\": \"Transferring your call now\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/calls/control/{{vapiCallId}}/transfer",
+									"host": ["{{baseUrl}}"],
+									"path": [
+										"api",
+										"calls",
+										"control",
+										"{{vapiCallId}}",
+										"transfer"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Call Monitoring URLs",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{token}}" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/calls/control/{{vapiCallId}}/monitoring-urls",
+									"host": ["{{baseUrl}}"],
+									"path": [
+										"api",
+										"calls",
+										"control",
+										"{{vapiCallId}}",
+										"monitoring-urls"
+									]
+								}
+							}
+						}
+					]
 				}
 			]
 		}
@@ -520,6 +665,7 @@
 		{ "key": "leadId", "value": "" },
 		{ "key": "leadId2", "value": "" },
 		{ "key": "campaignId", "value": "" },
-		{ "key": "callId", "value": "" }
+		{ "key": "callId", "value": "" },
+		{ "key": "vapiCallId", "value": "" }
 	]
 }

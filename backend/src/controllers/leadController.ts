@@ -69,7 +69,7 @@ export class LeadController {
 			}
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("leads-uploaded", {
+			socketService.emitToAll("leads-uploaded", {
 				result,
 				timestamp: new Date().toISOString(),
 			});
@@ -123,7 +123,7 @@ export class LeadController {
 			const lead = await this.leadService.updateLeadStatus(id, status);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("lead-status-updated", {
+			socketService.emitToAll("lead-status-updated", {
 				leadId: id,
 				status,
 				lead,
@@ -298,7 +298,7 @@ export class LeadController {
 			const result = await this.leadService.cleanAllLeads();
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("leads-cleaned", {
+			socketService.emitToAll("leads-cleaned", {
 				deletedCount: result.deletedCount,
 				timestamp: new Date().toISOString(),
 			});
@@ -324,7 +324,7 @@ export class LeadController {
 			await this.leadService.deleteLead(id);
 
 			// Emit real-time update to all connected clients
-			socketService.broadcastToAll("lead-deleted", {
+			socketService.emitToAll("lead-deleted", {
 				leadId: id,
 				timestamp: new Date().toISOString(),
 			});
@@ -402,6 +402,73 @@ export class LeadController {
 				res,
 				error.message || "Failed to debug lead availability",
 				500
+			);
+		}
+	}
+
+	async getOrphanedScheduledCalls(req: Request, res: Response): Promise<void> {
+		try {
+			const orphanedCalls = await this.leadService.getOrphanedScheduledCalls();
+			ResponseUtils.success(res, orphanedCalls);
+		} catch (error: any) {
+			console.error("Error getting orphaned scheduled calls:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to get orphaned scheduled calls",
+				400
+			);
+		}
+	}
+
+	async reassignOrphanedScheduledCall(
+		req: Request,
+		res: Response
+	): Promise<void> {
+		try {
+			const { leadId, campaignId } = req.body;
+
+			if (!leadId || !campaignId) {
+				ResponseUtils.error(res, "Lead ID and Campaign ID are required", 400);
+				return;
+			}
+
+			const reassignedLead =
+				await this.leadService.reassignOrphanedScheduledCall(
+					leadId,
+					campaignId
+				);
+
+			// Emit real-time update
+			socketService.emitToAll("orphaned-call-reassigned", {
+				leadId,
+				campaignId,
+				timestamp: new Date().toISOString(),
+			});
+
+			ResponseUtils.success(res, reassignedLead);
+		} catch (error: any) {
+			console.error("Error reassigning orphaned scheduled call:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to reassign orphaned scheduled call",
+				400
+			);
+		}
+	}
+
+	async getOrphanedScheduledCallsCount(
+		req: Request,
+		res: Response
+	): Promise<void> {
+		try {
+			const count = await this.leadService.getOrphanedScheduledCallsCount();
+			ResponseUtils.success(res, { count });
+		} catch (error: any) {
+			console.error("Error getting orphaned scheduled calls count:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to get orphaned scheduled calls count",
+				400
 			);
 		}
 	}

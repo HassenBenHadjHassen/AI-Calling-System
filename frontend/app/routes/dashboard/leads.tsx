@@ -52,6 +52,7 @@ export default function LeadsPage() {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [showCleanWarning, setShowCleanWarning] = useState(false);
 	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+	const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
 	const itemsPerPage = 10;
 
 	// Reset current page when status filter or search term changes
@@ -122,6 +123,10 @@ export default function LeadsPage() {
 		mutationFn: (leadId: string) => leadAPI.deleteLead(leadId),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["leads"] });
+			setDeletingLeadId(null);
+		},
+		onError: () => {
+			setDeletingLeadId(null);
 		},
 	});
 
@@ -145,6 +150,7 @@ export default function LeadsPage() {
 				)} "${leadName}"? This action cannot be undone.`
 			)
 		) {
+			setDeletingLeadId(leadId);
 			deleteLeadMutation.mutate(leadId);
 		}
 	};
@@ -447,9 +453,9 @@ export default function LeadsPage() {
 																	onClick={() =>
 																		handleDeleteLead(lead.id, lead.name)
 																	}
-																	disabled={deleteLeadMutation.isPending}
+																	disabled={deletingLeadId === lead.id}
 																>
-																	{deleteLeadMutation.isPending
+																	{deletingLeadId === lead.id
 																		? t("leads.deleting")
 																		: t("common.delete")}
 																</Button>
