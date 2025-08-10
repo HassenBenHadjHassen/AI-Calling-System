@@ -12,5 +12,8 @@ export default defineConfig(({ mode }) => {
 		define: {
 			__APP_ENV__: JSON.stringify(env.APP_ENV),
 		},
+		server: {
+			port: 3001,
+		},
 	};
 });
