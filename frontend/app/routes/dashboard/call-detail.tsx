@@ -16,7 +16,6 @@ import {
 	User,
 	MapPin,
 	MessageSquare,
-	PhoneCall,
 	CheckCircle,
 	XCircle,
 	Forward,
@@ -272,7 +271,7 @@ export default function CallDetailPage() {
 														{t("callDetail.transferred")}
 													</Label>
 													<p className="text-gray-900 text-sm sm:text-base">
-														{call.transferred ? (
+														{call.callStatus === "TRANSFERRED" ? (
 															<span className="flex items-center text-green-600">
 																<CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
 																{t("callDetail.yes")}
@@ -285,16 +284,17 @@ export default function CallDetailPage() {
 														)}
 													</p>
 												</div>
-												{call.transferred && call.transferTo && (
-													<div className="sm:col-span-2">
-														<Label className="text-xs sm:text-sm font-medium text-gray-700">
-															{t("callDetail.transferTo")}
-														</Label>
-														<p className="text-gray-900 text-sm sm:text-base">
-															{formatPhoneNumber(call.transferTo)}
-														</p>
-													</div>
-												)}
+												{call.callStatus === "TRANSFERRED" &&
+													call.transferTo && (
+														<div className="sm:col-span-2">
+															<Label className="text-xs sm:text-sm font-medium text-gray-700">
+																{t("callDetail.transferTo")}
+															</Label>
+															<p className="text-gray-900 text-sm sm:text-base">
+																{formatPhoneNumber(call.transferTo)}
+															</p>
+														</div>
+													)}
 											</div>
 										</CardContent>
 									</Card>

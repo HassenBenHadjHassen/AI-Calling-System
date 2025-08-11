@@ -38,3 +38,4 @@ export const addMetadata = (section: string, data: Record<string, any>) => {
     bugsnagClient.addMetadata(section, data);
   }
 };
+
