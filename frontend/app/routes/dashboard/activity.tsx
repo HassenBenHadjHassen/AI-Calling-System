@@ -166,7 +166,7 @@ export default function ActivityPage() {
 	// Download activity data as CSV
 	const downloadActivityData = async () => {
 		setIsDownloading(true);
-		try {
+		try {	
 			// Fetch more data for download (e.g., last 1000 calls)
 			const response = await callAPI.getRecentCalls(1000);
 			if (response.success && response.data) {
@@ -244,19 +244,19 @@ export default function ActivityPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-					<div className="space-y-8">
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 p-3 sm:p-6">
+					<div className="space-y-4 sm:space-y-8">
 						<div className="text-center">
-							<h1 className="text-3xl font-bold text-gray-900 mb-2">
+							<h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
 								{t("activity.liveActivityFeed")}
 							</h1>
-							<p className="text-gray-600 text-lg mb-4">
+							<p className="text-gray-600 text-base sm:text-lg mb-4">
 								{t("activity.realTimeUpdates")}
 							</p>
 							<Button
 								onClick={downloadActivityData}
 								disabled={isDownloading}
-								className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2 mx-auto"
+								className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2 mx-auto text-sm sm:text-base"
 							>
 								<Download className="h-4 w-4" />
 								<span>
@@ -267,19 +267,19 @@ export default function ActivityPage() {
 							</Button>
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-blue-500 rounded-xl group-hover:bg-blue-600 transition-colors duration-300">
-												<Clock className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-blue-500 rounded-xl group-hover:bg-blue-600 transition-colors duration-300">
+												<Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-blue-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-blue-700 mb-1">
 													{t("activity.activeCalls")}
 												</p>
-												<p className="text-3xl font-bold text-blue-900">
+												<p className="text-2xl sm:text-3xl font-bold text-blue-900">
 													{statsLoading
 														? "..."
 														: callManagementData?.data?.activeCalls ||
@@ -293,17 +293,17 @@ export default function ActivityPage() {
 							</Card>
 
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-green-500 rounded-xl group-hover:bg-green-600 transition-colors duration-300">
-												<CheckCircle className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-green-500 rounded-xl group-hover:bg-green-600 transition-colors duration-300">
+												<CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-green-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-green-700 mb-1">
 													{t("activity.completedCalls")}
 												</p>
-												<p className="text-3xl font-bold text-green-900">
+												<p className="text-2xl sm:text-3xl font-bold text-green-900">
 													{statsLoading
 														? "..."
 														: callHistoryData?.data?.completedCalls ||
@@ -317,17 +317,17 @@ export default function ActivityPage() {
 							</Card>
 
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-orange-500 rounded-xl group-hover:bg-orange-600 transition-colors duration-300">
-												<ArrowRight className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-orange-500 rounded-xl group-hover:bg-orange-600 transition-colors duration-300">
+												<ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-orange-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-orange-700 mb-1">
 													{t("activity.transferredCalls")}
 												</p>
-												<p className="text-3xl font-bold text-orange-900">
+												<p className="text-2xl sm:text-3xl font-bold text-orange-900">
 													{statsLoading
 														? "..."
 														: callHistoryData?.data?.transferredCalls ||
@@ -341,17 +341,17 @@ export default function ActivityPage() {
 							</Card>
 
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-red-50 to-red-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-red-500 rounded-xl group-hover:bg-red-600 transition-colors duration-300">
-												<XCircle className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-red-500 rounded-xl group-hover:bg-red-600 transition-colors duration-300">
+												<XCircle className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-red-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-red-700 mb-1">
 													{t("activity.failedCalls")}
 												</p>
-												<p className="text-3xl font-bold text-red-900">
+												<p className="text-2xl sm:text-3xl font-bold text-red-900">
 													{statsLoading
 														? "..."
 														: callHistoryData?.data?.failedCalls ||
@@ -366,19 +366,19 @@ export default function ActivityPage() {
 						</div>
 
 						{/* Call Management Queue Stats */}
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-purple-500 rounded-xl group-hover:bg-purple-600 transition-colors duration-300">
-												<Clock className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-purple-500 rounded-xl group-hover:bg-purple-600 transition-colors duration-300">
+												<Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-purple-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-purple-700 mb-1">
 													{t("activity.callQueue")}
 												</p>
-												<p className="text-3xl font-bold text-purple-900">
+												<p className="text-2xl sm:text-3xl font-bold text-purple-900">
 													{managementLoading
 														? "..."
 														: callManagementData?.data?.queueLength || 0}
@@ -390,17 +390,17 @@ export default function ActivityPage() {
 							</Card>
 
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-orange-500 rounded-xl group-hover:bg-orange-600 transition-colors duration-300">
-												<Clock className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-orange-500 rounded-xl group-hover:bg-orange-600 transition-colors duration-300">
+												<Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-orange-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-orange-700 mb-1">
 													{t("activity.scheduledInQueue")}
 												</p>
-												<p className="text-3xl font-bold text-orange-900">
+												<p className="text-2xl sm:text-3xl font-bold text-orange-900">
 													{managementLoading
 														? "..."
 														: callManagementData?.data?.scheduledInQueue || 0}
@@ -412,17 +412,17 @@ export default function ActivityPage() {
 							</Card>
 
 							<Card className="group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 shadow-lg bg-gradient-to-br from-indigo-50 to-indigo-100">
-								<CardContent className="p-6">
+								<CardContent className="p-4 sm:p-6">
 									<div className="flex items-center justify-between">
-										<div className="flex items-center space-x-4">
-											<div className="p-3 bg-indigo-500 rounded-xl group-hover:bg-indigo-600 transition-colors duration-300">
-												<Clock className="h-6 w-6 text-white" />
+										<div className="flex items-center space-x-3 sm:space-x-4">
+											<div className="p-2 sm:p-3 bg-indigo-500 rounded-xl group-hover:bg-indigo-600 transition-colors duration-300">
+												<Clock className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
 											</div>
 											<div>
-												<p className="text-sm font-medium text-indigo-700 mb-1">
+												<p className="text-xs sm:text-sm font-medium text-indigo-700 mb-1">
 													{t("activity.campaignInQueue")}
 												</p>
-												<p className="text-3xl font-bold text-indigo-900">
+												<p className="text-2xl sm:text-3xl font-bold text-indigo-900">
 													{managementLoading
 														? "..."
 														: callManagementData?.data?.campaignInQueue || 0}
@@ -437,15 +437,15 @@ export default function ActivityPage() {
 						{/* Stale Calls Management Section */}
 						<Card className="border-0 shadow-xl bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400">
 							<CardHeader className="pb-4">
-								<CardTitle className="text-xl font-bold text-amber-900 flex items-center space-x-2">
-									<AlertTriangle className="h-5 w-5 text-amber-600" />
+								<CardTitle className="text-lg sm:text-xl font-bold text-amber-900 flex items-center space-x-2">
+									<AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
 									<span>Stale Calls Management</span>
 								</CardTitle>
 							</CardHeader>
-							<CardContent className="p-6">
-								<div className="flex items-center justify-between">
+							<CardContent className="p-4 sm:p-6">
+								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
 									<div className="flex-1">
-										<p className="text-sm text-amber-700 mb-2">
+										<p className="text-xs sm:text-sm text-amber-700 mb-2">
 											Some calls may remain in "INITIATED" status if webhooks
 											were missed. This can happen due to network issues or
 											Vapi.ai service interruptions.
@@ -484,7 +484,7 @@ export default function ActivityPage() {
 												);
 											}
 										}}
-										className="ml-4 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300"
+										className="sm:ml-4 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 text-sm"
 									>
 										<RefreshCw className="h-4 w-4 mr-2" />
 										Reconcile Stale Calls
@@ -495,25 +495,25 @@ export default function ActivityPage() {
 
 						<Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
 							<CardHeader className="pb-4">
-								<CardTitle className="text-xl font-bold text-gray-900 flex items-center space-x-2">
+								<CardTitle className="text-lg sm:text-xl font-bold text-gray-900 flex items-center space-x-2">
 									<div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
 									<span>{t("activity.recentActivity")}</span>
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="p-0">
 								{callsLoading ? (
-									<div className="text-center py-12">
-										<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-										<p className="text-gray-600">
+									<div className="text-center py-8 sm:py-12">
+										<div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+										<p className="text-gray-600 text-sm sm:text-base">
 											{t("activity.loadingActivityData")}
 										</p>
 									</div>
 								) : activities.length === 0 ? (
-									<div className="text-center py-12">
-										<div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-											<Clock className="h-8 w-8 text-gray-400" />
+									<div className="text-center py-8 sm:py-12">
+										<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+											<Clock className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
 										</div>
-										<p className="text-gray-500 text-lg">
+										<p className="text-gray-500 text-base sm:text-lg">
 											{t("activity.noActivity")}
 										</p>
 										<p className="text-gray-400 text-sm">
@@ -521,8 +521,8 @@ export default function ActivityPage() {
 										</p>
 									</div>
 								) : (
-									<ScrollArea className="h-96 px-6">
-										<div className="space-y-4">
+									<ScrollArea className="h-64 sm:h-96 px-3 sm:px-6">
+										<div className="space-y-3 sm:space-y-4">
 											{activities.map((activity) => {
 												const StatusIcon =
 													statusIcons[
@@ -531,14 +531,14 @@ export default function ActivityPage() {
 												return (
 													<div
 														key={activity.id}
-														className="flex items-center space-x-4 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-200 group"
+														className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-200 group"
 													>
-														<div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors duration-200">
-															<StatusIcon className="h-5 w-5 text-gray-600" />
+														<div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors duration-200 flex-shrink-0">
+															<StatusIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
 														</div>
-														<div className="flex-1">
-															<div className="flex items-center space-x-3 mb-2">
-																<span className="font-semibold text-gray-900">
+														<div className="flex-1 min-w-0">
+															<div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2 space-y-1 sm:space-y-0">
+																<span className="font-semibold text-gray-900 text-sm sm:text-base truncate">
 																	{activity.lead}
 																</span>
 																<Badge
@@ -547,32 +547,40 @@ export default function ActivityPage() {
 																			activity.status as keyof typeof statusColors
 																		] as any
 																	}
-																	className="text-xs font-medium"
+																	className="text-xs font-medium w-fit"
 																>
 																	{translateStatus(activity.status)}
 																</Badge>
 																{activity.duration && (
-																	<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+																	<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full w-fit">
 																		{Math.round(activity.duration / 60)}m{" "}
 																		{activity.duration % 60}s
 																	</span>
 																)}
 															</div>
-															<div className="text-sm text-gray-600 flex items-center space-x-2">
-																<span>{formatPhoneNumber(activity.phone)}</span>
-																<span className="text-gray-300">•</span>
+															<div className="text-xs sm:text-sm text-gray-600 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+																<span className="truncate">
+																	{formatPhoneNumber(activity.phone)}
+																</span>
+																<span className="hidden sm:inline text-gray-300">
+																	•
+																</span>
 																<span>{formatDate(activity.timestamp)}</span>
 																{activity.campaignName && (
 																	<>
-																		<span className="text-gray-300">•</span>
+																		<span className="hidden sm:inline text-gray-300">
+																			•
+																		</span>
 																		<Link
 																			to={`/dashboard/campaign/${activity.campaignId}`}
-																			className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium"
+																			className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium truncate"
 																		>
 																			{activity.campaignName}
 																		</Link>
-																		<span className="text-gray-300">•</span>
-																		<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+																		<span className="hidden sm:inline text-gray-300">
+																			•
+																		</span>
+																		<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full w-fit">
 																			ID: {activity.campaignId}
 																		</span>
 																	</>

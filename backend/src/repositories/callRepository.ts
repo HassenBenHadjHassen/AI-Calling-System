@@ -1,6 +1,16 @@
 import { PrismaClient, CallHistory, CallStatus } from "@prisma/client";
 import prismaSingleton from "../db/prisma";
 
+interface VapiMessage {
+	role: "bot" | "user";
+	time: number;
+	source: string;
+	endTime: number;
+	message: string;
+	duration: number;
+	secondsFromStart: number;
+}
+
 export class CallRepository {
 	private prisma: PrismaClient;
 
@@ -13,6 +23,8 @@ export class CallRepository {
 		campaignId?: string;
 		callStatus: CallStatus;
 		vapiCallId?: string;
+		fromNumber?: string;
+		toNumber?: string;
 		notes?: string;
 	}): Promise<CallHistory> {
 		try {
@@ -221,6 +233,49 @@ export class CallRepository {
 			});
 		} catch (error: any) {
 			throw new Error(`Failed to update call notes: ${error.message}`);
+		}
+	}
+
+	async updateRecordings(
+		id: string,
+		recordingUrl: string,
+		stereoRecordingUrl: string
+	): Promise<CallHistory> {
+		try {
+			return await this.prisma.callHistory.update({
+				where: { id },
+				data: { recordingUrl, stereoRecordingUrl },
+				include: {
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to update call recording URL: ${error.message}`);
+		}
+	}
+
+	async updateMessages(
+		id: string,
+		messages: VapiMessage[]
+	): Promise<CallHistory> {
+		try {
+			return await this.prisma.callHistory.update({
+				where: { id },
+				data: { messages: messages as any },
+				include: {
+					lead: {
+						include: {
+							campaign: true,
+						},
+					},
+				},
+			});
+		} catch (error: any) {
+			throw new Error(`Failed to update call messages: ${error.message}`);
 		}
 	}
 

@@ -4,8 +4,13 @@ import type React from "react";
 
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from 'react-i18next';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react';
+import { useTranslation } from "react-i18next";
+import {
+	Upload,
+	FileSpreadsheet,
+	CheckCircle,
+	AlertCircle,
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -56,7 +61,9 @@ export default function UploadPage() {
 				queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 				queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
 				queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
-				queryClient.invalidateQueries({ queryKey: ["active-campaigns-overview"] });
+				queryClient.invalidateQueries({
+					queryKey: ["active-campaigns-overview"],
+				});
 			}
 		},
 		onError: (error) => {
@@ -79,7 +86,9 @@ export default function UploadPage() {
 					queryClient.invalidateQueries({ queryKey: ["campaigns"] });
 					queryClient.invalidateQueries({ queryKey: ["campaigns-overview"] });
 					queryClient.invalidateQueries({ queryKey: ["active-campaigns"] });
-					queryClient.invalidateQueries({ queryKey: ["active-campaigns-overview"] });
+					queryClient.invalidateQueries({
+						queryKey: ["active-campaigns-overview"],
+					});
 				});
 			}
 
@@ -209,25 +218,29 @@ export default function UploadPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-					<div className="space-y-6">
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
+					<div className="space-y-4 sm:space-y-6">
 						<div>
-							<h1 className="text-2xl font-bold text-gray-900">{t('upload.title')}</h1>
-							<p className="text-gray-600">
-								{t('upload.description')}
+							<h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+								{t("upload.title")}
+							</h1>
+							<p className="text-gray-600 text-sm sm:text-base">
+								{t("upload.description")}
 							</p>
 						</div>
 
 						<Card>
 							<CardHeader>
-								<CardTitle>{t('upload.fileUpload')}</CardTitle>
-								<CardDescription>
-									{t('upload.selectFile')}
+								<CardTitle className="text-lg sm:text-xl">
+									{t("upload.fileUpload")}
+								</CardTitle>
+								<CardDescription className="text-sm">
+									{t("upload.selectFile")}
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div
-									className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+									className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center transition-colors ${
 										dragActive
 											? "border-blue-400 bg-blue-50"
 											: "border-gray-300 hover:border-gray-400"
@@ -237,20 +250,20 @@ export default function UploadPage() {
 									onDragOver={handleDrag}
 									onDrop={handleDrop}
 								>
-									<Upload className="mx-auto h-12 w-12 text-gray-400" />
-									<div className="mt-4">
-										<p className="text-lg font-medium text-gray-900">
-											{t('upload.dropFile')}{" "}
+									<Upload className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
+									<div className="mt-3 sm:mt-4">
+										<p className="text-base sm:text-lg font-medium text-gray-900">
+											{t("upload.dropFile")}{" "}
 											<button
 												type="button"
 												className="text-blue-600 hover:text-blue-500"
 												onClick={() => fileInputRef.current?.click()}
 											>
-												{t('upload.browse')}
+												{t("upload.browse")}
 											</button>
 										</p>
-										<p className="text-sm text-gray-500 mt-1">
-											{t('upload.supportedFormats')}
+										<p className="text-xs sm:text-sm text-gray-500 mt-1">
+											{t("upload.supportedFormats")}
 										</p>
 									</div>
 									<input
@@ -265,17 +278,19 @@ export default function UploadPage() {
 								{file && (
 									<div className="space-y-4">
 										<div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-											<FileSpreadsheet className="h-5 w-5 text-green-600" />
-											<span className="font-medium">{file.name}</span>
-											<span className="text-sm text-gray-500">
+											<FileSpreadsheet className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+											<span className="font-medium text-sm sm:text-base">
+												{file.name}
+											</span>
+											<span className="text-xs sm:text-sm text-gray-500">
 												({(file.size / 1024).toFixed(1)} KB)
 											</span>
 										</div>
 
 										{preview.length > 0 && (
 											<div>
-												<h3 className="font-medium mb-2">
-													{t('upload.preview')}
+												<h3 className="font-medium mb-2 text-sm sm:text-base">
+													{t("upload.preview")}
 												</h3>
 												<div className="overflow-x-auto">
 													<table className="min-w-full border border-gray-200 rounded-lg">
@@ -290,7 +305,7 @@ export default function UploadPage() {
 																	{row.map((cell, j) => (
 																		<td
 																			key={j}
-																			className="px-3 py-2 border-r border-gray-200 text-sm"
+																			className="px-2 sm:px-3 py-1 sm:py-2 border-r border-gray-200 text-xs sm:text-sm"
 																		>
 																			{cell}
 																		</td>
@@ -306,11 +321,11 @@ export default function UploadPage() {
 										<Button
 											onClick={handleUpload}
 											disabled={uploadMutation.isPending}
-											className="w-full"
+											className="w-full text-sm sm:text-base"
 										>
 											{uploadMutation.isPending
-												? t('upload.uploading')
-												: t('upload.uploadFile')}
+												? t("upload.uploading")
+												: t("upload.uploadFile")}
 										</Button>
 									</div>
 								)}
@@ -318,10 +333,10 @@ export default function UploadPage() {
 								{uploadMutation.isPending && (
 									<div className="space-y-2">
 										<Progress value={uploadProgress} />
-										<p className="text-sm text-gray-600 text-center">
+										<p className="text-xs sm:text-sm text-gray-600 text-center">
 											{file?.name.toLowerCase().endsWith(".csv")
-												? t('upload.processingCsv')
-												: t('upload.processingFile')}
+												? t("upload.processingCsv")
+												: t("upload.processingFile")}
 										</p>
 									</div>
 								)}
@@ -330,19 +345,19 @@ export default function UploadPage() {
 									<div className="space-y-3">
 										<Alert>
 											<CheckCircle className="h-4 w-4" />
-											<AlertDescription>
-												<strong>{t('upload.uploadSuccess')}</strong>
+											<AlertDescription className="text-sm">
+												<strong>{t("upload.uploadSuccess")}</strong>
 											</AlertDescription>
 										</Alert>
 
-										<div className="bg-green-50 border border-green-200 rounded-lg p-4">
-											<h4 className="font-medium text-green-800 mb-3">
-												{t('upload.uploadSummary')}
+										<div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
+											<h4 className="font-medium text-green-800 mb-3 text-sm sm:text-base">
+												{t("upload.uploadSummary")}
 											</h4>
-											<div className="grid grid-cols-2 gap-4 text-sm">
+											<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
 												<div>
 													<span className="text-green-700 font-medium">
-														{t('upload.totalLeadsFound')}
+														{t("upload.totalLeadsFound")}
 													</span>
 													<span className="ml-2 text-green-600">
 														{uploadMutation.data?.data?.totalLeads}
@@ -350,32 +365,32 @@ export default function UploadPage() {
 												</div>
 												<div>
 													<span className="text-green-700 font-medium">
-														{t('upload.leadsImported')}
+														{t("upload.leadsImported")}
 													</span>
 													<span className="ml-2 text-green-600">
 														{uploadMutation.data?.data?.leadsProcessed}
 													</span>
 												</div>
 												{uploadMutation.data?.data?.duplicatesSkipped > 0 ? (
-													<div className="col-span-2">
+													<div className="sm:col-span-2">
 														<span className="text-amber-700 font-medium">
-															⚠️ {t('upload.duplicatesSkipped')}
+															⚠️ {t("upload.duplicatesSkipped")}
 														</span>
 														<span className="ml-2 text-amber-600">
 															{uploadMutation.data?.data?.duplicatesSkipped}
 														</span>
 													</div>
 												) : (
-													<div className="col-span-2">
+													<div className="sm:col-span-2">
 														<span className="text-green-700 font-medium">
-															✅ {t('upload.noDuplicates')}
+															✅ {t("upload.noDuplicates")}
 														</span>
 													</div>
 												)}
 												{uploadMutation.data?.data?.campaignsCreated > 0 && (
-													<div className="col-span-2">
+													<div className="sm:col-span-2">
 														<span className="text-blue-700 font-medium">
-															📊 {t('upload.campaignsCreated')}
+															📊 {t("upload.campaignsCreated")}
 														</span>
 														<span className="ml-2 text-blue-600">
 															{uploadMutation.data?.data?.campaignsCreated}
@@ -390,8 +405,8 @@ export default function UploadPage() {
 								{uploadMutation.isError && (
 									<Alert variant="destructive">
 										<AlertCircle className="h-4 w-4" />
-										<AlertDescription>
-											{t('upload.uploadFailed')}
+										<AlertDescription className="text-sm">
+											{t("upload.uploadFailed")}
 										</AlertDescription>
 									</Alert>
 								)}

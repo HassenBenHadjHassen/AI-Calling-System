@@ -1,4 +1,4 @@
-const API_KEY = import.meta.env.VITE_FREE_CURRENCY_API_KEY; // Replace with your actual API key
+const API_KEY = import.meta.env.VITE_FCV_API_KEY;
 const BASE_URL = "https://api.freecurrencyapi.com/v1";
 
 interface CurrencyResponse {

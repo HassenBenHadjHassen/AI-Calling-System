@@ -4,6 +4,7 @@ import { LeadRepository } from "../repositories/leadRepository";
 import { vapiService } from "./vapiService";
 import { socketService } from "./socketService";
 import { LeadStatus } from "@prisma/client";
+import { Vapi } from "@vapi-ai/server-sdk";
 
 interface PollingSession {
 	interval: NodeJS.Timeout;
@@ -133,9 +134,40 @@ export class CallStatusPoller {
 
 		try {
 			const call = await vapiService.getCall(vapiCallId);
+
 			const currentStatus = (call as any)?.status as string | undefined;
-			const duration = (call as any)?.duration as number | undefined;
 			const cost = (call as any)?.cost as number | undefined;
+
+			// Try to get duration from Vapi response, fallback to computing from timestamps
+			let duration = (call as any)?.duration as number | undefined;
+			if (duration === undefined) {
+				duration = this.computeDurationFromTimestamps(call);
+				if (duration !== undefined) {
+					console.log(
+						`📞 Computed duration from timestamps: ${duration} seconds`
+					);
+				}
+			}
+
+			const recordingUrl = (call as any)?.recordingUrl as string | undefined;
+			const stereoRecordingUrl = (call as any)?.stereoRecordingUrl as
+				| string
+				| undefined;
+			if (recordingUrl && stereoRecordingUrl) {
+				console.log(`📞 Recording URL: ${recordingUrl}`);
+				await this.callRepository.updateRecordings(
+					dbCallId,
+					recordingUrl,
+					stereoRecordingUrl
+				);
+			}
+
+			// Extract and save messages from Vapi call
+			const messages = (call as any)?.messages as any[] | undefined;
+			if (messages && messages.length > 0) {
+				console.log(`📞 Saving ${messages.length} messages to database`);
+				await this.callRepository.updateMessages(dbCallId, messages);
+			}
 
 			if (!currentStatus) {
 				session.attempts++;
@@ -213,7 +245,10 @@ export class CallStatusPoller {
 			const isCompleted = ["completed", "ended"].includes(normalizedStatus);
 			let newStatus: CallStatus;
 
-			if (isCompleted && userHungUp) {
+			// Check if call was transferred by assistant
+			if (endReason && endReason.toLowerCase() === "assistant-forwarded-call") {
+				newStatus = CallStatus.TRANSFERRED;
+			} else if (isCompleted && userHungUp) {
 				// Treat user hang up as a failed call in our domain
 				newStatus = CallStatus.FAILED;
 			} else if (isCompleted) {
@@ -225,18 +260,55 @@ export class CallStatusPoller {
 			// Update call status and duration/cost in database
 			await this.callRepository.updateStatus(dbCallId, newStatus);
 
-			// Update duration and cost if available
-			if (duration !== undefined || cost !== undefined) {
-				await this.callRepository.updateDuration(dbCallId, duration || 0, cost);
+			// Check if the call ended with "customer-did-not-answer" reason
+			const isCustomerDidNotAnswer =
+				endReason && endReason.toLowerCase() === "customer-did-not-answer";
+
+			const customerBusy =
+				endReason && endReason.toLowerCase() === "customer-busy";
+
+			// Try to get duration from Vapi response, fallback to computing from timestamps
+			let vapiDuration = (vapiCall as any)?.duration as number | undefined;
+			if (vapiDuration === undefined) {
+				vapiDuration = this.computeDurationFromTimestamps(vapiCall);
+				if (vapiDuration !== undefined) {
+					console.log(
+						`📞 Computed duration from timestamps in handleTerminalStatus: ${vapiDuration} seconds`
+					);
+				}
+			}
+
+			const vapiCost = (vapiCall as any)?.cost as number | undefined;
+
+			// If customer did not answer, set duration and cost to 0
+			if (isCustomerDidNotAnswer || customerBusy) {
+				console.log(
+					`📞 Call ended with customer-did-not-answer, setting duration and cost to 0`
+				);
+				await this.callRepository.updateDuration(dbCallId, 0, 0);
+			} else {
+				// Update duration and cost if available
+				if (vapiDuration !== undefined || vapiCost !== undefined) {
+					await this.callRepository.updateDuration(
+						dbCallId,
+						vapiDuration || 0,
+						vapiCost
+					);
+				}
 			}
 
 			// Update lead status based on call outcome
 			const dbCall = await this.callRepository.findById(dbCallId);
 			if (dbCall) {
-				const newLeadStatus =
-					newStatus === CallStatus.COMPLETED
-						? LeadStatus.CALLED
-						: LeadStatus.FAILED;
+				let newLeadStatus: LeadStatus;
+
+				if (newStatus === CallStatus.TRANSFERRED) {
+					newLeadStatus = LeadStatus.TRANSFERRED;
+				} else if (newStatus === CallStatus.COMPLETED) {
+					newLeadStatus = LeadStatus.CALLED;
+				} else {
+					newLeadStatus = LeadStatus.FAILED;
+				}
 
 				await this.leadRepository.updateStatus(dbCall.leadId, newLeadStatus);
 			}
@@ -579,7 +651,17 @@ export class CallStatusPoller {
 				try {
 					const vapiCall = await vapiService.getCall(call.vapiCallId);
 					const currentStatus = (vapiCall as any)?.status as string | undefined;
-					const duration = (vapiCall as any)?.duration as number | undefined;
+
+					// Try to get duration from Vapi response, fallback to computing from timestamps
+					let duration = (vapiCall as any)?.duration as number | undefined;
+					if (duration === undefined) {
+						duration = this.computeDurationFromTimestamps(vapiCall);
+						if (duration !== undefined) {
+							console.log(
+								`📞 Computed duration from timestamps in reconcileStaleCalls: ${duration} seconds`
+							);
+						}
+					}
 
 					if (!currentStatus) continue;
 					if (!this.isTerminalVapiStatus(currentStatus)) continue;
@@ -603,7 +685,7 @@ export class CallStatusPoller {
 						reasonText.includes("callee") ||
 						reasonText.includes("recipient") ||
 						reasonText.includes("hung up") ||
-						reasonText.includes("hangup") ||
+						reasonText.includes("hungup") ||
 						reasonText.includes("cancel") ||
 						reasonText.includes("disconnected by user");
 
@@ -615,7 +697,16 @@ export class CallStatusPoller {
 
 					await this.callRepository.updateStatus(call.id, newStatus);
 
-					if (typeof duration === "number") {
+					// Check if the call ended with "customer-did-not-answer" reason
+					const isCustomerDidNotAnswer =
+						endReason && endReason.toLowerCase() === "customer-did-not-answer";
+
+					if (isCustomerDidNotAnswer) {
+						console.log(
+							`📞 Stale call ${call.id} ended with customer-did-not-answer, setting duration and cost to 0`
+						);
+						await this.callRepository.updateDuration(call.id, 0, 0);
+					} else if (typeof duration === "number") {
 						await this.callRepository.updateDuration(call.id, duration);
 					}
 

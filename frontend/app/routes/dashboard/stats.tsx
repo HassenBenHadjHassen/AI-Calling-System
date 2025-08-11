@@ -110,13 +110,15 @@ export default function StatsPage() {
 				<Sidebar />
 				<div className="flex-1 flex flex-col overflow-hidden">
 					<Topbar />
-					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-						<div className="space-y-6">
+					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
+						<div className="space-y-4 sm:space-y-6">
 							<div>
-								<h1 className="text-2xl font-bold text-gray-900">
+								<h1 className="text-xl sm:text-2xl font-bold text-gray-900">
 									{t("stats.statistics")}
 								</h1>
-								<p className="text-gray-600">{t("stats.loadingStatistics")}</p>
+								<p className="text-gray-600 text-sm sm:text-base">
+									{t("stats.loadingStatistics")}
+								</p>
 							</div>
 						</div>
 					</main>
@@ -130,26 +132,28 @@ export default function StatsPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-hidden bg-gray-100 p-6">
-					<div className="space-y-6">
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
+					<div className="space-y-4 sm:space-y-6">
 						<div>
-							<h1 className="text-2xl font-bold text-gray-900">
+							<h1 className="text-xl sm:text-2xl font-bold text-gray-900">
 								{t("stats.statisticsDashboard")}
 							</h1>
-							<p className="text-gray-600">{t("stats.overviewOfCalling")}</p>
+							<p className="text-gray-600 text-sm sm:text-base">
+								{t("stats.overviewOfCalling")}
+							</p>
 						</div>
 
 						{/* Key Metrics Cards */}
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("stats.totalCalls")}
 									</CardTitle>
 									<Phone className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
-									<div className="text-2xl font-bold">
+									<div className="text-xl sm:text-2xl font-bold">
 										{(callStats.totalCalls || 0).toLocaleString()}
 									</div>
 									<p className="text-xs text-muted-foreground">
@@ -160,13 +164,13 @@ export default function StatsPage() {
 
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("stats.successfulCalls")}
 									</CardTitle>
 									<CheckCircle className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
-									<div className="text-2xl font-bold text-green-600">
+									<div className="text-xl sm:text-2xl font-bold text-green-600">
 										{(callStats.completedCalls || 0).toLocaleString()}
 									</div>
 									<p className="text-xs text-muted-foreground">
@@ -177,13 +181,13 @@ export default function StatsPage() {
 
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("stats.transfers")}
 									</CardTitle>
 									<ArrowRight className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
-									<div className="text-2xl font-bold text-yellow-600">
+									<div className="text-xl sm:text-2xl font-bold text-yellow-600">
 										{(callStats.transferredCalls || 0).toLocaleString()}
 									</div>
 									<p className="text-xs text-muted-foreground">
@@ -194,13 +198,13 @@ export default function StatsPage() {
 
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("stats.conversionRate")}
 									</CardTitle>
 									<TrendingUp className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
-									<div className="text-2xl font-bold text-blue-600">
+									<div className="text-xl sm:text-2xl font-bold text-blue-600">
 										{conversionRate.toFixed(1)}%
 									</div>
 									<p className="text-xs text-muted-foreground">
@@ -211,15 +215,19 @@ export default function StatsPage() {
 						</div>
 
 						{/* Detailed Stats */}
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 							<Card>
 								<CardHeader>
-									<CardTitle>{t("stats.callPerformance")}</CardTitle>
-									<CardDescription>{t("stats.callOutcomes")}</CardDescription>
+									<CardTitle className="text-lg sm:text-xl">
+										{t("stats.callPerformance")}
+									</CardTitle>
+									<CardDescription className="text-sm">
+										{t("stats.callOutcomes")}
+									</CardDescription>
 								</CardHeader>
 								<CardContent className="space-y-4">
 									<div className="space-y-2">
-										<div className="flex justify-between text-sm">
+										<div className="flex justify-between text-xs sm:text-sm">
 											<span>{t("stats.completedCalls")}</span>
 											<span>
 												{callStats.completedCalls || 0} (
@@ -230,7 +238,7 @@ export default function StatsPage() {
 									</div>
 
 									<div className="space-y-2">
-										<div className="flex justify-between text-sm">
+										<div className="flex justify-between text-xs sm:text-sm">
 											<span>{t("stats.transferredCalls")}</span>
 											<span>
 												{callStats.transferredCalls || 0} (
@@ -241,7 +249,7 @@ export default function StatsPage() {
 									</div>
 
 									<div className="space-y-2">
-										<div className="flex justify-between text-sm">
+										<div className="flex justify-between text-xs sm:text-sm">
 											<span>{t("stats.failedCalls")}</span>
 											<span>
 												{callStats.failedCalls || 0} (
@@ -267,19 +275,21 @@ export default function StatsPage() {
 
 							<Card>
 								<CardHeader>
-									<CardTitle>{t("stats.callDuration")}</CardTitle>
-									<CardDescription>
+									<CardTitle className="text-lg sm:text-xl">
+										{t("stats.callDuration")}
+									</CardTitle>
+									<CardDescription className="text-sm">
 										{t("stats.averageDuration")}
 									</CardDescription>
 								</CardHeader>
 								<CardContent className="space-y-4">
 									<div className="flex items-center space-x-2">
-										<Clock className="h-5 w-5 text-gray-600" />
+										<Clock className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
 										<div>
-											<p className="text-sm font-medium text-gray-600">
+											<p className="text-xs sm:text-sm font-medium text-gray-600">
 												{t("stats.averageDurationLabel")}
 											</p>
-											<p className="text-2xl font-bold">
+											<p className="text-lg sm:text-2xl font-bold">
 												{Math.floor(callStats.averageDuration / 60)}
 												{t("stats.minutes")} {callStats.averageDuration % 60}
 												{t("stats.seconds")}
@@ -288,24 +298,24 @@ export default function StatsPage() {
 									</div>
 
 									<div className="flex items-center space-x-2">
-										<Users className="h-5 w-5 text-gray-600" />
+										<Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
 										<div>
-											<p className="text-sm font-medium text-gray-600">
+											<p className="text-xs sm:text-sm font-medium text-gray-600">
 												{t("stats.activeCalls")}
 											</p>
-											<p className="text-2xl font-bold">
+											<p className="text-lg sm:text-2xl font-bold">
 												{callStats.initiatedCalls || 0}
 											</p>
 										</div>
 									</div>
 
 									<div className="flex items-center space-x-2">
-										<Target className="h-5 w-5 text-gray-600" />
+										<Target className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
 										<div>
-											<p className="text-sm font-medium text-gray-600">
+											<p className="text-xs sm:text-sm font-medium text-gray-600">
 												{t("stats.efficiencyScore")}
 											</p>
-											<p className="text-2xl font-bold">
+											<p className="text-lg sm:text-2xl font-bold">
 												{conversionRate.toFixed(0)}/100
 											</p>
 										</div>
@@ -317,42 +327,42 @@ export default function StatsPage() {
 						{/* Additional Metrics */}
 						<Card>
 							<CardHeader>
-								<CardTitle className="flex items-center">
-									<BarChart3 className="h-5 w-5 mr-2" />
+								<CardTitle className="flex items-center text-lg sm:text-xl">
+									<BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
 									{t("stats.performanceSummary")}
 								</CardTitle>
-								<CardDescription>
+								<CardDescription className="text-sm">
 									{t("stats.keyPerformanceIndicators")}
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-									<div className="text-center p-4 bg-green-50 rounded-lg">
-										<CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-										<p className="text-2xl font-bold text-green-600">
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+									<div className="text-center p-3 sm:p-4 bg-green-50 rounded-lg">
+										<CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 mx-auto mb-2" />
+										<p className="text-lg sm:text-2xl font-bold text-green-600">
 											{callStats.completedCalls || 0}
 										</p>
-										<p className="text-sm text-gray-600">
+										<p className="text-xs sm:text-sm text-gray-600">
 											{t("stats.successfulConnections")}
 										</p>
 									</div>
 
-									<div className="text-center p-4 bg-yellow-50 rounded-lg">
-										<ArrowRight className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
-										<p className="text-2xl font-bold text-yellow-600">
+									<div className="text-center p-3 sm:p-4 bg-yellow-50 rounded-lg">
+										<ArrowRight className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600 mx-auto mb-2" />
+										<p className="text-lg sm:text-2xl font-bold text-yellow-600">
 											{callStats.transferredCalls || 0}
 										</p>
-										<p className="text-sm text-gray-600">
+										<p className="text-xs sm:text-sm text-gray-600">
 											{t("stats.qualifiedTransfers")}
 										</p>
 									</div>
 
-									<div className="text-center p-4 bg-blue-50 rounded-lg">
-										<TrendingUp className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-										<p className="text-2xl font-bold text-blue-600">
+									<div className="text-center p-3 sm:p-4 bg-blue-50 rounded-lg sm:col-span-2 lg:col-span-1">
+										<TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 mx-auto mb-2" />
+										<p className="text-lg sm:text-2xl font-bold text-blue-600">
 											{conversionRate.toFixed(1)}%
 										</p>
-										<p className="text-sm text-gray-600">
+										<p className="text-xs sm:text-sm text-gray-600">
 											{t("stats.overallConversion")}
 										</p>
 									</div>

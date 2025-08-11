@@ -5,6 +5,7 @@ import { vapiService } from "./vapiService";
 import { CallStatus, LeadStatus, ScheduledCallStatus } from "@prisma/client";
 import { socketService } from "./socketService";
 import { callStatusPoller } from "./callStatusPoller";
+import { env } from "../config/env";
 
 export class CallService {
 	private callRepository: CallRepository;
@@ -283,6 +284,8 @@ export class CallService {
 				leadId: lead.id,
 				campaignId: lead.campaignId || undefined,
 				callStatus: CallStatus.INITIATED,
+				fromNumber: env.TWILIO_FROM_NUMBER,
+				toNumber: lead.phone1,
 			});
 
 			try {

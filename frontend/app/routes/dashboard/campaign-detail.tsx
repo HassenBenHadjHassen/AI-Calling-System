@@ -383,11 +383,11 @@ export default function CampaignDetailPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-					<div className="space-y-6">
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
+					<div className="space-y-4 sm:space-y-6">
 						{/* Header */}
-						<div className="flex items-center justify-between">
-							<div className="flex items-center space-x-4">
+						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+							<div className="flex items-center space-x-3 sm:space-x-4">
 								<Button
 									variant="ghost"
 									size="sm"
@@ -397,15 +397,15 @@ export default function CampaignDetailPage() {
 									{t("campaigns.backToCampaigns")}
 								</Button>
 								<div>
-									<h1 className="text-2xl font-bold text-gray-900">
+									<h1 className="text-xl sm:text-2xl font-bold text-gray-900">
 										{campaignData.name}
 									</h1>
-									<p className="text-gray-600">
+									<p className="text-gray-600 text-sm sm:text-base">
 										{t("campaigns.campaignDetails")}
 									</p>
 								</div>
 							</div>
-							<div className="flex items-center space-x-2">
+							<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
 								<Badge variant={getStatusColor(campaignData.status) as any}>
 									{campaignData.status}
 								</Badge>
@@ -418,6 +418,7 @@ export default function CampaignDetailPage() {
 										startCampaignMutation.isPending ||
 										stopCampaignMutation.isPending
 									}
+									className="text-sm"
 								>
 									{campaignData.status === "ACTIVE" ? (
 										<>
@@ -444,10 +445,10 @@ export default function CampaignDetailPage() {
 						</div>
 
 						{/* Campaign Overview */}
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("campaigns.campaignInfo")}
 									</CardTitle>
 									<Calendar className="h-4 w-4 text-muted-foreground" />
@@ -455,9 +456,11 @@ export default function CampaignDetailPage() {
 								<CardContent>
 									<div className="space-y-2">
 										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">ID</span>
+											<span className="text-xs sm:text-sm text-gray-600">
+												ID
+											</span>
 											<span
-												className="text-sm font-mono cursor-pointer hover:text-blue-600 transition-colors"
+												className="text-xs sm:text-sm font-mono cursor-pointer hover:text-blue-600 transition-colors break-all"
 												onClick={() => {
 													navigator.clipboard.writeText(campaignData.id);
 													addToast(
@@ -471,20 +474,20 @@ export default function CampaignDetailPage() {
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">
+											<span className="text-xs sm:text-sm text-gray-600">
 												{t("campaigns.started")}
 											</span>
-											<span className="text-sm">
+											<span className="text-xs sm:text-sm">
 												{campaignData.startedAt
 													? formatDate(campaignData.startedAt)
 													: t("campaigns.notStarted")}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-sm text-gray-600">
+											<span className="text-xs sm:text-sm text-gray-600">
 												{t("campaigns.stopped")}
 											</span>
-											<span className="text-sm">
+											<span className="text-xs sm:text-sm">
 												{campaignData.stoppedAt
 													? formatDate(campaignData.stoppedAt)
 													: t("campaigns.notStopped")}
@@ -496,13 +499,13 @@ export default function CampaignDetailPage() {
 
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("common.leads")}
 									</CardTitle>
 									<Users className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
-									<div className="text-2xl font-bold">
+									<div className="text-xl sm:text-2xl font-bold">
 										{campaignData.leads?.length || 0}
 									</div>
 									<p className="text-xs text-muted-foreground">
@@ -513,25 +516,27 @@ export default function CampaignDetailPage() {
 
 							<Card>
 								<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-									<CardTitle className="text-sm font-medium">
+									<CardTitle className="text-xs sm:text-sm font-medium">
 										{t("campaigns.callStats")}
 									</CardTitle>
 									<BarChart3 className="h-4 w-4 text-muted-foreground" />
 								</CardHeader>
 								<CardContent>
 									{statsLoading ? (
-										<div className="text-sm">{t("campaigns.loadingStats")}</div>
+										<div className="text-xs sm:text-sm">
+											{t("campaigns.loadingStats")}
+										</div>
 									) : (
 										<div className="space-y-1">
-											<div className="flex justify-between text-sm">
+											<div className="flex justify-between text-xs sm:text-sm">
 												<span>{t("campaigns.total")}</span>
 												<span>{callStats?.data?.total || 0}</span>
 											</div>
-											<div className="flex justify-between text-sm">
+											<div className="flex justify-between text-xs sm:text-sm">
 												<span>{t("campaigns.completed")}</span>
 												<span>{callStats?.data?.completed || 0}</span>
 											</div>
-											<div className="flex justify-between text-sm">
+											<div className="flex justify-between text-xs sm:text-sm">
 												<span>{t("campaigns.failed")}</span>
 												<span>{callStats?.data?.failed || 0}</span>
 											</div>
@@ -544,16 +549,19 @@ export default function CampaignDetailPage() {
 						{/* Leads Section */}
 						<Card>
 							<CardHeader>
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
 									<div>
-										<CardTitle>{t("campaigns.campaignLeads")}</CardTitle>
-										<CardDescription>
+										<CardTitle className="text-lg sm:text-xl">
+											{t("campaigns.campaignLeads")}
+										</CardTitle>
+										<CardDescription className="text-sm">
 											{t("campaigns.allLeadsAssociated")}
 										</CardDescription>
 									</div>
 									<Button
 										onClick={() => setShowAddLeadsModal(true)}
 										disabled={campaignData.status === "COMPLETED"}
+										className="text-sm"
 									>
 										<Plus className="h-4 w-4 mr-2" />
 										{t("campaigns.addLeads")}
@@ -570,51 +578,71 @@ export default function CampaignDetailPage() {
 										<Table>
 											<TableHeader>
 												<TableRow>
-													<TableHead>{t("common.name")}</TableHead>
-													<TableHead>{t("common.phone")}</TableHead>
-													<TableHead>{t("common.status")}</TableHead>
-													<TableHead>{t("common.city")}</TableHead>
-													<TableHead>{t("common.date")}</TableHead>
-													<TableHead>{t("common.actions")}</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("common.name")}
+													</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("common.phone")}
+													</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("common.status")}
+													</TableHead>
+													<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+														{t("common.city")}
+													</TableHead>
+													<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+														{t("common.date")}
+													</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("common.actions")}
+													</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
 												{campaignData.leads?.map((lead) => (
 													<TableRow key={lead.id}>
-														<TableCell className="font-medium">
+														<TableCell className="font-medium text-xs sm:text-sm">
 															{lead.name}
 														</TableCell>
-														<TableCell>{lead.phone1}</TableCell>
+														<TableCell className="text-xs sm:text-sm">
+															{lead.phone1}
+														</TableCell>
 														<TableCell>
 															<Badge
 																variant={getLeadStatusColor(lead.status) as any}
+																className="text-xs"
 															>
 																{t(`leads.${lead.status.toLowerCase()}`)}
 															</Badge>
 														</TableCell>
-														<TableCell>{lead.city || "-"}</TableCell>
-														<TableCell>{formatDate(lead.createdAt)}</TableCell>
+														<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
+															{lead.city || "-"}
+														</TableCell>
+														<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
+															{formatDate(lead.createdAt)}
+														</TableCell>
 														<TableCell>
-															<div className="flex items-center space-x-2">
+															<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
 																<Button
 																	variant="outline"
 																	size="sm"
 																	onClick={() =>
 																		navigate(`/dashboard/leads/${lead.id}`)
 																	}
+																	className="text-xs"
 																>
 																	{t("campaigns.viewDetails")}
 																</Button>
 																<Button
 																	variant="ghost"
 																	size="sm"
-																	className="text-red-600 hover:text-red-700"
+																	className="text-red-600 hover:text-red-700 text-xs"
 																	onClick={() => handleRemoveLead(lead.id)}
 																	disabled={
 																		removeLeadFromCampaignMutation.isPending
 																	}
 																>
-																	<Trash2 className="h-4 w-4" />
+																	<Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
 																</Button>
 															</div>
 														</TableCell>
@@ -630,8 +658,12 @@ export default function CampaignDetailPage() {
 						{/* Call History Section */}
 						<Card>
 							<CardHeader>
-								<CardTitle>{t("leadDetail.callHistory")}</CardTitle>
-								<CardDescription>{t("campaigns.recentCalls")}</CardDescription>
+								<CardTitle className="text-lg sm:text-xl">
+									{t("leadDetail.callHistory")}
+								</CardTitle>
+								<CardDescription className="text-sm">
+									{t("campaigns.recentCalls")}
+								</CardDescription>
 							</CardHeader>
 							<CardContent>
 								{callHistoryLoading ? (
@@ -647,18 +679,30 @@ export default function CampaignDetailPage() {
 										<Table>
 											<TableHeader>
 												<TableRow>
-													<TableHead>{t("common.leads")}</TableHead>
-													<TableHead>{t("common.status")}</TableHead>
-													<TableHead>{t("common.duration")}</TableHead>
-													<TableHead>{t("campaigns.transferred")}</TableHead>
-													<TableHead>{t("campaigns.callTime")}</TableHead>
-													<TableHead>{t("common.notes")}</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("common.leads")}
+													</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("common.status")}
+													</TableHead>
+													<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+														{t("common.duration")}
+													</TableHead>
+													<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+														{t("campaigns.transferred")}
+													</TableHead>
+													<TableHead className="text-xs sm:text-sm">
+														{t("campaigns.callTime")}
+													</TableHead>
+													<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+														{t("common.notes")}
+													</TableHead>
 												</TableRow>
 											</TableHeader>
 											<TableBody>
 												{callHistory?.data?.map((call) => (
 													<TableRow key={call.id}>
-														<TableCell className="font-medium">
+														<TableCell className="font-medium text-xs sm:text-sm">
 															{call.lead?.name || t("activity.unknownLead")}
 														</TableCell>
 														<TableCell>
@@ -666,13 +710,14 @@ export default function CampaignDetailPage() {
 																variant={
 																	getCallStatusColor(call.callStatus) as any
 																}
+																className="text-xs"
 															>
 																{t(
 																	`campaigns.callStatus.${call.callStatus.toLowerCase()}`
 																)}
 															</Badge>
 														</TableCell>
-														<TableCell>
+														<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
 															{call.duration
 																? `${Math.round(call.duration / 60)}${t(
 																		"activity.minutes"
@@ -681,13 +726,15 @@ export default function CampaignDetailPage() {
 																  )}`
 																: "-"}
 														</TableCell>
-														<TableCell>
+														<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
 															{call.transferred
 																? t("leadDetail.yes")
 																: t("leadDetail.no")}
 														</TableCell>
-														<TableCell>{formatDate(call.callTime)}</TableCell>
-														<TableCell>
+														<TableCell className="text-xs sm:text-sm">
+															{formatDate(call.callTime)}
+														</TableCell>
+														<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
 															{call.notes || t("activity.noNotes")}
 														</TableCell>
 													</TableRow>
@@ -701,11 +748,11 @@ export default function CampaignDetailPage() {
 
 						{/* Add Leads Modal */}
 						{showAddLeadsModal && (
-							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-								<div className="bg-white rounded-lg w-full max-w-4xl mx-4 max-h-[80vh] flex flex-col">
+							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+								<div className="bg-white rounded-lg w-full max-w-4xl mx-auto max-h-[90vh] flex flex-col">
 									{/* Header */}
-									<div className="flex justify-between items-center p-6 border-b">
-										<h2 className="text-xl font-semibold">
+									<div className="flex justify-between items-center p-4 sm:p-6 border-b">
+										<h2 className="text-lg sm:text-xl font-semibold">
 											{t("campaigns.addLeadsToCampaign")}
 										</h2>
 										<Button
@@ -738,13 +785,13 @@ export default function CampaignDetailPage() {
 												</div>
 											</div>
 										) : (
-											<div className="p-6 space-y-4">
-												<div className="text-sm text-gray-600">
+											<div className="p-4 sm:p-6 space-y-4">
+												<div className="text-xs sm:text-sm text-gray-600">
 													{t("campaigns.selectLeadsToAddToCampaign")}
 												</div>
 
 												{/* Scrollable Table Container */}
-												<div className="overflow-y-auto max-h-[400px] border rounded-lg">
+												<div className="overflow-y-auto max-h-[300px] sm:max-h-[400px] border rounded-lg">
 													<Table>
 														<TableHeader className="sticky top-0 bg-white z-10">
 															<TableRow>
@@ -768,10 +815,18 @@ export default function CampaignDetailPage() {
 																		}}
 																	/>
 																</TableHead>
-																<TableHead>{t("common.name")}</TableHead>
-																<TableHead>{t("common.phone")}</TableHead>
-																<TableHead>{t("common.city")}</TableHead>
-																<TableHead>{t("common.date")}</TableHead>
+																<TableHead className="text-xs sm:text-sm">
+																	{t("common.name")}
+																</TableHead>
+																<TableHead className="text-xs sm:text-sm">
+																	{t("common.phone")}
+																</TableHead>
+																<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+																	{t("common.city")}
+																</TableHead>
+																<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+																	{t("common.date")}
+																</TableHead>
 															</TableRow>
 														</TableHeader>
 														<TableBody>
@@ -789,12 +844,16 @@ export default function CampaignDetailPage() {
 																			}
 																		/>
 																	</TableCell>
-																	<TableCell className="font-medium">
+																	<TableCell className="font-medium text-xs sm:text-sm">
 																		{lead.name}
 																	</TableCell>
-																	<TableCell>{lead.phone1}</TableCell>
-																	<TableCell>{lead.city || "-"}</TableCell>
-																	<TableCell>
+																	<TableCell className="text-xs sm:text-sm">
+																		{lead.phone1}
+																	</TableCell>
+																	<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
+																		{lead.city || "-"}
+																	</TableCell>
+																	<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
 																		{formatDate(lead.createdAt)}
 																	</TableCell>
 																</TableRow>
@@ -807,7 +866,7 @@ export default function CampaignDetailPage() {
 													(campaignData.leads?.length || 0) >
 													5 && (
 													<Alert variant="destructive">
-														<AlertDescription>
+														<AlertDescription className="text-xs sm:text-sm">
 															{t("campaigns.cannotAddMoreThan5")}{" "}
 															{campaignData.leads?.length || 0},{" "}
 															{t("campaigns.selected")} {selectedLeads.length}
@@ -819,13 +878,13 @@ export default function CampaignDetailPage() {
 									</div>
 
 									{/* Footer with Static Buttons */}
-									<div className="border-t p-6 bg-gray-50">
-										<div className="flex justify-between items-center">
-											<div className="text-sm text-gray-600">
+									<div className="border-t p-4 sm:p-6 bg-gray-50">
+										<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+											<div className="text-xs sm:text-sm text-gray-600">
 												{t("campaigns.selected")} {selectedLeads.length}{" "}
 												{t("campaigns.leads")}
 											</div>
-											<div className="flex space-x-2">
+											<div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
 												<Button
 													onClick={handleAddLeads}
 													disabled={
@@ -835,6 +894,7 @@ export default function CampaignDetailPage() {
 															(campaignData.leads?.length || 0) >
 															5
 													}
+													className="text-sm"
 												>
 													{addLeadsToCampaignMutation.isPending
 														? t("campaigns.adding")
@@ -847,6 +907,7 @@ export default function CampaignDetailPage() {
 														setSelectedLeads([]);
 													}}
 													disabled={addLeadsToCampaignMutation.isPending}
+													className="text-sm"
 												>
 													{t("common.cancel")}
 												</Button>
@@ -859,11 +920,11 @@ export default function CampaignDetailPage() {
 
 						{/* Stop Campaign Confirmation Modal */}
 						{showStopCampaignModal && (
-							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-								<div className="bg-white rounded-lg w-full max-w-md mx-4">
+							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+								<div className="bg-white rounded-lg w-full max-w-md mx-auto">
 									{/* Header */}
-									<div className="flex justify-between items-center p-6 border-b">
-										<h2 className="text-xl font-semibold text-red-600">
+									<div className="flex justify-between items-center p-4 sm:p-6 border-b">
+										<h2 className="text-lg sm:text-xl font-semibold text-red-600">
 											{t("campaigns.stopCampaign")}
 										</h2>
 										<Button
@@ -876,7 +937,7 @@ export default function CampaignDetailPage() {
 									</div>
 
 									{/* Content */}
-									<div className="p-6">
+									<div className="p-4 sm:p-6">
 										<div className="space-y-4">
 											<div className="flex items-start space-x-3">
 												<div className="flex-shrink-0 mt-1">
@@ -885,17 +946,17 @@ export default function CampaignDetailPage() {
 													</div>
 												</div>
 												<div className="flex-1">
-													<h3 className="text-lg font-medium text-gray-900">
+													<h3 className="text-base sm:text-lg font-medium text-gray-900">
 														{t("campaigns.stopCampaignWarning")}
 													</h3>
-													<p className="text-sm text-gray-600 mt-2">
+													<p className="text-xs sm:text-sm text-gray-600 mt-2">
 														{t("campaigns.stopCampaignDescription")}
 													</p>
 												</div>
 											</div>
 
 											<Alert variant="destructive">
-												<AlertDescription>
+												<AlertDescription className="text-xs sm:text-sm">
 													{t("campaigns.stopCampaignAlert")}
 												</AlertDescription>
 											</Alert>
@@ -903,12 +964,13 @@ export default function CampaignDetailPage() {
 									</div>
 
 									{/* Footer */}
-									<div className="border-t p-6 bg-gray-50">
-										<div className="flex justify-end space-x-3">
+									<div className="border-t p-4 sm:p-6 bg-gray-50">
+										<div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3">
 											<Button
 												variant="outline"
 												onClick={handleCancelStopCampaign}
 												disabled={stopCampaignMutation.isPending}
+												className="text-sm"
 											>
 												{t("common.cancel")}
 											</Button>
@@ -916,6 +978,7 @@ export default function CampaignDetailPage() {
 												variant="destructive"
 												onClick={handleConfirmStopCampaign}
 												disabled={stopCampaignMutation.isPending}
+												className="text-sm"
 											>
 												{stopCampaignMutation.isPending ? (
 													<>
@@ -943,7 +1006,7 @@ export default function CampaignDetailPage() {
 							removeLeadFromCampaignMutation.isError ||
 							cleanupOrphanedLeadsMutation.isError) && (
 							<Alert variant="destructive">
-								<AlertDescription>
+								<AlertDescription className="text-sm">
 									{t("errors.failedToUpdateCampaign")}
 								</AlertDescription>
 							</Alert>

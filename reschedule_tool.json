@@ -1,0 +1,53 @@
+{
+	"id": "3bfa64a3-0fd0-4df7-8b70-98400478375f",
+	"createdAt": "2025-07-29T23:25:54.573Z",
+	"updatedAt": "2025-08-10T13:28:03.768Z",
+	"type": "function",
+	"function": {
+		"name": "reschedule_tool",
+		"strict": true,
+		"description": "Reschedule a lead's call via API",
+		"parameters": {
+			"type": "object",
+			"properties": {
+				"note": {
+					"description": "Optional annotation",
+					"type": "string"
+				},
+				"scheduledCallAt": {
+					"description": "New time in ISO8601 UTC",
+					"type": "string"
+				},
+				"customerPhoneNumber": {
+					"description": "This is the customer phone number starting with country code",
+					"type": "string"
+				}
+			},
+			"required": ["customerPhoneNumber", "scheduledCallAt"]
+		}
+	},
+	"messages": [
+		{
+			"type": "request-start",
+			"content": "Updating schedule…",
+			"blocking": false
+		},
+		{
+			"role": "assistant",
+			"type": "request-complete",
+			"content": "Call rescheduled successfully",
+			"endCallAfterSpokenEnabled": false
+		},
+		{
+			"type": "request-failed",
+			"content": "Request Failed",
+			"endCallAfterSpokenEnabled": false
+		}
+	],
+	"orgId": "d7cb7022-f6bb-4f46-a5a8-c35aaa676ba9",
+	"server": {
+		"url": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads/schedule",
+		"headers": {}
+	},
+	"async": true
+}

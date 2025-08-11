@@ -1,4 +1,4 @@
-import type React from "react";
+import React from "react";
 import {
 	isRouteErrorResponse,
 	Links,
@@ -13,6 +13,7 @@ import "./app.css";
 import { queryClient } from "./lib/query-client";
 import "./lib/i18n";
 import { ToastProvider } from "./components/ui/toast";
+import { bugsnagClient } from "./lib/bugsnag";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -28,6 +29,12 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+	// Create Bugsnag Error Boundary only in production
+	const ErrorBoundary = import.meta.env.PROD
+		? bugsnagClient.getPlugin("react")?.createErrorBoundary(React) ||
+		  (({ children }: { children: React.ReactNode }) => <>{children}</>)
+		: ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
 	return (
 		<html lang="en">
 			<head>
@@ -38,7 +45,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			</head>
 			<body>
 				<QueryClientProvider client={queryClient}>
-					<ToastProvider>{children}</ToastProvider>
+					<ErrorBoundary>
+						<ToastProvider>{children}</ToastProvider>
+					</ErrorBoundary>
 				</QueryClientProvider>
 				<ScrollRestoration />
 				<Scripts />
@@ -49,33 +58,4 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
 	return <Outlet />;
-}
-
-export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-	let message = "Oops!";
-	let details = "An unexpected error occurred.";
-	let stack: string | undefined;
-
-	if (isRouteErrorResponse(error)) {
-		message = error.status === 404 ? "404" : "Error";
-		details =
-			error.status === 404
-				? "The requested page could not be found."
-				: error.statusText || details;
-	} else if (import.meta.env.DEV && error && error instanceof Error) {
-		details = error.message;
-		stack = error.stack;
-	}
-
-	return (
-		<main className="pt-16 p-4 container mx-auto">
-			<h1>{message}</h1>
-			<p>{details}</p>
-			{stack && (
-				<pre className="w-full p-4 overflow-x-auto">
-					<code>{stack}</code>
-				</pre>
-			)}
-		</main>
-	);
 }

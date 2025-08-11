@@ -46,18 +46,23 @@ model Campaign {
 }
 
 model CallHistory {
-  id          String     @id @default(auto()) @map("_id") @db.ObjectId
-  leadId      String     @db.ObjectId
-  campaignId  String?
-  callStatus  CallStatus
-  transferred Boolean    @default(false)
-  transferTo  String?
-  duration    Int?
-  cost        Float? // Cost in dollars from Vapi.ai
-  callTime    DateTime   @default(now())
-  vapiCallId  String?
-  notes       String?
-  lead        Lead       @relation(fields: [leadId], references: [id], name: "LeadCallHistory")
+  id                 String     @id @default(auto()) @map("_id") @db.ObjectId
+  leadId             String     @db.ObjectId
+  campaignId         String?
+  callStatus         CallStatus
+  transferred        Boolean    @default(false)
+  transferTo         String?
+  fromNumber         String? // System phone number (Vapi phone number)
+  toNumber           String? // Lead's phone number
+  duration           Int?
+  cost               Float? // Cost in dollars from Vapi.ai
+  callTime           DateTime   @default(now())
+  vapiCallId         String?
+  notes              String?
+  recordingUrl       String? // URL to the call recording from Vapi.ai
+  stereoRecordingUrl String? // URL to the stereo call recording from Vapi.ai
+  messages           Json? // Conversation messages from Vapi.ai
+  lead               Lead       @relation(fields: [leadId], references: [id], name: "LeadCallHistory")
 }
 
 enum LeadStatus {

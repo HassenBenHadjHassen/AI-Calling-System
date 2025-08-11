@@ -302,17 +302,19 @@ export default function CampaignPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-					<div className="space-y-6">
-						<div className="flex justify-between items-center">
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
+					<div className="space-y-4 sm:space-y-6">
+						<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
 							<div>
-								<h1 className="text-2xl font-bold text-gray-900">
+								<h1 className="text-xl sm:text-2xl font-bold text-gray-900">
 									{t("campaigns.title")}
 								</h1>
-								<p className="text-gray-600">{t("campaigns.description")}</p>
+								<p className="text-gray-600 text-sm sm:text-base">
+									{t("campaigns.description")}
+								</p>
 							</div>
-							<div className="flex space-x-2">
-								<Button onClick={handleOpenCreateModal}>
+							<div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+								<Button onClick={handleOpenCreateModal} className="text-sm">
 									<Plus className="h-4 w-4 mr-2" />
 									{t("campaigns.newCampaign")}
 								</Button>
@@ -320,6 +322,7 @@ export default function CampaignPage() {
 									variant="destructive"
 									onClick={handleCleanAllCampaigns}
 									disabled={cleanAllCampaignsMutation.isPending}
+									className="text-sm"
 								>
 									<Trash2 className="h-4 w-4 mr-2" />
 									{t("campaigns.cleanAllCampaigns")}
@@ -329,10 +332,10 @@ export default function CampaignPage() {
 
 						{/* Create Campaign Modal */}
 						{showCreateModal && (
-							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-								<div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+							<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+								<div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md mx-auto">
 									<div className="flex justify-between items-center mb-4">
-										<h2 className="text-xl font-semibold">
+										<h2 className="text-lg sm:text-xl font-semibold">
 											{t("campaigns.createNewCampaign")}
 										</h2>
 										<Button
@@ -345,7 +348,7 @@ export default function CampaignPage() {
 									</div>
 									<div className="space-y-4">
 										<div>
-											<div className="text-sm font-medium mb-2">
+											<div className="text-xs sm:text-sm font-medium mb-2">
 												{t("campaigns.campaignName")}
 											</div>
 											<Input
@@ -373,15 +376,15 @@ export default function CampaignPage() {
 													campaign.name.toLowerCase() ===
 													newCampaignName.trim().toLowerCase()
 											) !== undefined && (
-												<p className="text-sm text-red-600 mt-1">
+												<p className="text-xs sm:text-sm text-red-600 mt-1">
 													{t("campaigns.campaignNameAlreadyExists")}
 												</p>
 											)}
 										</div>
-										<div className="text-sm text-gray-600">
+										<div className="text-xs sm:text-sm text-gray-600">
 											{t("campaigns.addLeadsNote")}
 										</div>
-										<div className="flex space-x-2">
+										<div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
 											<Button
 												onClick={handleCreateCampaign}
 												disabled={
@@ -393,7 +396,7 @@ export default function CampaignPage() {
 															newCampaignName.trim().toLowerCase()
 													) !== undefined
 												}
-												className="flex-1"
+												className="flex-1 text-sm"
 											>
 												{createCampaignMutation.isPending
 													? t("campaigns.creating")
@@ -403,6 +406,7 @@ export default function CampaignPage() {
 												variant="outline"
 												onClick={handleCloseCreateModal}
 												disabled={createCampaignMutation.isPending}
+												className="text-sm"
 											>
 												{t("common.cancel")}
 											</Button>
@@ -415,18 +419,19 @@ export default function CampaignPage() {
 						{showCleanWarning && (
 							<Card className="border-red-200 bg-red-50">
 								<CardHeader>
-									<CardTitle className="text-red-800">
+									<CardTitle className="text-red-800 text-lg sm:text-xl">
 										{t("campaigns.warning")}
 									</CardTitle>
 									<CardContent className="text-red-700">
-										<p className="mb-4">
+										<p className="mb-4 text-sm">
 											{t("campaigns.confirmDeleteAllCampaigns")}
 										</p>
-										<div className="flex space-x-2">
+										<div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
 											<Button
 												variant="destructive"
 												onClick={confirmCleanAllCampaigns}
 												disabled={cleanAllCampaignsMutation.isPending}
+												className="text-sm"
 											>
 												{cleanAllCampaignsMutation.isPending
 													? t("common.loading")
@@ -436,6 +441,7 @@ export default function CampaignPage() {
 												variant="outline"
 												onClick={() => setShowCleanWarning(false)}
 												disabled={cleanAllCampaignsMutation.isPending}
+												className="text-sm"
 											>
 												{t("common.cancel")}
 											</Button>
@@ -448,11 +454,11 @@ export default function CampaignPage() {
 						{activeCampaigns?.data && activeCampaigns.data.length > 0 && (
 							<Card className="border-green-200 bg-green-50">
 								<CardHeader>
-									<CardTitle className="text-green-800">
+									<CardTitle className="text-green-800 text-lg sm:text-xl">
 										{t("campaigns.activeCampaignsCount")} (
 										{activeCampaigns.data.length})
 									</CardTitle>
-									<CardDescription className="text-green-600">
+									<CardDescription className="text-green-600 text-sm">
 										{t("campaigns.currentlyRunning")}
 									</CardDescription>
 								</CardHeader>
@@ -461,34 +467,35 @@ export default function CampaignPage() {
 										{activeCampaigns.data.map((campaign) => (
 											<div
 												key={campaign.id}
-												className="flex items-center justify-between p-4 border border-green-200 rounded-lg bg-white"
+												className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-green-200 rounded-lg bg-white space-y-4 sm:space-y-0"
 											>
 												<div>
-													<h3 className="font-semibold text-lg">
+													<h3 className="font-semibold text-base sm:text-lg">
 														{campaign.name}
 													</h3>
-													<p className="text-sm text-gray-600">
+													<p className="text-xs sm:text-sm text-gray-600">
 														ID: {campaign.id}
 													</p>
-													<p className="text-sm text-gray-600">
+													<p className="text-xs sm:text-sm text-gray-600">
 														{t("campaigns.started")}{" "}
 														{campaign.startedAt
 															? formatDate(campaign.startedAt) ?? ""
 															: ""}
 													</p>
-													<p className="text-sm text-gray-600">
+													<p className="text-xs sm:text-sm text-gray-600">
 														{t("dashboard.totalLeads")}:{" "}
 														{campaign.leads?.length || 0}
 													</p>
 												</div>
-												<div className="flex items-center space-x-4">
-													<Badge variant="default">
+												<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+													<Badge variant="default" className="text-xs">
 														{t("campaigns.active")}
 													</Badge>
 													<Button
 														variant="destructive"
 														onClick={() => handleToggleCampaign(campaign)}
 														disabled={stopCampaignMutation.isPending}
+														className="text-sm"
 													>
 														<Square className="h-4 w-4 mr-2" />
 														{t("campaigns.stopCampaign")}
@@ -503,8 +510,10 @@ export default function CampaignPage() {
 
 						<Card>
 							<CardHeader>
-								<CardTitle>{t("campaigns.allCampaigns")}</CardTitle>
-								<CardDescription>
+								<CardTitle className="text-lg sm:text-xl">
+									{t("campaigns.allCampaigns")}
+								</CardTitle>
+								<CardDescription className="text-sm">
 									{t("campaigns.manageCampaigns")}
 								</CardDescription>
 							</CardHeader>
@@ -520,20 +529,23 @@ export default function CampaignPage() {
 										{campaigns?.data?.map((campaign) => (
 											<div
 												key={campaign.id}
-												className="flex items-center justify-between p-4 border rounded-lg"
+												className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg space-y-4 sm:space-y-0"
 											>
 												<div className="flex-1">
-													<div className="flex items-center space-x-3">
-														<h3 className="font-semibold">{campaign.name}</h3>
+													<div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+														<h3 className="font-semibold text-base sm:text-lg">
+															{campaign.name}
+														</h3>
 														<Badge
 															variant={getStatusColor(campaign.status) as any}
+															className="text-xs w-fit"
 														>
 															{t(`status.${campaign.status.toLowerCase()}`)}
 														</Badge>
 													</div>
-													<div className="mt-1 text-sm text-gray-600 space-y-1">
+													<div className="mt-2 sm:mt-1 text-xs sm:text-sm text-gray-600 space-y-1">
 														<p
-															className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+															className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors break-all"
 															onClick={() => {
 																navigator.clipboard.writeText(campaign.id);
 																addToast(
@@ -558,13 +570,16 @@ export default function CampaignPage() {
 																: t("campaigns.notStopped")}
 														</p>
 														<div className="flex items-center">
-															<Users className="h-4 w-4 mr-1" />
+															<Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
 															<span>
 																{campaign.leads?.length || 0}{" "}
 																{t("nav.leads").toLowerCase()}
 															</span>
 															{campaign.leads?.length === 0 && (
-																<Badge variant="secondary" className="ml-2">
+																<Badge
+																	variant="secondary"
+																	className="ml-2 text-xs"
+																>
 																	No leads
 																</Badge>
 															)}
@@ -572,9 +587,9 @@ export default function CampaignPage() {
 													</div>
 												</div>
 
-												<div className="flex items-center space-x-4">
+												<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
 													<div className="flex items-center space-x-2">
-														<span className="text-sm">
+														<span className="text-xs sm:text-sm">
 															{campaign.status === "ACTIVE"
 																? t("campaigns.running")
 																: t("status.stopped")}
@@ -597,6 +612,7 @@ export default function CampaignPage() {
 														onClick={() =>
 															navigate(`/dashboard/campaign/${campaign.id}`)
 														}
+														className="text-xs sm:text-sm"
 													>
 														{t("campaigns.viewDetails")}
 													</Button>
@@ -623,7 +639,7 @@ export default function CampaignPage() {
 							createCampaignMutation.isError ||
 							deleteCampaignMutation.isError) && (
 							<Alert variant="destructive">
-								<AlertDescription>
+								<AlertDescription className="text-sm">
 									{t("errors.failedToUpdateCampaign")}
 								</AlertDescription>
 							</Alert>

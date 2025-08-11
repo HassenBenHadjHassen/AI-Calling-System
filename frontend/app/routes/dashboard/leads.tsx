@@ -244,21 +244,24 @@ export default function LeadsPage() {
 			<Sidebar />
 			<div className="flex-1 flex flex-col overflow-hidden">
 				<Topbar />
-				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-					<div className="space-y-6">
-						<div className="flex justify-between items-center">
+				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
+					<div className="space-y-4 sm:space-y-6">
+						<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
 							<div>
-								<h1 className="text-2xl font-bold text-gray-900">
+								<h1 className="text-xl sm:text-2xl font-bold text-gray-900">
 									{t("leads.title")}
 								</h1>
-								<p className="text-gray-600">{t("leads.description")}</p>
+								<p className="text-gray-600 text-sm sm:text-base">
+									{t("leads.description")}
+								</p>
 							</div>
-							<div className="flex space-x-2">
+							<div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
 								{selectedLeads.length > 0 && (
 									<Button
 										variant="destructive"
 										onClick={handleDeleteSelectedLeads}
 										disabled={deleteLeadsMutation.isPending}
+										className="text-sm"
 									>
 										<Trash2 className="h-4 w-4 mr-2" />
 										{t("leads.deleteSelected")} ({selectedLeads.length})
@@ -268,6 +271,7 @@ export default function LeadsPage() {
 									variant="destructive"
 									onClick={handleCleanAllLeads}
 									disabled={cleanAllLeadsMutation.isPending}
+									className="text-sm"
 								>
 									<Trash2 className="h-4 w-4 mr-2" />
 									{t("leads.cleanAllLeads")}
@@ -278,15 +282,15 @@ export default function LeadsPage() {
 						{showCleanWarning && (
 							<Card className="border-red-200 bg-red-50">
 								<CardHeader>
-									<CardTitle className="text-red-800">
+									<CardTitle className="text-red-800 text-lg sm:text-xl">
 										{t("leads.dangerZone")}
 									</CardTitle>
 									<CardContent className="text-red-700">
 										<div className="space-y-3">
-											<p className="font-semibold">
+											<p className="font-semibold text-sm sm:text-base">
 												{t("leads.confirmDeleteAll")}
 											</p>
-											<div className="text-sm space-y-2">
+											<div className="text-xs sm:text-sm space-y-2">
 												<p>{t("leads.deleteWarning")}</p>
 												<ul className="list-disc list-inside space-y-1 ml-4">
 													<li>{t("leads.allLeadRecords")}</li>
@@ -298,11 +302,12 @@ export default function LeadsPage() {
 													{t("leads.cannotUndo")}
 												</p>
 											</div>
-											<div className="flex space-x-2 pt-2">
+											<div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-2">
 												<Button
 													variant="destructive"
 													onClick={confirmCleanAllLeads}
 													disabled={cleanAllLeadsMutation.isPending}
+													className="text-sm"
 												>
 													{cleanAllLeadsMutation.isPending
 														? t("leads.deleting")
@@ -312,6 +317,7 @@ export default function LeadsPage() {
 													variant="outline"
 													onClick={() => setShowCleanWarning(false)}
 													disabled={cleanAllLeadsMutation.isPending}
+													className="text-sm"
 												>
 													{t("common.cancel")}
 												</Button>
@@ -324,7 +330,7 @@ export default function LeadsPage() {
 
 						<Card>
 							<CardHeader>
-								<CardTitle>
+								<CardTitle className="text-lg sm:text-xl">
 									{t("leads.leadsCount")} ({filteredLeads.length})
 								</CardTitle>
 								<div className="flex flex-col sm:flex-row gap-4">
@@ -334,7 +340,7 @@ export default function LeadsPage() {
 											placeholder={t("leads.searchPlaceholder")}
 											value={searchTerm}
 											onChange={(e) => setSearchTerm(e.target.value)}
-											className="pl-10"
+											className="pl-10 text-sm"
 										/>
 									</div>
 									<Select
@@ -343,7 +349,7 @@ export default function LeadsPage() {
 											setStatusFilter(value as LeadStatus | "ALL")
 										}
 									>
-										<SelectTrigger className="w-48">
+										<SelectTrigger className="w-full sm:w-48 text-sm">
 											<Filter className="h-4 w-4 mr-2" />
 											<SelectValue placeholder={t("leads.filterByStatus")} />
 										</SelectTrigger>
@@ -381,94 +387,115 @@ export default function LeadsPage() {
 									</div>
 								) : (
 									<>
-										<Table>
-											<TableHeader>
-												<TableRow>
-													<TableHead>
-														<input
-															type="checkbox"
-															checked={
-																selectedLeads.length ===
-																	paginatedLeads.length &&
-																paginatedLeads.length > 0
-															}
-															onChange={handleSelectAll}
-															className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-														/>
-													</TableHead>
-													<TableHead>{t("common.name")}</TableHead>
-													<TableHead>{t("common.phone")}</TableHead>
-													<TableHead>{t("common.status")}</TableHead>
-													<TableHead>{t("common.city")}</TableHead>
-													<TableHead>{t("common.created")}</TableHead>
-													<TableHead>{t("common.actions")}</TableHead>
-												</TableRow>
-											</TableHeader>
-											<TableBody>
-												{paginatedLeads.map((lead) => (
-													<TableRow key={lead.id}>
-														<TableCell>
+										<div className="overflow-x-auto">
+											<Table>
+												<TableHeader>
+													<TableRow>
+														<TableHead className="w-12">
 															<input
 																type="checkbox"
-																checked={selectedLeads.includes(lead.id)}
-																onChange={() => handleSelectLead(lead.id)}
+																checked={
+																	selectedLeads.length ===
+																		paginatedLeads.length &&
+																	paginatedLeads.length > 0
+																}
+																onChange={handleSelectAll}
 																className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
 															/>
-														</TableCell>
-														<TableCell className="font-medium">
-															{lead.name}
-														</TableCell>
-														<TableCell>
-															{formatPhoneNumber(lead.phone1)}
-														</TableCell>
-														<TableCell>
-															<Badge
-																variant={
-																	statusColors[lead.status] as
-																		| "default"
-																		| "secondary"
-																		| "destructive"
-																		| "outline"
-																}
-															>
-																{translateStatus(lead.status)}
-															</Badge>
-														</TableCell>
-														<TableCell>{lead.city || "N/A"}</TableCell>
-														<TableCell>{formatDate(lead.createdAt)}</TableCell>
-														<TableCell>
-															<div className="flex space-x-2">
-																<Button
-																	variant="outline"
-																	size="sm"
-																	onClick={() =>
-																		navigate(`/dashboard/leads/${lead.id}`)
-																	}
-																>
-																	{t("common.view")}
-																</Button>
-																<Button
-																	variant="destructive"
-																	size="sm"
-																	onClick={() =>
-																		handleDeleteLead(lead.id, lead.name)
-																	}
-																	disabled={deletingLeadId === lead.id}
-																>
-																	{deletingLeadId === lead.id
-																		? t("leads.deleting")
-																		: t("common.delete")}
-																</Button>
-															</div>
-														</TableCell>
+														</TableHead>
+														<TableHead className="text-xs sm:text-sm">
+															{t("common.name")}
+														</TableHead>
+														<TableHead className="text-xs sm:text-sm">
+															{t("common.phone")}
+														</TableHead>
+														<TableHead className="text-xs sm:text-sm">
+															{t("common.status")}
+														</TableHead>
+														<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+															{t("common.city")}
+														</TableHead>
+														<TableHead className="hidden sm:table-cell text-xs sm:text-sm">
+															{t("common.created")}
+														</TableHead>
+														<TableHead className="text-xs sm:text-sm">
+															{t("common.actions")}
+														</TableHead>
 													</TableRow>
-												))}
-											</TableBody>
-										</Table>
+												</TableHeader>
+												<TableBody>
+													{paginatedLeads.map((lead) => (
+														<TableRow key={lead.id}>
+															<TableCell>
+																<input
+																	type="checkbox"
+																	checked={selectedLeads.includes(lead.id)}
+																	onChange={() => handleSelectLead(lead.id)}
+																	className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+																/>
+															</TableCell>
+															<TableCell className="font-medium text-xs sm:text-sm">
+																{lead.name}
+															</TableCell>
+															<TableCell className="text-xs sm:text-sm">
+																{formatPhoneNumber(lead.phone1)}
+															</TableCell>
+															<TableCell>
+																<Badge
+																	variant={
+																		statusColors[lead.status] as
+																			| "default"
+																			| "secondary"
+																			| "destructive"
+																			| "outline"
+																	}
+																	className="text-xs"
+																>
+																	{translateStatus(lead.status)}
+																</Badge>
+															</TableCell>
+															<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
+																{lead.city || "N/A"}
+															</TableCell>
+															<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
+																{formatDate(lead.createdAt)}
+															</TableCell>
+															<TableCell>
+																<div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
+																	<Button
+																		variant="outline"
+																		size="sm"
+																		onClick={() =>
+																			navigate(`/dashboard/leads/${lead.id}`)
+																		}
+																		className="text-xs"
+																	>
+																		{t("common.view")}
+																	</Button>
+																	<Button
+																		variant="destructive"
+																		size="sm"
+																		onClick={() =>
+																			handleDeleteLead(lead.id, lead.name)
+																		}
+																		disabled={deletingLeadId === lead.id}
+																		className="text-xs"
+																	>
+																		{deletingLeadId === lead.id
+																			? t("leads.deleting")
+																			: t("common.delete")}
+																	</Button>
+																</div>
+															</TableCell>
+														</TableRow>
+													))}
+												</TableBody>
+											</Table>
+										</div>
 
 										{totalPages > 1 && (
-											<div className="flex items-center justify-between mt-4">
-												<p className="text-sm text-gray-600">
+											<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 space-y-4 sm:space-y-0">
+												<p className="text-xs sm:text-sm text-gray-600">
 													{t("leads.showing")} {startIndex + 1} {t("leads.to")}{" "}
 													{Math.min(
 														startIndex + itemsPerPage,
@@ -485,6 +512,7 @@ export default function LeadsPage() {
 															setCurrentPage((prev) => Math.max(prev - 1, 1))
 														}
 														disabled={currentPage === 1}
+														className="text-xs sm:text-sm"
 													>
 														{t("common.previous")}
 													</Button>
@@ -497,6 +525,7 @@ export default function LeadsPage() {
 															)
 														}
 														disabled={currentPage === totalPages}
+														className="text-xs sm:text-sm"
 													>
 														{t("common.next")}
 													</Button>

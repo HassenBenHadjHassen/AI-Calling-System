@@ -1,5 +1,5 @@
 {
-	"name": "Caller Ai  (Uploaded via JSON)",
+	"name": "Updated Presta Lib Call Flow",
 	"nodes": [
 		{
 			"name": "introduction",
@@ -7,11 +7,11 @@
 			"isStart": true,
 			"metadata": {
 				"position": {
-					"x": 3507.6555786132812,
-					"y": -118.69367980957031
+					"x": 6497.495864868164,
+					"y": -147.61865234375
 				}
 			},
-			"prompt": "[Identité]\nVous êtes Anthony Monaldi, un représentant chaleureux et professionnel de PRESTA LIB.\n\n[Rôle] Votre objectif est uniquement de vérifier leur disponibilité actuelle et s'ils sont intéressés par le programme PRESTA LIB, puis de les transférer au nœud suivant. S'ils disent être occupés, vous les passez également au nœud suivant, rien de plus.\n\n[Style]\n- Parlez clairement et respectueusement, avec un ton calme et empathique.\n\n[Lignes directrices]\n- Marquez une pause après vos questions pour permettre une réponse naturelle.",
+			"prompt": "[Identité]\nVous êtes Anthony Monaldi, un représentant chaleureux et professionnel de PRESTA LIB.\n\n[Rôle] Vérifiez leur disponibilité et intérêt pour le programme PRESTA LIB.\n\n[Instructions]\n- Évaluez si l'utilisateur veut être rappelé plus tard\n- Capturez clairement l'intention de reprogrammer (reschedule_intent)\n- Soyez attentif aux expressions comme 'pas maintenant', 'plus tard', 'rappelez-moi', 'je suis occupé', etc.\n\n[Style]\n- Ton calme et empathique\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec leur nom si disponible",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -19,8 +19,105 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
+				"numerals": true,
+				"provider": "deepgram"
+			},
+			"variableExtractionPlan": {
+				"output": [
+					{
+						"enum": ["INTERESTED", "NOT_INTERESTED", "NEUTRAL"],
+						"type": "string",
+						"title": "interest_level",
+						"description": "this is the interest level of the user"
+					},
+					{
+						"enum": [
+							"AVAILABLE",
+							"BUSY",
+							"IN_A_HURRY",
+							"WANTS_RESCHEDULE",
+							"NEEDS_CLARIFICATION"
+						],
+						"type": "string",
+						"title": "user_availability",
+						"description": "this is the availability of the user"
+					},
+					{
+						"type": "string",
+						"title": "reschedule_reason",
+						"description": "specific reason why user wants to reschedule (work, driving, meeting, etc.)"
+					},
+					{
+						"enum": ["YES", "NO"],
+						"type": "string",
+						"title": "reschedule_intent",
+						"description": "explicitly indicates if user wants to reschedule the call (YES) or not (NO)"
+					}
+				]
+			},
+			"messagePlan": {
+				"firstMessage": "Bonjour {{title}} {{name}}, Anthony Monaldi à l'appareil. Je vous appelle concernant un programme de prévention pour les infirmiers libéraux. Avez-vous un moment ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "clarification_node",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 5128.449020385742,
+					"y": 1201.9590454101562
+				}
+			},
+			"prompt": "[Contexte]\nL'utilisateur a donné une réponse ambiguë, hors contexte, ou difficile à interpréter.\n\n[Objectif]\nClarifier poliment la réponse de l'utilisateur et l'aider à reprendre la conversation sur le programme PRESTA LIB.\n\n[Style]\n- Restez calme et professionnel\n- Posez une question simple et directe\n- Donnez des options claires\n- Revenez au sujet principal",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 200,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"model": "nova-2",
+				"language": "fr",
+				"numerals": true,
+				"provider": "deepgram"
+			},
+			"variableExtractionPlan": {
+				"output": [
+					{
+						"enum": ["INTERESTED", "NOT_INTERESTED", "BUSY", "IN_A_HURRY"],
+						"type": "string",
+						"title": "user_availability",
+						"description": "this is the availability of the user"
+					}
+				]
+			},
+			"messagePlan": {
+				"firstMessage": "Je n'ai pas bien saisi votre réponse. Pour revenir à notre programme PRESTA LIB, pourriez-vous me dire simplement si vous souhaitez en savoir plus sur le programme, si vous êtes occupé(e) en ce moment, ou si vous avez d'autres questions ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "transfer_retry",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 4261.663833618164,
+					"y": 7696.81379699707
+				}
+			},
+			"prompt": "[Contexte]\nLe transfert précédent a échoué ou l'utilisateur a été déconnecté.\n\n[Objectif]\nRassurer l'utilisateur et proposer une solution alternative (nouveau transfert ou rappel).\n\n[Style]\n- Soyez empathique et rassurant\n- Proposez des options claires\n- Restez professionnel",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 200,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -31,9 +128,45 @@
 						"type": "string",
 						"title": "interest_level",
 						"description": "this is the intrest level of the user,"
-					},
+					}
+				]
+			},
+			"messagePlan": {
+				"firstMessage": "Il semble y avoir eu un problème technique avec le transfert. Je peux réessayer de vous mettre en relation avec mon collègue maintenant, ou préféreriez-vous que je vous rappelle plus tard ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "error_recovery",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 5772.972457885742,
+					"y": 1858.8974151611328
+				}
+			},
+			"prompt": "[Contexte]\nL'utilisateur s'est excusé après avoir utilisé un langage inapproprié ou la conversation a pris une tournure inattendue.\n\n[Objectif]\nReconnaître l'excuse avec bienveillance et reprendre la conversation là où elle s'était arrêtée.\n\n[Style]\n- Soyez compréhensif et professionnel\n- Revenez naturellement au sujet précédent\n- Ne faites pas référence à l'incident\n- Continuez comme si rien ne s'était passé",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 200,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"model": "nova-2",
+				"language": "fr",
+				"numerals": true,
+				"provider": "deepgram"
+			},
+			"variableExtractionPlan": {
+				"output": [
 					{
-						"enum": ["AVAILABLE", "BUSY", "IN_A_HURRY"],
+						"enum": [
+							"CONTINUE_PROGRAM",
+							"NEEDS_EXPLANATION",
+							"WANTS_TRANSFER",
+							"BUSY_NOW"
+						],
 						"type": "string",
 						"title": "user_availability",
 						"description": "this is the availability of the user"
@@ -41,7 +174,7 @@
 				]
 			},
 			"messagePlan": {
-				"firstMessage": "Bonjour {{title}} {{name}}, Anthony Monaldi à l’appareil. Je vous appelle à propos d’un programme national de prévention destiné aux infirmiers et infirmières libéraux. Comment allez-vous aujourd’hui ?"
+				"firstMessage": "Merci pour votre compréhension. Revenons à notre conversation sur le programme PRESTA LIB. Où en étions-nous ?"
 			},
 			"toolIds": []
 		},
@@ -50,11 +183,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": -40.19537353515625,
-					"y": 19.306320190429688
+					"x": 939.0468292236328,
+					"y": 7804.81379699707
 				}
 			},
-			"prompt": "Confirmez que l’utilisateur souhaite parler à un conseiller humain et demandez-lui le sujet de son appel.",
+			"prompt": "Confirmez que l'utilisateur souhaite parler à un conseiller humain et demandez-lui le sujet de son appel.",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -62,8 +195,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -91,11 +224,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 2490.8249761292777,
-					"y": 540.1472828608504
+					"x": 4483.925582885742,
+					"y": 581.6262741088867
 				}
 			},
-			"prompt": "[Contexte]\nVous venez de vous présenter et d’introduire le programme PRESTA LIB. La personne indique qu’elle est occupée ou pressée.\n\n[Objectif]\nReconnaître poliment sa situation, expliquer brièvement la valeur du programme et proposer un choix respectueux : continuer maintenant ou planifier un rappel.\n\n[Prompt]\nJe comprends parfaitement que vous soyez occupé(e). Il s’agit simplement d’un programme national de prévention des arrêts cardiaques, conçu spécialement pour les infirmiers libéraux. Je peux vous en donner l’essentiel en moins de deux minutes, ou préférez-vous que je vous rappelle à un moment plus approprié ?",
+			"prompt": "[Contexte]\nVous venez de vous présenter et d'introduire le programme PRESTA LIB. La personne indique qu'elle est occupée ou pressée.\n\n[Objectif]\nReconnaître poliment sa situation, expliquer brièvement la valeur du programme et proposer un choix respectueux : continuer maintenant ou planifier un rappel.\n\n[Instructions]\n- Soyez empathique et compréhensif\n- Proposez des options claires : continuer maintenant (2 minutes) ou rappel plus tard\n- Si l'utilisateur choisit le rappel, capturez ses préférences\n- Capturez la raison du report si elle est donnée\n\n[Prompt]\nJe comprends parfaitement que vous soyez occupé(e). Il s'agit simplement d'un programme national de prévention des arrêts cardiaques, conçu spécialement pour les infirmiers libéraux. Je peux vous en donner l'essentiel en moins de deux minutes, ou préférez-vous que je vous rappelle à un moment plus approprié ?",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -103,10 +236,46 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
+			},
+			"variableExtractionPlan": {
+				"output": [
+					{
+						"enum": ["CONTINUE_NOW", "WANTS_RESCHEDULE", "NOT_INTERESTED"],
+						"type": "string",
+						"title": "user_choice",
+						"description": "whether user wants to continue now, reschedule, or is not interested"
+					},
+					{
+						"enum": [
+							"IMMEDIATE_RESCHEDULE",
+							"LATER_TODAY",
+							"TOMORROW",
+							"THIS_WEEK",
+							"NEXT_WEEK",
+							"SPECIFIC_DATE",
+							"NO_PREFERENCE"
+						],
+						"type": "string",
+						"title": "reschedule_preference",
+						"description": "when the user would prefer to be called back"
+					},
+					{
+						"enum": [
+							"MORNING",
+							"AFTERNOON",
+							"EVENING",
+							"WEEKEND",
+							"NO_PREFERENCE"
+						],
+						"type": "string",
+						"title": "time_preference",
+						"description": "preferred time of day for callback"
+					}
+				]
 			},
 			"messagePlan": {
 				"firstMessage": ""
@@ -118,11 +287,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3177.8509521484375,
-					"y": 1305.1112823486328
+					"x": 4463.925582885742,
+					"y": 2578.624557495117
 				}
 			},
-			"prompt": "[Contexte]\nVous avez terminé l’introduction. Le prospect est neutre ou montre un intérêt suffisant pour continuer.\n\n[Objectif]\nVérifier uniquement si la personne connaît déjà le programme PRESTA LIB, puis la rediriger vers le bon nœud.\n\n[Prompt]\nÊtes-vous déjà familier(e) avec le programme de prévention des arrêts cardiaques PRESTA LIB ?",
+			"prompt": "[Contexte]\nVous avez terminé l'introduction. Le prospect est neutre ou montre un intérêt suffisant pour continuer.\n\n[Objectif]\nVérifier uniquement si la personne connaît déjà le programme PRESTA LIB, puis la rediriger vers le bon nœud.\n\n[Prompt]\nÊtes-vous déjà familier(e) avec le programme de prévention des arrêts cardiaques PRESTA LIB ?",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -130,8 +299,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -155,11 +324,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 2222.6748112104337,
-					"y": 1034.642962291304
+					"x": 1905.8319854736328,
+					"y": 8361.453140258789
 				}
 			},
-			"prompt": "[Contexte]\nAprès votre présentation, l’interlocuteur indique qu’il est occupé et demande un rappel ou un autre créneau.\n\n[Objectif]\nConfirmer sa demande, convenir d’un horaire et conclure l’appel poliment.\n\n[Prompt]\nJe comprends parfaitement. Quel serait le moment idéal pour que je vous rappelle et vous présenter rapidement le programme ?",
+			"prompt": "[Contexte]\nAprès votre présentation, l'interlocuteur indique qu'il est occupé et demande un rappel ou un autre créneau.\n\n[Objectif]\nObtenir une date et heure précises pour le rappel, ou utiliser la même heure demain par défaut.\n\n[Instructions]\n- Demandez d'abord une date et heure spécifiques\n- Si l'utilisateur ne donne pas de date précise, proposez la même heure demain\n- Si l'utilisateur refuse ou évite de donner une date, utilisez automatiquement la même heure demain\n- Capturez toujours une date et heure exactes au format ISO\n- Soyez persistant mais poli pour obtenir une réponse claire\n\n[Prompt]\nJe comprends parfaitement. Pouvez-vous me donner une date et une heure précises pour que je vous rappelle ? Par exemple : demain à 14h, vendredi à 10h, etc.",
 			"model": {
 				"model": "gemini-2.5-pro",
 				"provider": "google",
@@ -167,8 +336,8 @@
 				"temperature": 0.7
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -178,7 +347,62 @@
 						"enum": [],
 						"type": "string",
 						"title": "reschedule_date",
-						"description": "this is the date of the rescheduled call formatted to YYYY-MM-DDTHH:mm±HH:mm\nParis timezone"
+						"description": "this is the exact date and time of the rescheduled call formatted to YYYY-MM-DDTHH:mm±HH:mm in Paris timezone"
+					},
+					{
+						"enum": ["CONFIRMED", "TENTATIVE", "NEEDS_CONFIRMATION"],
+						"type": "string",
+						"title": "schedule_status",
+						"description": "whether the schedule is confirmed or needs follow-up"
+					},
+					{
+						"enum": ["USER_PROVIDED", "DEFAULT_TOMORROW"],
+						"type": "string",
+						"title": "date_source",
+						"description": "whether the date was provided by user or defaulted to tomorrow"
+					}
+				]
+			},
+			"messagePlan": {
+				"firstMessage": ""
+			},
+			"toolIds": []
+		},
+		{
+			"name": "default_reschedule_tomorrow",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": -47.73829650878906,
+					"y": 9041.180313110352
+				}
+			},
+			"prompt": "[Contexte]\nL'utilisateur n'a pas fourni de date précise pour le rappel.\n\n[Objectif]\nConfirmer que vous allez rappeler demain à la même heure et conclure l'appel.\n\n[Instructions]\n- Informez poliment que vous allez rappeler demain à la même heure\n- Confirmez l'heure approximative\n- Soyez rassurant et professionnel\n- Concluez l'appel de manière positive\n\n[Prompt]\nTrès bien, je vais vous rappeler demain à la même heure pour vous présenter le programme PRESTA LIB. Merci pour votre temps aujourd'hui.",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 200,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"model": "nova-2",
+				"language": "fr",
+				"numerals": true,
+				"provider": "deepgram"
+			},
+			"variableExtractionPlan": {
+				"output": [
+					{
+						"enum": [],
+						"type": "string",
+						"title": "reschedule_date",
+						"description": "tomorrow at the same time, formatted as YYYY-MM-DDTHH:mm±HH:mm in Paris timezone"
+					},
+					{
+						"enum": ["DEFAULT_TOMORROW"],
+						"type": "string",
+						"title": "date_source",
+						"description": "indicates this is the default tomorrow schedule"
 					}
 				]
 			},
@@ -192,8 +416,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 2915.5750325520835,
-					"y": 2037.9632568359375
+					"x": 576.7851104736328,
+					"y": 9163.680313110352
 				}
 			},
 			"tool": {
@@ -220,11 +444,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 929.2185668945312,
-					"y": 1995.4632568359375
+					"x": 5450.710739135742,
+					"y": 3252.8414154052734
 				}
 			},
-			"prompt": "[Contexte]\nLe prospect indique qu’il connaît déjà le programme PRESTA LIB.\n\n[Objectif]\nDéterminer s’il a déjà été contacté par nos équipes.\n\n[Prompt]\nParfait ! Avez-vous déjà été contacté(e) par nos équipes à ce sujet ?",
+			"prompt": "[Contexte]\nLe prospect indique qu'il connaît déjà le programme PRESTA LIB.\n\n[Objectif]\nDéterminer s'il a déjà été contacté par nos équipes.\n\n[Prompt]\nParfait ! Avez-vous déjà été contacté(e) par nos équipes à ce sujet ?",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -232,8 +456,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -257,11 +481,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1239.023193359375,
-					"y": 19.306320190429688
+					"x": 4161.663864135742,
+					"y": 1231.9590454101562
 				}
 			},
-			"prompt": "",
+			"prompt": "[Contexte]\nL'utilisateur a utilisé un langage vulgaire ou agressif.\n\n[Objectif]\nDonner une chance à l'utilisateur de s'excuser et de revenir à la conversation normale.\n\n[Style]\n- Restez professionnel et calme\n- Donnez l'opportunité de se racheter\n- Soyez compréhensif si l'utilisateur s'excuse",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -269,8 +493,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -278,8 +502,18 @@
 				"enabled": true,
 				"enterCondition": "Détecter quand l'utilisateur fait preuve de comportement grossier, agressif ou irrespectueux — incluant des déclarations comme 'ne m'appelez plus jamais', 'taisez-vous', ou l'utilisation de langage vulgaire ou offensant"
 			},
+			"variableExtractionPlan": {
+				"output": [
+					{
+						"enum": ["APOLOGIZED", "CONTINUED_AGGRESSIVE", "CALMED_DOWN"],
+						"type": "string",
+						"title": "user_availability",
+						"description": "this is the availability of the user"
+					}
+				]
+			},
 			"messagePlan": {
-				"firstMessage": "Je comprends votre agacement, mais puis-je vous demander de rester calme, s’il vous plaît ?"
+				"firstMessage": "Je comprends votre agacement, mais puis-je vous demander de rester calme, s'il vous plaît ?"
 			},
 			"toolIds": []
 		},
@@ -288,8 +522,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1239.023193359375,
-					"y": 1377.6112823486328
+					"x": 1583.5702667236328,
+					"y": 2651.124557495117
 				}
 			},
 			"tool": {
@@ -316,8 +550,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3177.8509521484375,
-					"y": 2015.4632568359375
+					"x": 4463.925582885742,
+					"y": 3272.8414154052734
 				}
 			},
 			"prompt": "",
@@ -328,13 +562,13 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
 			"messagePlan": {
-				"firstMessage": "Très bien, laissez-moi vous donner quelques précisions pour que ce soit plus clair, d’accord ?"
+				"firstMessage": "Très bien, laissez-moi vous donner quelques précisions pour que ce soit plus clair, d'accord ?"
 			},
 			"toolIds": []
 		},
@@ -343,8 +577,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 929.2185668945312,
-					"y": 2706.028579711914
+					"x": 6135.234146118164,
+					"y": 7184.376358032227
 				}
 			},
 			"tool": {
@@ -367,7 +601,7 @@
 				"destinations": [
 					{
 						"type": "number",
-						"number": "+21625448896",
+						"number": "+21629729998",
 						"message": "Excellent ! Je vais vous transférer immédiatement.",
 						"transferPlan": {
 							"mode": "warm-transfer-say-summary",
@@ -398,11 +632,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1568.8278198242188,
-					"y": 2589.528579711914
+					"x": 4141.663864135742,
+					"y": 3820.8900604248047
 				}
 			},
-			"prompt": "Contexte :\nLe prospect ne connaît pas PRESTA LIB ou souhaite en savoir plus. L’IA doit fournir une explication claire et concise du programme.\n\nObjectif :\nExpliquer ce qu’est PRESTA LIB, pourquoi il existe, et présenter la structure en deux étapes de l’intervention en disant « premièrement » et « deuxièmement », puis confirmer que l’utilisateur a bien compris le programme.",
+			"prompt": "Contexte :\nLe prospect ne connaît pas PRESTA LIB ou souhaite en savoir plus. L'IA doit fournir une explication claire et concise du programme.\n\nObjectif :\nExpliquer ce qu'est PRESTA LIB, pourquoi il existe, et présenter la structure en deux étapes de l'intervention en disant « premièrement » et « deuxièmement », puis confirmer que l'utilisateur a bien compris le programme.",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -410,13 +644,13 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
 			"messagePlan": {
-				"firstMessage": "Laissez-moi vous expliquer en quoi consiste PRESTA LIB. C’est un programme national de prévention visant à réduire les arrêts cardiaques et les décès soudains, spécialement pour les infirmiers libéraux.\n\nLe programme a deux objectifs principaux.\nPremièrement, sensibiliser les professionnels de santé indépendants aux risques et à la fréquence des arrêts cardiaques, notamment sur la route ou chez les patients.\nDeuxièmement, encourager l’équipement adéquat, comme les défibrillateurs, pour intervenir efficacement en cas d’urgence.\nLe programme évalue également si les infirmiers sont éligibles à une aide pour acquérir un défibrillateur, notamment pour équiper leur véhicule.\n\nEst-ce que le programme est plus clair pour vous maintenant ?"
+				"firstMessage": "Laissez-moi vous expliquer en quoi consiste PRESTA LIB. C'est un programme national de prévention visant à réduire les arrêts cardiaques et les décès soudains, spécialement pour les infirmiers libéraux.\n\nLe programme a deux objectifs principaux.\nPremièrement, sensibiliser les professionnels de santé indépendants aux risques et à la fréquence des arrêts cardiaques, notamment sur la route ou chez les patients.\nDeuxièmement, encourager l'équipement adéquat, comme les défibrillateurs, pour intervenir efficacement en cas d'urgence.\nLe programme évalue également si les infirmiers sont éligibles à une aide pour acquérir un défibrillateur, notamment pour équiper leur véhicule.\n\nEst-ce que le programme est plus clair pour vous maintenant ?"
 			},
 			"toolIds": []
 		},
@@ -425,8 +659,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 599.4139099121094,
-					"y": 29.306320190429688
+					"x": 3859.402145385742,
+					"y": 18.38134765625
 				}
 			},
 			"prompt": "",
@@ -437,8 +671,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -447,7 +681,7 @@
 				"enterCondition": "Détecter quand l'utilisateur montre un désintérêt, soit verbalement — avec des phrases comme 'Je ne suis pas intéressé', 'peut-être plus tard', ou 'pas maintenant'"
 			},
 			"messagePlan": {
-				"firstMessage": "Vous n’êtes pas intéressé(e) par le programme ?"
+				"firstMessage": "Vous n'êtes pas intéressé(e) par le programme ?"
 			},
 			"toolIds": []
 		},
@@ -456,8 +690,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": -40.19537353515625,
-					"y": 718.5361785888672
+					"x": 919.0468292236328,
+					"y": 8485.953140258789
 				}
 			},
 			"tool": {
@@ -480,7 +714,7 @@
 				"destinations": [
 					{
 						"type": "number",
-						"number": "+21625448896",
+						"number": "+21629729998",
 						"message": "Très bien, veuillez patienter un instant pendant que je transfère votre appel.",
 						"transferPlan": {
 							"mode": "warm-transfer-say-summary",
@@ -511,8 +745,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1568.8278198242188,
-					"y": 3365.6524658203125
+					"x": 4141.663864135742,
+					"y": 4584.026580810547
 				}
 			},
 			"prompt": "Demandez à l'utilisateur : « Je suppose que vous vous demandez : pourquoi à l'intérieur du véhicule ? » puis évaluez son niveau d'intérêt pour la question.",
@@ -523,8 +757,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -541,11 +775,11 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1239.023193359375,
-					"y": 4538.7015380859375
+					"x": 3194.8787689208984,
+					"y": 5740.781814575195
 				}
 			},
-			"prompt": "Contexte :\nIl est nécessaire de mettre en avant des statistiques percutantes pour démontrer pourquoi PRESTA LIB est indispensable et pertinent pour les infirmiers(ères) libéraux(ales).\n\nObjectif :\nUtiliser des statistiques concises et fiables pour sensibiliser et souligner l’importance d’être préparé(e) aux urgences cardiaques, puis leur demander à la fin s’ils comprennent.\n\nInvite :\n« Pour vous donner une idée concrète, les services d’urgence ont partagé deux chiffres clés :\n\nDans 90 % des cas, les arrêts cardiaques surviennent soit sur la route, soit au domicile du patient. En tant qu’infirmier(ère) libéral(e), vous êtes donc exposé(e) dans les deux situations.\n\nDans 60 % des interventions réussies, c’est un(e) infirmier(ère) présent(e) sur les lieux qui a pu sauver une vie grâce à une réaction rapide face à une fibrillation ventriculaire. »\n",
+			"prompt": "Contexte :\nIl est nécessaire de mettre en avant des statistiques percutantes pour démontrer pourquoi PRESTA LIB est indispensable et pertinent pour les infirmiers(ères) libéraux(ales).\n\nObjectif :\nUtiliser des statistiques concises et fiables pour sensibiliser et souligner l'importance d'être préparé(e) aux urgences cardiaques, puis leur demander à la fin s'ils comprennent.\n\nInvite :\n« Pour vous donner une idée concrète, les services d'urgence ont partagé deux chiffres clés :\n\nDans 90 % des cas, les arrêts cardiaques surviennent soit sur la route, soit au domicile du patient. En tant qu'infirmier(ère) libéral(e), vous êtes donc exposé(e) dans les deux situations.\n\nDans 60 % des interventions réussies, c'est un(e) infirmier(ère) présent(e) sur les lieux qui a pu sauver une vie grâce à une réaction rapide face à une fibrillation ventriculaire. »\n",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -553,13 +787,13 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
 			"messagePlan": {
-				"firstMessage": "Pour vous donner une idée concrète, les services d’urgence ont partagé deux chiffres clés :\n\n90 % des arrêts cardiaques se produisent soit sur la route, soit au domicile du patient. En tant qu’infirmier libéral, vous êtes donc exposé(e) dans ces deux situations.\n\nDans 60 % des interventions réussies, c’est une infirmière ou un infirmier présent sur les lieux qui a pu sauver une vie grâce à une réaction rapide face à une fibrillation ventriculaire.\n\nEst-ce que cela vous semble clair ?"
+				"firstMessage": "Pour vous donner une idée concrète, les services d'urgence ont partagé deux chiffres clés :\n\n90 % des arrêts cardiaques se produisent soit sur la route, soit au domicile du patient. En tant qu'infirmier libéral, vous êtes donc exposé(e) dans ces deux situations.\n\nDans 60 % des interventions réussies, c'est une infirmière ou un infirmier présent sur les lieux qui a pu sauver une vie grâce à une réaction rapide face à une fibrillation ventriculaire.\n\nEst-ce que cela vous semble clair ?"
 			},
 			"toolIds": []
 		},
@@ -568,8 +802,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1568.8278198242188,
-					"y": 3994.63623046875
+					"x": 4141.663864135742,
+					"y": 5213.499526977539
 				}
 			},
 			"prompt": "",
@@ -580,13 +814,13 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
 			"messagePlan": {
-				"firstMessage": "Je comprends. Permettez-moi d’illustrer avec des chiffres concrets, d’accord ?"
+				"firstMessage": "Je comprends. Permettez-moi d'illustrer avec des chiffres concrets, d'accord ?"
 			},
 			"toolIds": []
 		},
@@ -595,8 +829,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 2208.4370727539062,
-					"y": 3984.63623046875
+					"x": 3517.1404571533203,
+					"y": 5203.499526977539
 				}
 			},
 			"prompt": "",
@@ -607,8 +841,8 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
@@ -622,8 +856,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1239.023193359375,
-					"y": 5191.848327636719
+					"x": 2872.6170806884766,
+					"y": 6370.639846801758
 				}
 			},
 			"prompt": "Context:\nAfter sharing the statistics, the AI needs to stress the key problem (point crucial) and then validate the prospect's perception of the program.\n\nGoal:\nEmphasize the real risk of being unprepared and gauge the nurse's agreement or interest.\n\nPrompt:\n\"The real problem is that you're often required to stop in an emergency because of your caduceus, but if you don't have the right equipment—like a defibrillator—you're unfortunately left to your own devices in these critical situations.\n\nGiven what I've just explained to you, do you find this program useful and relevant to your work?\"",
@@ -634,22 +868,23 @@
 				"temperature": 0.3
 			},
 			"transcriber": {
-				"model": "nova-3",
-				"language": "multi",
+				"model": "nova-2",
+				"language": "fr",
 				"numerals": true,
 				"provider": "deepgram"
 			},
 			"variableExtractionPlan": {
 				"output": [
 					{
+						"enum": ["INTERESTED", "NOT_INTERESTED", "NEEDS_MORE_INFO"],
 						"type": "string",
-						"title": "variable",
-						"description": ""
+						"title": "interest_level",
+						"description": "this is the intrest level of the user,"
 					}
 				]
 			},
 			"messagePlan": {
-				"firstMessage": "Le vrai problème, c’est qu’en tant qu’infirmier(e) libéral(e), vous êtes souvent amené(e) à vous arrêter pour porter secours grâce à votre caducée. Mais sans le bon équipement, comme un défibrillateur, vous êtes malheureusement livré(e) à vous-même dans des situations critiques.\n\nD’après ce que je viens de vous expliquer, trouvez-vous ce programme utile et pertinent pour votre activité ?"
+				"firstMessage": "Le vrai problème, c'est qu'en tant qu'infirmier(e) libéral(e), vous êtes souvent amené(e) à vous arrêter pour porter secours grâce à votre caducée. Mais sans le bon équipement, comme un défibrillateur, vous êtes malheureusement livré(e) à vous-même dans des situations critiques.\n\nD'après ce que je viens de vous expliquer, trouvez-vous ce programme utile et pertinent pour votre activité ?"
 			},
 			"toolIds": []
 		},
@@ -658,8 +893,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1239.023193359375,
-					"y": 6007.5699462890625
+					"x": 5510.710708618164,
+					"y": 7168.376358032227
 				}
 			},
 			"tool": {
@@ -682,7 +917,7 @@
 				"destinations": [
 					{
 						"type": "number",
-						"number": "+21625448896",
+						"number": "+21629729998",
 						"message": "Parfait ! Je vous mets en relation avec mon collègue qui pourra vous expliquer les détails pratiques. Un instant, je vous transfère.",
 						"transferPlan": {
 							"mode": "warm-transfer-say-summary",
@@ -713,8 +948,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 3157.8509521484375,
-					"y": 6029.5699462890625
+					"x": 1583.5702667236328,
+					"y": 7190.376358032227
 				}
 			},
 			"tool": {
@@ -741,8 +976,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": -40.19537353515625,
-					"y": 5999.5699462890625
+					"x": 4886.187271118164,
+					"y": 7160.376358032227
 				}
 			},
 			"tool": {
@@ -765,7 +1000,7 @@
 				"destinations": [
 					{
 						"type": "number",
-						"number": "+21625448896",
+						"number": "+21629729998",
 						"message": "Je comprends parfaitement vos précautions. Mon collègue pourra vous expliquer toutes les conditions en détail, et bien sûr, sans aucun engagement. Je vous transfère tout de suite.",
 						"transferPlan": {
 							"mode": "warm-transfer-say-summary",
@@ -782,7 +1017,6 @@
 										"content": ""
 									}
 								],
-								"customLlmUrl": "",
 								"timeoutSeconds": 5,
 								"useAssistantLlm": false
 							}
@@ -797,8 +1031,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 599.4139099121094,
-					"y": 6007.5699462890625
+					"x": 4261.663833618164,
+					"y": 7168.376358032227
 				}
 			},
 			"tool": {
@@ -821,7 +1055,7 @@
 				"destinations": [
 					{
 						"type": "number",
-						"number": "+21625448896",
+						"number": "+21629729998",
 						"message": "Excellente question ! Mon collègue spécialisé pourra vous donner toutes les réponses et détails dont vous avez besoin. Je vous transfère immédiatement.",
 						"transferPlan": {
 							"mode": "warm-transfer-say-summary",
@@ -838,7 +1072,6 @@
 										"content": ""
 									}
 								],
-								"customLlmUrl": "",
 								"timeoutSeconds": 5,
 								"useAssistantLlm": false
 							}
@@ -853,8 +1086,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1878.6324462890625,
-					"y": 6019.5699462890625
+					"x": 2248.0936737060547,
+					"y": 7180.376358032227
 				}
 			},
 			"tool": {
@@ -881,8 +1114,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 2518.24169921875,
-					"y": 6029.5699462890625
+					"x": 2872.6170806884766,
+					"y": 7190.376358032227
 				}
 			},
 			"tool": {
@@ -909,8 +1142,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 599.4139099121094,
-					"y": 734.5361785888672
+					"x": 3859.402145385742,
+					"y": 708.1262741088867
 				}
 			},
 			"tool": {
@@ -937,8 +1170,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 289.6092834472656,
-					"y": 2722.028579711914
+					"x": -47.73829650878906,
+					"y": 10427.898086547852
 				}
 			},
 			"tool": {
@@ -961,53 +1194,59 @@
 			}
 		},
 		{
-			"name": "tool_1753831950705",
+			"name": "Reschedule",
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 289.6092834472656,
-					"y": 2051.9632568359375
+					"x": -47.73829650878906,
+					"y": 9789.099960327148
 				}
 			},
-			"toolId": "3bfa64a3-0fd0-4df7-8b70-98400478375f"
+			"toolId": "1ed010b2-47b3-4da0-a44e-a4e5b6cc8d7e"
 		},
 		{
 			"name": "conversation_1753887682299",
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1878.6324462890625,
-					"y": 29.306320190429688
+					"x": 3234.8787384033203,
+					"y": 18.38134765625
 				}
 			},
 			"prompt": "",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 250,
+				"temperature": 0.3
+			},
 			"globalNodePlan": {
 				"enabled": true,
 				"enterCondition": "Détecter quand l'utilisateur indique qu'il ne souhaite plus être contacté — comme dire 'ne m'appelez plus', 'laissez-moi tranquille', ou toute variation d'un refus clair de continuer la communication"
 			},
 			"messagePlan": {
-				"firstMessage": "Vous ne souhaitez plus être contacté(e), c’est bien cela ?"
+				"firstMessage": "Vous ne souhaitez plus être contacté(e), c'est bien cela ?"
 			},
 			"toolIds": []
 		},
 		{
-			"name": "tool_1753887720785",
+			"name": "blacklist-1",
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1878.6324462890625,
-					"y": 728.5361785888672
+					"x": 3234.8787384033203,
+					"y": 702.1262741088867
 				}
 			},
-			"toolId": "25308234-d387-41fd-8ba8-81312f25badd"
+			"toolId": "6862d44b-749b-4b69-9f03-5965c4a76ee3"
 		},
 		{
 			"name": "hangup_1753887748996",
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1878.6324462890625,
-					"y": 1377.6112823486328
+					"x": 3234.8787384033203,
+					"y": 1342.4590454101562
 				}
 			},
 			"tool": {
@@ -1034,11 +1273,11 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1239.023193359375,
-					"y": 728.5361785888672
+					"x": 1583.5702667236328,
+					"y": 2013.3974151611328
 				}
 			},
-			"toolId": "25308234-d387-41fd-8ba8-81312f25badd"
+			"toolId": "6862d44b-749b-4b69-9f03-5965c4a76ee3"
 		}
 	],
 	"edges": [
@@ -1051,19 +1290,11 @@
 			}
 		},
 		{
-			"from": "Busy or rushed user",
-			"to": "Question de découverte",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l'utilisateur accepte d'entendre une explication rapide ou montre de l'intérêt"
-			}
-		},
-		{
 			"from": "introduction",
 			"to": "reschedule node",
 			"condition": {
 				"type": "ai",
-				"prompt": "si l'utilisateur demande à être rappelé, dit 'pas maintenant' ou souhaite programmer un autre moment"
+				"prompt": "si la variable reschedule_intent est 'YES' ou si l'utilisateur exprime clairement le désir d'être rappelé plus tard, propose un autre moment, dit 'pas maintenant', 'plus tard', 'je suis occupé', 'rappelez-moi', 'programmez un autre moment', ou indique qu'il n'a pas le temps en ce moment mais souhaite être recontacté"
 			}
 		},
 		{
@@ -1083,6 +1314,254 @@
 			}
 		},
 		{
+			"from": "introduction",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la réponse de l'utilisateur est ambiguë, confuse ou difficile à interpréter"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "Question de découverte",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur indique être intéressé ou vouloir en savoir plus"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "Busy or rushed user",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur indique être occupé ou pressé"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "reschedule node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur exprime clairement le désir d'être rappelé plus tard, propose un autre moment, dit 'pas maintenant', 'plus tard', 'je suis occupé', 'rappelez-moi', 'programmez un autre moment', ou indique qu'il n'a pas le temps en ce moment mais souhaite être recontacté"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "hangup_1753546897528",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur refuse ou dit ne pas être intéressé"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "error_recovery",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la conversation prend une tournure inattendue ou si une erreur technique se produit"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "Explication de program",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur veut entendre l'explication du programme ou dit qu'il ne connaît pas PRESTA LIB"
+			}
+		},
+		{
+			"from": "clarification_node",
+			"to": "2 statistics",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur veut entendre des chiffres ou des statistiques"
+			}
+		},
+		{
+			"from": "transfer_1753559232930",
+			"to": "transfer_retry",
+			"condition": {
+				"type": "ai",
+				"prompt": "si le transfert échoue ou l'utilisateur indique un problème de connexion"
+			}
+		},
+		{
+			"from": "transfer_1753558187858",
+			"to": "transfer_retry",
+			"condition": {
+				"type": "ai",
+				"prompt": "si le transfert échoue ou l'utilisateur indique un problème de connexion"
+			}
+		},
+		{
+			"from": "transfer_1753564858122",
+			"to": "transfer_retry",
+			"condition": {
+				"type": "ai",
+				"prompt": "si le transfert échoue ou l'utilisateur indique un problème de connexion"
+			}
+		},
+		{
+			"from": "transfer_1753622856507",
+			"to": "transfer_retry",
+			"condition": {
+				"type": "ai",
+				"prompt": "si le transfert échoue ou l'utilisateur indique un problème de connexion"
+			}
+		},
+		{
+			"from": "Transfer Call Copy",
+			"to": "transfer_retry",
+			"condition": {
+				"type": "ai",
+				"prompt": "si le transfert échoue ou l'utilisateur indique un problème de connexion"
+			}
+		},
+		{
+			"from": "transfer_retry",
+			"to": "transfer_1753559232930",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur choisit de réessayer le transfert"
+			}
+		},
+		{
+			"from": "transfer_retry",
+			"to": "reschedule node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur exprime clairement le désir d'être rappelé plus tard, propose un autre moment, dit 'pas maintenant', 'plus tard', 'je suis occupé', 'rappelez-moi', 'programmez un autre moment', ou indique qu'il n'a pas le temps en ce moment mais souhaite être recontacté"
+			}
+		},
+		{
+			"from": "transfer_retry",
+			"to": "hangup_1753546897528",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur souhaite mettre fin à l'appel"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "Question de découverte",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur veut continuer et n'a pas encore entendu l'explication du programme"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "Explication de program",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur veut entendre l'explication du programme ou n'est pas familier avec PRESTA LIB"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "2 statistics",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur veut entendre les statistiques ou était en train de discuter des chiffres"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "Crucial point",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur était proche de la fin de la présentation ou veut connaître les détails pratiques"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur dit quelque chose d'inattendu, de confus ou hors contexte"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "reschedule node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur exprime clairement le désir d'être rappelé plus tard, propose un autre moment, dit 'pas maintenant', 'plus tard', 'je suis occupé', 'rappelez-moi', 'programmez un autre moment', ou indique qu'il n'a pas le temps en ce moment mais souhaite être recontacté"
+			}
+		},
+		{
+			"from": "error_recovery",
+			"to": "hangup_1753546897528",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur souhaite mettre fin à l'appel"
+			}
+		},
+		{
+			"from": "Question de découverte",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la réponse de l'utilisateur est ambiguë, confuse ou difficile à interpréter"
+			}
+		},
+		{
+			"from": "Busy or rushed user",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la réponse de l'utilisateur est ambiguë, confuse ou difficile à interpréter"
+			}
+		},
+		{
+			"from": "Explication de program",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la réponse de l'utilisateur est ambiguë, confuse ou difficile à interpréter"
+			}
+		},
+		{
+			"from": "2 statistics",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la réponse de l'utilisateur est ambiguë, confuse ou difficile à interpréter"
+			}
+		},
+		{
+			"from": "Crucial point",
+			"to": "clarification_node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si la réponse de l'utilisateur est ambiguë, confuse ou difficile à interpréter"
+			}
+		},
+		{
+			"from": "Busy or rushed user",
+			"to": "Question de découverte",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur accepte d'entendre une explication rapide ou montre de l'intérêt"
+			}
+		},
+		{
+			"from": "Busy or rushed user",
+			"to": "reschedule node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur exprime clairement le désir d'être rappelé plus tard, propose un autre moment, dit 'pas maintenant', 'plus tard', 'je suis occupé', 'rappelez-moi', 'programmez un autre moment', ou indique qu'il n'a pas le temps en ce moment mais souhaite être recontacté"
+			}
+		},
+		{
+			"from": "Busy or rushed user",
+			"to": "hangup_1753546897528",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur refuse un rappel ou dit ne pas être intéressé du tout"
+			}
+		},
+		{
 			"from": "Question de découverte",
 			"to": "the user is familiar",
 			"condition": {
@@ -1099,11 +1578,11 @@
 			}
 		},
 		{
-			"from": "the user is familiar",
-			"to": "transfer_1753558187858",
+			"from": "Question de découverte",
+			"to": "Explication de program",
 			"condition": {
 				"type": "ai",
-				"prompt": "si l'utilisateur confirme avoir déjà été contacté par nos équipes PRESTA LIB"
+				"prompt": "si l'utilisateur dit que c'est la première fois qu'il entend parler du programme"
 			}
 		},
 		{
@@ -1112,6 +1591,14 @@
 			"condition": {
 				"type": "ai",
 				"prompt": "si l'utilisateur exprime clairement un désintérêt ou un refus"
+			}
+		},
+		{
+			"from": "the user is familiar",
+			"to": "transfer_1753558187858",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur confirme avoir déjà été contacté par nos équipes PRESTA LIB"
 			}
 		},
 		{
@@ -1195,22 +1682,6 @@
 			}
 		},
 		{
-			"from": "Question de découverte",
-			"to": "Explication de program",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l'utilisateur dit que c'est la première fois qu'il entend parler du programme"
-			}
-		},
-		{
-			"from": "Busy or rushed user",
-			"to": "reschedule node",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l'utilisateur demande un rappel, propose un meilleur moment ou dit 'plus tard'"
-			}
-		},
-		{
 			"from": "Crucial point",
 			"to": "transfer_1753622856507",
 			"condition": {
@@ -1260,18 +1731,10 @@
 		},
 		{
 			"from": "reschedule node",
-			"to": "hangup_1753546897528",
+			"to": "default_reschedule_tomorrow",
 			"condition": {
 				"type": "ai",
-				"prompt": "si l'utilisateur refuse de donner un horaire ou évite de planifier"
-			}
-		},
-		{
-			"from": "Busy or rushed user",
-			"to": "hangup_1753546897528",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l'utilisateur refuse un rappel ou dit ne pas être intéressé du tout"
+				"prompt": "si l'utilisateur ne donne pas de date précise, évite de planifier, ou si aucune variable reschedule_date n'a pu être extraite après plusieurs tentatives"
 			}
 		},
 		{
@@ -1284,14 +1747,30 @@
 		},
 		{
 			"from": "reschedule node",
-			"to": "tool_1753831950705",
+			"to": "Reschedule",
 			"condition": {
 				"type": "ai",
-				"prompt": "si l'utilisateur donne une date ou un horaire valide pour un rappel"
+				"prompt": "si l'utilisateur donne une date et heure spécifiques pour un rappel, ou confirme un créneau proposé, et que la variable reschedule_date a été extraite avec succès au format ISO valide"
 			}
 		},
 		{
-			"from": "tool_1753831950705",
+			"from": "default_reschedule_tomorrow",
+			"to": "Reschedule",
+			"condition": {
+				"type": "ai",
+				"prompt": ""
+			}
+		},
+		{
+			"from": "reschedule node",
+			"to": "hangup_1753546897528",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur refuse explicitement d'être rappelé, dit qu'il n'est pas intéressé du tout, ou demande de ne plus être contacté"
+			}
+		},
+		{
+			"from": "Reschedule",
 			"to": "hangup_1753627951367",
 			"condition": {
 				"type": "ai",
@@ -1300,14 +1779,14 @@
 		},
 		{
 			"from": "conversation_1753887682299",
-			"to": "tool_1753887720785",
+			"to": "blacklist-1",
 			"condition": {
 				"type": "ai",
 				"prompt": "si l'utilisateur parle"
 			}
 		},
 		{
-			"from": "tool_1753887720785",
+			"from": "blacklist-1",
 			"to": "hangup_1753887748996",
 			"condition": {
 				"type": "ai",
@@ -1323,6 +1802,22 @@
 			}
 		},
 		{
+			"from": "conversation_1753553554440",
+			"to": "error_recovery",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur s'excuse, se calme ou demande à continuer la conversation normalement"
+			}
+		},
+		{
+			"from": "conversation_1753553554440",
+			"to": "reschedule node",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l'utilisateur exprime clairement le désir d'être rappelé plus tard, propose un autre moment, dit 'pas maintenant', 'plus tard', 'je suis occupé', 'rappelez-moi', 'programmez un autre moment', ou indique qu'il n'a pas le temps en ce moment mais souhaite être recontacté"
+			}
+		},
+		{
 			"from": "blacklist",
 			"to": "hangup_1753554610820",
 			"condition": {
@@ -1331,5 +1826,5 @@
 			}
 		}
 	],
-	"globalPrompt": "[Identité]\nVous êtes Anthony Monaldi de PRESTALIB.\nVous êtes français et parlez français, seulement si quelqu'un veut parler en anglais et le dit explicitement, alors vous pouvez passer à l'anglais.\n\n[Style]\n\nTon amical et consultatif\n\nParlez clairement avec un comportement chaleureux et professionnel\n\nGardez la conversation naturelle et centrée sur l'aide\n\nLangue principale : Français, ne répondez pas dans une autre langue.\n\nCaractéristiques :\nProfessionnel mais chaleureux\n\nRespectueux du temps du prospect\n\nClair et concis dans les explications\n\nEmpathique face aux objections\n\nDéterminé mais pas insistant\n\nRègles importantes :\nNe jamais interrompre le prospect\n\nLaissez des pauses pour les réponses\n\nAjustez le rythme selon leurs réactions\n\nRestez poli même en cas de refus\n\nNe vous disputez pas contre les objections fortes\n\nPhrases interdites :\n« Vous avez tort de... »\n\n« Mais écoutez-moi... »\n\n« Laissez-moi finir... »\n\n« C'est gratuit ! » (évitez de parler d'argent)\n\n« Vous devriez... »\n\n[PRESTA LIB]\nQu'est-ce que PRESTA LIB ?\nPRESTA LIB est présenté comme un programme national de prévention contre les arrêts cardiaques et les décès soudains, ciblant spécifiquement les infirmiers libéraux (infirmiers/infirmières libéraux).\n\nLe programme vise à :\n\nSensibiliser les professionnels de santé indépendants aux risques et à la fréquence des arrêts cardiaques, notamment sur les routes et au domicile des patients.\n\nEncourager l'équipement approprié (ex : défibrillateurs) pour les infirmiers qui sont souvent sur la route et peuvent rencontrer des urgences.\n\nSoutenir les efforts de réponse d'urgence en s'assurant que les professionnels de santé sont préparés à agir rapidement lors de situations d'arrêt cardiaque.\n\nStructure de l'intervention\nL'intervention est structurée en deux étapes principales :\n\nPrésentation du programme :\nL'IA (ou l'appelant) présente d'abord le programme aux infirmiers libéraux, expliquant l'importance et les avantages d'être équipé et formé pour les urgences cardiaques.\n\nÉvaluation de l'éligibilité :\nAprès la présentation, le programme évalue si l'infirmier est éligible à une aide pour acquérir un défibrillateur (potentiellement avec un soutien financier ou logistique), particulièrement pour son véhicule (puisque de nombreux arrêts cardiaques se produisent sur la route).\n\nPoints de soutien clés (Statistiques)\n90% des arrêts cardiaques se produisent soit sur la route, soit au domicile.\nComme les infirmiers libéraux voyagent souvent entre les domiciles des patients, ils ont 50/50 de chances d'être présents dans de tels scénarios.\n\n60% des cas où des vies ont été sauvées lors d'une fibrillation ventriculaire étaient dus à une infirmière intervenant à temps lors d'un accident.\n\nCes statistiques sont utilisées pour justifier pourquoi équiper les infirmiers de défibrillateurs est une étape cruciale pour sauver des vies.\n\nPoint crucial mis en évidence\nLe script souligne que si les infirmiers sont tenus de s'arrêter et de porter secours (en raison de leur profession médicale et de leurs obligations légales, appelées le Caducée), mais n'ont pas le bon équipement, ils sont « livrés à eux-mêmes » lors des urgences.\n\nCela souligne pourquoi le programme est « utile et intelligent » — pour protéger à la fois le public et les infirmiers eux-mêmes.\n\n\n"
+	"globalPrompt": "[Identité]\nVous êtes Anthony Monaldi de PRESTA LIB.\n\n[Style]\n- Ton chaleureux et professionnel\n- Français uniquement (sauf demande explicite d'anglais)\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec le nom quand possible\n\n[Règles]\n- Ne jamais interrompre\n- Restez poli même en cas de refus\n- Évitez : 'Vous avez tort', 'Mais écoutez-moi', 'C'est gratuit', 'Vous devriez'\n\n[PRESTA LIB]\nProgramme national de prévention des arrêts cardiaques pour infirmiers libéraux.\n\nObjectifs :\n- Sensibiliser aux risques (90% des arrêts sur route/domicile)\n- Encourager l'équipement en défibrillateurs\n- Évaluer l'éligibilité à une aide financière\n\nStatistiques clés :\n- 90% des arrêts cardiaques : route ou domicile\n- 60% des vies sauvées : intervention d'infirmiers\n\nPoint crucial : Les infirmiers doivent s'arrêter pour porter secours (caducée) mais souvent sans équipement adéquat."
 }
