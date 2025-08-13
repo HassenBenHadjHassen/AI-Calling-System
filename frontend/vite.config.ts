@@ -15,39 +15,13 @@ export default defineConfig(({ mode }) => {
 		build: {
 			// Enable source maps for debugging
 			sourcemap: mode === "development",
-			// Optimize chunk size
-			rollupOptions: {
-				output: {
-					manualChunks: {
-						// Separate vendor chunks for better caching
-						ui: [
-							"lucide-react",
-							"@radix-ui/react-dialog",
-							"@radix-ui/react-dropdown-menu",
-						],
-						utils: ["clsx", "class-variance-authority", "tailwind-merge"],
-						i18n: ["i18next", "react-i18next"],
-					},
-				},
-			},
+			
 			// Optimize dependencies
 			commonjsOptions: {
 				include: [/node_modules/],
 			},
 		},
-		optimizeDeps: {
-			// Pre-bundle dependencies for faster dev server
-			include: [
-				"lucide-react",
-				"@radix-ui/react-dialog",
-				"@radix-ui/react-dropdown-menu",
-				"clsx",
-				"class-variance-authority",
-				"tailwind-merge",
-				"i18next",
-				"react-i18next",
-			],
-		},
+
 		// Improve dev server performance
 		server: {
 			hmr: {
