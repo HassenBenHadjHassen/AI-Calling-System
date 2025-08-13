@@ -1,13 +1,13 @@
 import { PrismaClient, ScheduledCallStatus, LeadStatus } from "@prisma/client";
-import { CallService } from "./callService";
+import { callService } from "./callService";
 import { LeadRepository } from "../repositories/leadRepository";
 import { callStatusPoller } from "./callStatusPoller";
 import prismaSingleton from "../db/prisma";
 
 export class ScheduledCallScheduler {
 	private prisma: PrismaClient;
-	private callService: CallService;
-	private leadRepository: LeadRepository;
+	private callService = callService;
+	private leadRepository = new LeadRepository();
 	private schedulerInterval: NodeJS.Timeout | null = null;
 	private reconcileInterval: NodeJS.Timeout | null = null;
 	private readonly CHECK_INTERVAL = 60000; // Check every minute
@@ -16,8 +16,6 @@ export class ScheduledCallScheduler {
 
 	constructor() {
 		this.prisma = prismaSingleton;
-		this.callService = new CallService();
-		this.leadRepository = new LeadRepository();
 	}
 
 	/**

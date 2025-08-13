@@ -479,6 +479,22 @@ const resources = {
 				cannotScheduleInPast:
 					"Cannot schedule a call in the past. Please select a future date and time.",
 				viewDetails: "View Details",
+				// Error messages for call triggering
+				callTriggerError: "Failed to trigger call. Please try again.",
+				errorBlacklistedLead:
+					"Cannot call this lead - it has been blacklisted.",
+				errorInvalidStatus:
+					"Cannot call this lead - only NEW leads can be called.",
+				errorScheduledTime: "Cannot call before the scheduled time.",
+				errorLeadNotFound: "Lead not found. Please refresh the page.",
+				errorVapiService:
+					"Call service is temporarily unavailable. Please try again later.",
+				errorNetwork:
+					"Network error. Please check your connection and try again.",
+				// Success messages for call triggering
+				callTriggeredSuccess: "Call triggered successfully",
+				callQueuedSuccess:
+					"Call queued successfully. Position in queue: {position}",
 			},
 
 			// Call Detail
@@ -1038,6 +1054,23 @@ const resources = {
 				cannotScheduleInPast:
 					"Impossible de programmer un appel dans le passé. Veuillez sélectionner une date et heure futures.",
 				viewDetails: "Voir les Détails",
+				// Error messages for call triggering
+				callTriggerError:
+					"Échec du déclenchement de l'appel. Veuillez réessayer.",
+				errorBlacklistedLead:
+					"Impossible d'appeler ce prospect - il a été mis sur liste noire.",
+				errorInvalidStatus:
+					"Impossible d'appeler ce prospect - seuls les NOUVEAUX prospects peuvent être appelés.",
+				errorScheduledTime: "Impossible d'appeler avant l'heure programmée.",
+				errorLeadNotFound: "Prospect non trouvé. Veuillez actualiser la page.",
+				errorVapiService:
+					"Le service d'appel est temporairement indisponible. Veuillez réessayer plus tard.",
+				errorNetwork:
+					"Erreur réseau. Veuillez vérifier votre connexion et réessayer.",
+				// Success messages for call triggering
+				callTriggeredSuccess: "Appel déclenché avec succès",
+				callQueuedSuccess:
+					"Appel mis en file d'attente avec succès. Position: {position}",
 			},
 
 			// Call Detail

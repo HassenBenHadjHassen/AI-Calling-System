@@ -2,6 +2,7 @@ import { CallRepository } from "../repositories/callRepository";
 import { LeadRepository } from "../repositories/leadRepository";
 import { vapiService } from "./vapiService";
 import { socketService } from "./socketService";
+import { activeCallManager } from "./activeCallManager";
 import { LeadStatus, CallStatus } from "@prisma/client";
 
 interface PollingSession {
@@ -21,11 +22,22 @@ interface PollingConfig {
 	lookbackMinutes: number;
 }
 
+// Track scheduled leads to prevent status overrides
+interface ScheduledLeadTracker {
+	leadId: string;
+	scheduledAt: number;
+}
+
 export class CallStatusPoller {
 	private readonly activePollers: Map<string, PollingSession> = new Map();
 	private readonly callRepository: CallRepository;
 	private readonly leadRepository: LeadRepository;
 	private batchReconcileInterval?: NodeJS.Timeout;
+
+	// Track scheduled leads to prevent status overrides for 1 minute
+	private readonly scheduledLeads: Map<string, ScheduledLeadTracker> =
+		new Map();
+	private readonly SCHEDULE_PROTECTION_DURATION = 60000; // 1 minute in milliseconds
 
 	private readonly config: PollingConfig = {
 		activeCallInterval: 5000, // 5 seconds for active calls
@@ -40,6 +52,66 @@ export class CallStatusPoller {
 	constructor() {
 		this.callRepository = new CallRepository();
 		this.leadRepository = new LeadRepository();
+
+		// Clean up expired scheduled lead entries every 30 seconds
+		setInterval(() => {
+			this.cleanupExpiredScheduledLeads();
+		}, 30000);
+	}
+
+	/**
+	 * Track a lead as recently scheduled to prevent status overrides
+	 */
+	public trackScheduledLead(leadId: string): void {
+		this.scheduledLeads.set(leadId, {
+			leadId,
+			scheduledAt: Date.now(),
+		});
+		console.log(
+			`📅 Tracking scheduled lead ${leadId} - status changes blocked for 1 minute`
+		);
+	}
+
+	/**
+	 * Check if a lead is protected from status changes
+	 */
+	private isLeadStatusProtected(leadId: string): boolean {
+		const tracker = this.scheduledLeads.get(leadId);
+		if (!tracker) return false;
+
+		const timeSinceScheduled = Date.now() - tracker.scheduledAt;
+		const isProtected = timeSinceScheduled < this.SCHEDULE_PROTECTION_DURATION;
+
+		if (isProtected) {
+			console.log(
+				`📅 Lead ${leadId} is protected from status changes (${Math.round(
+					(this.SCHEDULE_PROTECTION_DURATION - timeSinceScheduled) / 1000
+				)}s remaining)`
+			);
+		}
+
+		return isProtected;
+	}
+
+	/**
+	 * Clean up expired scheduled lead entries
+	 */
+	private cleanupExpiredScheduledLeads(): void {
+		const now = Date.now();
+		let cleanedCount = 0;
+
+		for (const [leadId, tracker] of this.scheduledLeads.entries()) {
+			if (now - tracker.scheduledAt >= this.SCHEDULE_PROTECTION_DURATION) {
+				this.scheduledLeads.delete(leadId);
+				cleanedCount++;
+			}
+		}
+
+		if (cleanedCount > 0) {
+			console.log(
+				`📅 Cleaned up ${cleanedCount} expired scheduled lead entries`
+			);
+		}
 	}
 
 	/**
@@ -251,6 +323,9 @@ export class CallStatusPoller {
 			// Update call status and duration/cost in database
 			await this.callRepository.updateStatus(dbCallId, newStatus);
 
+			// Remove call from active calls since it has reached terminal status
+			activeCallManager.removeActiveCall(dbCallId);
+
 			// Check if the call ended with "customer-did-not-answer" reason
 			const isCustomerDidNotAnswer =
 				endReason && endReason.toLowerCase() === "customer-did-not-answer";
@@ -259,38 +334,47 @@ export class CallStatusPoller {
 				endReason && endReason.toLowerCase() === "customer-busy";
 
 			// Try to get duration from Vapi response, fallback to computing from timestamps
-			let vapiDuration = (vapiCall as any)?.duration as number | undefined;
-			if (vapiDuration === undefined) {
-				vapiDuration = this.computeDurationFromTimestamps(vapiCall);
-				if (vapiDuration !== undefined) {
-					console.log(
-						`📞 Computed duration from timestamps in handleTerminalStatus: ${vapiDuration} seconds`
-					);
-				}
+			const vapiDuration = this.computeDurationFromTimestamps(vapiCall);
+			if (vapiDuration !== undefined) {
+				console.log(
+					`📞 Computed duration from timestamps in handleTerminalStatus: ${vapiDuration} seconds`
+				);
 			}
 
 			const vapiCost = vapiCall.cost;
 
-			// If customer did not answer, set duration and cost to 0
+			// If customer did not answer, set duration to 0
 			if (isCustomerDidNotAnswer || customerBusy) {
 				console.log(
 					`📞 Call ended with customer-did-not-answer, setting duration and cost to 0`
 				);
-				await this.callRepository.updateDuration(dbCallId, 0, 0);
+				await this.callRepository.updateDuration(dbCallId, 0);
+			}
+			// Update duration and cost if available
+			else if (vapiDuration !== undefined || vapiCost !== undefined) {
+				await this.callRepository.updateDuration(
+					dbCallId,
+					vapiDuration || 0,
+					vapiCost
+				);
 			} else {
-				// Update duration and cost if available
-				if (vapiDuration !== undefined || vapiCost !== undefined) {
-					await this.callRepository.updateDuration(
-						dbCallId,
-						vapiDuration || 0,
-						vapiCost
-					);
-				}
+				console.log(
+					`📞 Call ended with unknown reason, setting duration and cost to 0`
+				);
+				await this.callRepository.updateDuration(dbCallId, 0);
 			}
 
 			// Update lead status based on call outcome
 			const dbCall = await this.callRepository.findById(dbCallId);
 			if (dbCall) {
+				// Check if lead is protected from status changes (recently scheduled)
+				if (this.isLeadStatusProtected(dbCall.leadId)) {
+					console.log(
+						`📅 Skipping lead status update for ${dbCall.leadId} - lead is protected due to recent scheduling`
+					);
+					return;
+				}
+
 				let newLeadStatus: LeadStatus;
 
 				if (newStatus === CallStatus.TRANSFERRED) {
@@ -677,6 +761,9 @@ export class CallStatusPoller {
 
 					await this.callRepository.updateStatus(call.id, newStatus);
 
+					// Remove call from active calls since it has reached terminal status
+					activeCallManager.removeActiveCall(call.id);
+
 					// Check if the call ended with "customer-did-not-answer" reason
 					const isCustomerDidNotAnswer =
 						endReason && endReason.toLowerCase() === "customer-did-not-answer";
@@ -726,10 +813,38 @@ export class CallStatusPoller {
 	getPollingStats(): {
 		activePollers: number;
 		config: PollingConfig;
+		scheduledLeadsCount: number;
 	} {
 		return {
 			activePollers: this.activePollers.size,
 			config: this.config,
+			scheduledLeadsCount: this.scheduledLeads.size,
+		};
+	}
+
+	/**
+	 * Get scheduled lead protection status for debugging
+	 */
+	getScheduledLeadStatus(leadId: string): {
+		isProtected: boolean;
+		timeRemaining?: number;
+		scheduledAt?: number;
+	} {
+		const tracker = this.scheduledLeads.get(leadId);
+		if (!tracker) {
+			return { isProtected: false };
+		}
+
+		const timeSinceScheduled = Date.now() - tracker.scheduledAt;
+		const isProtected = timeSinceScheduled < this.SCHEDULE_PROTECTION_DURATION;
+		const timeRemaining = isProtected
+			? this.SCHEDULE_PROTECTION_DURATION - timeSinceScheduled
+			: 0;
+
+		return {
+			isProtected,
+			timeRemaining,
+			scheduledAt: tracker.scheduledAt,
 		};
 	}
 

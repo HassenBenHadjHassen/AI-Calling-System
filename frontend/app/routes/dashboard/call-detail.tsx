@@ -28,7 +28,7 @@ import { Sidebar } from "~/components/dashboard/sidebar";
 import { Topbar } from "~/components/dashboard/topbar";
 import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { formatDate, formatPhoneNumber, formatDuration } from "~/lib/utils";
-import { callAPI, type CallHistory } from "~/services/api";
+import { callAPI } from "~/services/api";
 import { currencyService } from "~/services/currencyService";
 
 const statusColors: Record<string, string> = {

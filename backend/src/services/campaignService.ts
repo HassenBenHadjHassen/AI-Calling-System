@@ -1,6 +1,6 @@
 import { CampaignRepository } from "../repositories/campaignRepository";
 import { LeadRepository } from "../repositories/leadRepository";
-import { CallService } from "./callService";
+import { callService } from "./callService";
 import { CampaignStatus, LeadStatus, Campaign, Lead } from "@prisma/client";
 
 // Define a type for Campaign with leads included
@@ -9,15 +9,9 @@ type CampaignWithLeads = Campaign & {
 };
 
 export class CampaignService {
-	private campaignRepository: CampaignRepository;
-	private leadRepository: LeadRepository;
-	private callService: CallService;
-
-	constructor() {
-		this.campaignRepository = new CampaignRepository();
-		this.leadRepository = new LeadRepository();
-		this.callService = new CallService();
-	}
+	private campaignRepository = new CampaignRepository();
+	private leadRepository = new LeadRepository();
+	private callService = callService;
 
 	async startCampaign(campaignId: string): Promise<any> {
 		try {

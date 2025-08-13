@@ -1,14 +1,10 @@
 import { Request, Response } from "express";
-import { CallService } from "../services/callService";
+import { callService } from "../services/callService";
 import { ResponseUtils } from "../utils/responseUtils";
 import { socketService } from "../services/socketService";
 
 export class CallController {
-	private readonly callService: CallService;
-
-	constructor() {
-		this.callService = new CallService();
-	}
+	private readonly callService = callService;
 
 	async triggerCall(req: Request, res: Response): Promise<void> {
 		try {

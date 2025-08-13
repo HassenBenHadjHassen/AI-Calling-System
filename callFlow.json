@@ -1,5 +1,5 @@
 {
-	"name": "Updated Presta Lib Call Flow",
+	"name": "Presta Lib Call Flow",
 	"nodes": [
 		{
 			"name": "introduction",
@@ -7,11 +7,11 @@
 			"isStart": true,
 			"metadata": {
 				"position": {
-					"x": 5186.573913574219,
-					"y": -132.9257049560547
+					"x": 5494.950714111328,
+					"y": -134.3014144897461
 				}
 			},
-			"prompt": "[Identité]\nVous êtes Anthony Monaldi, un représentant chaleureux et professionnel de PRESTA LIB.\n\n[Rôle] Vérifiez leur disponibilité et intérêt pour le programme PRESTA LIB.\n\n[Instructions]\n- Évaluez si l'utilisateur veut être rappelé plus tard\n- Si l'utilisateur exprime le souhait d'être rappelé plus tard, de reporter, de reprogrammer, ou utilise toute formulation similaire (ex. ‘rappeler plus tard’, ‘reporter l’appel’, ‘changer l’heure’), ne lui demandez pas de date ou d’heure, et transférez-le directement au nœud de reprogrammation.\n- Si l'utilisateur indique qu'il est occupé, indisponible ou qu'il n'a pas le temps pour le moment (par exemple, « Je suis occupé », « Pas disponible », « Je n'ai pas le temps », « Je suis en réunion »), transmettez-le au nœud « busy or rushed user »\n\n\n[Style]\n- Ton calme et empathique\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec leur nom si disponible",
+			"prompt": "[Identité]\nVous êtes Anthony Monaldi, un représentant chaleureux et professionnel de PRESTA LIB.\n\n[Rôle] Vérifiez leur disponibilité et intérêt pour le programme PRESTA LIB.\n\n[Instructions]\nsi l'utilisateur exprime son intérêt pour le programme et confirme qu'il est disponible, puis passe le thème au nœud suivant\n\nSi l’utilisateur exprime le souhait d’être rappelé plus tard, de reporter, de reprogrammer ou utilise toute formulation similaire (par ex. « rappeler plus tard », « reporter l’appel », « changer l’heure »), ne demandez pas de date ou d’heure et transférez-le directement vers le nœud de reprogrammation.\n\nSi l’utilisateur indique qu’il est occupé, indisponible ou qu’il n’a pas le temps pour le moment (par ex. « je suis occupé », « pas disponible », « je n’ai pas le temps », « je suis en réunion »), transférez-le vers le nœud « Utilisateur occupé ou pressé ».\n\n\n[Style]\n- Ton calme et empathique\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec leur nom si disponible",
 			"model": {
 				"model": "gpt-4o-mini",
 				"provider": "openai",
@@ -37,8 +37,8 @@
 							"AVAILABLE",
 							"BUSY",
 							"IN_A_HURRY",
-							"WANTS_RESCHEDULE",
-							"NEEDS_CLARIFICATION"
+							"NEEDS_CLARIFICATION",
+							"WANTS_RESCHEDULE"
 						],
 						"type": "string",
 						"title": "user_availability",
@@ -59,7 +59,7 @@
 				]
 			},
 			"messagePlan": {
-				"firstMessage": "Bonjour {{title}} {{name}}, Anthony Monaldi à l'appareil. Je vous appelle concernant un programme de prévention pour les infirmiers libéraux. Avez-vous un moment ?"
+				"firstMessage": "Bonjour {{title}} {{name}}, Anthony Monaldi à l'appareil. Je vous appelle concernant un programme de prévention pour les infirmiers libéraux. Comment vas-tu ??"
 			},
 			"toolIds": []
 		},
@@ -68,8 +68,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 5186.573913574219,
-					"y": 1208.5425872802734
+					"x": 5494.950714111328,
+					"y": 1202.3388977050781
 				}
 			},
 			"prompt": "[Contexte]\nL'utilisateur a donné une réponse ambiguë, hors contexte, ou difficile à interpréter.\n\n[Objectif]\nClarifier poliment la réponse de l'utilisateur et l'aider à reprendre la conversation sur le programme PRESTA LIB.\n\n[Style]\n- Restez calme et professionnel\n- Posez une question simple et directe\n- Donnez des options claires\n- Revenez au sujet principal",
@@ -105,8 +105,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 4336.590393066406,
-					"y": 7729.831741333008
+					"x": 4647.458770751953,
+					"y": 7704.227935791016
 				}
 			},
 			"prompt": "[Contexte]\nLe transfert précédent a échoué ou l'utilisateur a été déconnecté.\n\n[Objectif]\nRassurer l'utilisateur et proposer une solution alternative (nouveau transfert ou rappel).\n\n[Style]\n- Soyez empathique et rassurant\n- Proposez des options claires\n- Restez professionnel",
@@ -142,8 +142,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 5186.573913574219,
-					"y": 1869.5258026123047
+					"x": 5494.950714111328,
+					"y": 1860.7679748535156
 				}
 			},
 			"prompt": "[Contexte]\nL'utilisateur s'est excusé après avoir utilisé un langage inapproprié ou la conversation a pris une tournure inattendue.\n\n[Objectif]\nReconnaître l'excuse avec bienveillance et reprendre la conversation là où elle s'était arrêtée.\n\n[Style]\n- Soyez compréhensif et professionnel\n- Revenez naturellement au sujet précédent\n- Ne faites pas référence à l'incident\n- Continuez comme si rien ne s'était passé",
@@ -184,8 +184,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 316.65576171875,
-					"y": 7719.831741333008
+					"x": 314.9945068359375,
+					"y": 7694.227935791016
 				}
 			},
 			"prompt": "[Contexte]\nL'utilisateur demande explicitement à parler à un humain/conseiller/opérateur.\n\n[Objectif]\nConfirmer la demande et recueillir brièvement le motif principal afin d'orienter le transfert.\n\n[Instructions]\n- Confirmez la prise en charge et rassurez sur la mise en relation rapide\n- Demandez en une phrase l'objet principal (ex. \"en deux mots, quel est l'objet de votre demande ?\")\n- Restez concis, courtois et professionnel",
@@ -225,8 +225,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 6059.072492281085,
-					"y": 342.4639588443383
+					"x": 5494.950714111328,
+					"y": 580.5654983520508
 				}
 			},
 			"prompt": "[Contexte]\nVous venez de vous présenter et d'introduire le programme PRESTA LIB. La personne indique qu'elle est occupée ou pressée.\n\n[Objectif]\nReconnaître poliment sa situation, expliquer brièvement la valeur du programme et proposer un choix respectueux : continuer maintenant ou planifier un rappel.\n\n[Instructions]\n- Soyez empathique et compréhensif\n- Proposez des options claires : continuer maintenant (2 minutes) ou rappel plus tard\n- Si l'utilisateur choisit le rappel, capturez ses préférences\n- Capturez la raison du report si elle est donnée\n\n[Prompt]\nJe comprends parfaitement que vous soyez occupé(e). Il s'agit simplement d'un programme national de prévention des arrêts cardiaques, conçu spécialement pour les infirmiers libéraux. Je peux vous en donner l'essentiel en moins de deux minutes, ou préférez-vous que je vous rappelle à un moment plus approprié ?",
@@ -288,8 +288,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 4156.59033203125,
-					"y": 2592.011672973633
+					"x": 4467.458892822266,
+					"y": 2581.1046447753906
 				}
 			},
 			"prompt": "[Contexte]\nVous avez terminé l'introduction. Le prospect est neutre ou montre un intérêt suffisant pour continuer.\n\n[Objectif]\nVérifier uniquement si la personne connaît déjà le programme PRESTA LIB, puis la rediriger vers le bon nœud.\n\n[Prompt]\nÊtes-vous déjà familier(e) avec le programme de prévention des arrêts cardiaques PRESTA LIB ?",
@@ -325,8 +325,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1328.6302343836278,
-					"y": 7553.472638453695
+					"x": 1927.4808044433594,
+					"y": 8396.126739501953
 				}
 			},
 			"prompt": "[Contexte]\nAprès votre présentation, l'interlocuteur indique qu'il est occupé et demande un rappel ou un autre créneau.\n\n[Objectif]\nObtenir une date et heure précises pour le rappel.\n\n[Instructions]\n- Demandez d'abord une date et heure spécifiques\n- Soyez persistant mais poli pour obtenir une réponse claire\n- Utilise l’outil reschedule_tool pour reprogrammer l’utilisateur s’il fournit l’heure exacte.\n- Date du jour : {{date}}\n- current year: {{year}}\n- current month: {{month}}\n- current day: {{day}}\nutilise ces variable pour cree {{reshedule_date}}\n\n[Prompt]\nJe comprends parfaitement. Pouvez-vous me donner une date et une heure précises pour que je vous rappelle ?",
@@ -362,8 +362,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": -46.672119140625,
-					"y": 9189.265884399414
+					"x": -47.50274658203125,
+					"y": 9160.457885742188
 				}
 			},
 			"tool": {
@@ -390,8 +390,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 5862.247966367683,
-					"y": 900.4366963501747
+					"x": 6139.945098876953,
+					"y": 3255.7867431640625
 				}
 			},
 			"prompt": "[Contexte]\nLe prospect indique qu'il connaît déjà le programme PRESTA LIB.\n\n[Objectif]\nDéterminer s'il a déjà été contacté par nos équipes.\n\n[Prompt]\nParfait ! Avez-vous déjà été contacté(e) par nos équipes à ce sujet ?",
@@ -427,8 +427,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 1609.96728515625,
-					"y": 1198.5425872802734
+					"x": 1927.4808044433594,
+					"y": 1192.3388977050781
 				}
 			},
 			"prompt": "[Contexte]\nL’utilisateur emploie un langage vulgaire/agressif ou adopte un ton hostile.\n\n[Objectif]\nDésamorcer calmement, proposer de reprendre sur de bonnes bases, ou, si nécessaire, proposer d’arrêter ou de rappeler plus tard.\n\n[Instructions]\n- Rester très bref, posé, sans jugement ni recadrage agressif\n- Proposer un choix clair : poursuivre calmement, reprogrammer plus tard, ou arrêter ici\n- Si l’utilisateur s’excuse/se calme, reprendre le fil initial\n- Si l’agressivité persiste, enclencher la procédure de sortie appropriée (blacklist si demande explicite / fin d’appel courtoise)\n\n[Style]\n- Professionnel, apaisant, non‑confrontant",
@@ -446,7 +446,7 @@
 			},
 			"globalNodePlan": {
 				"enabled": true,
-				"enterCondition": "Détecter tout comportement grossier, agressif, hostile ou irrespectueux (insultes, injures, vulgarité, menaces, propos discriminatoires/diffamatoires, ton moqueur ou menaçant), y compris les demandes abruptes de mettre fin à l’appel (ex. « taisez‑vous », « raccrochez », « arrêtez », « foutez‑moi la paix ») et toute manifestation explicite de colère ou de rejet de la conversation, même sans mots vulgaires."
+				"enterCondition": "Détecter tout comportement grossier, agressif, hostile ou irrespectueux (insultes, injures, vulgarité, menaces, propos discriminatoires/diffamatoires, ton moqueur ou menaçant), y compris les demandes abruptes de mettre fin à l’appel (ex. « taisez‑vous », « raccrochez », « arrêtez », « foutez‑moi la paix ») et toute manifestation explicite de colère ou de rejet de la conversation, même sans mots vulgaires. NE PAS entrer si l’utilisateur a demandé l’arrêt définitif des contacts (DNC/blacklist) ou si un outil de blacklist a été exécuté lors de cet appel. Dans ces cas, terminer l’appel immédiatement."
 			},
 			"variableExtractionPlan": {
 				"output": [
@@ -468,8 +468,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 963.3115234375,
-					"y": 2664.511672973633
+					"x": 3599.967010498047,
+					"y": 30.198585510253906
 				}
 			},
 			"tool": {
@@ -496,8 +496,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 4156.59033203125,
-					"y": 3288.334228515625
+					"x": 4467.458892822266,
+					"y": 3275.7867431640625
 				}
 			},
 			"prompt": "",
@@ -523,8 +523,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 6216.5574951171875,
-					"y": 7214.21907043457
+					"x": 6522.442291259766,
+					"y": 7190.491973876953
 				}
 			},
 			"tool": {
@@ -578,8 +578,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3833.262451171875,
-					"y": 3838.821746826172
+					"x": 4144.961639404297,
+					"y": 3824.374221801758
 				}
 			},
 			"prompt": "Contexte :\nLe prospect ne connaît pas PRESTA LIB ou souhaite en savoir plus. L'IA doit fournir une explication claire et concise du programme.\n\nObjectif :\nExpliquer ce qu'est PRESTA LIB, pourquoi il existe, et présenter la structure en deux étapes de l'intervention en disant « premièrement » et « deuxièmement », puis confirmer que l'utilisateur a bien compris le programme.",
@@ -605,8 +605,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3913.262451171875,
-					"y": -60.92570495605469
+					"x": 4224.961578369141,
+					"y": -62.301414489746094
 				}
 			},
 			"prompt": "[Contexte]\nL’utilisateur exprime un désintérêt direct ou poli/indirect.\n\n[Objectif]\nVérifier calmement s’il souhaite réellement arrêter ici ou s’il accepte une version très courte pour décider.\n\n[Instructions]\n- Confirmez la préférence de ne pas continuer\n- Proposez éventuellement une synthèse en 20–30 secondes\n- Respectez immédiatement un refus clair",
@@ -636,8 +636,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 371.28389700764114,
-					"y": 8423.364790603886
+					"x": 294.9945068359375,
+					"y": 8492.626739501953
 				}
 			},
 			"tool": {
@@ -691,8 +691,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3833.262451171875,
-					"y": 4604.14387512207
+					"x": 4144.961639404297,
+					"y": 4587.993591308594
 				}
 			},
 			"prompt": "Demandez à l'utilisateur : « Je suppose que vous vous demandez : pourquoi à l'intérieur du véhicule ? » puis évaluez son niveau d'intérêt pour la question.",
@@ -721,8 +721,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 2883.27880859375,
-					"y": 5764.790634155273
+					"x": 3197.4698791503906,
+					"y": 5745.608581542969
 				}
 			},
 			"prompt": "Contexte :\nIl est nécessaire de mettre en avant des statistiques percutantes pour démontrer pourquoi PRESTA LIB est indispensable et pertinent pour les infirmiers(ères) libéraux(ales).\n\nObjectif :\nUtiliser des statistiques concises et fiables pour sensibiliser et souligner l'importance d'être préparé(e) aux urgences cardiaques, puis leur demander à la fin s'ils comprennent.\n\nInvite :\n« Pour vous donner une idée concrète, les services d'urgence ont partagé deux chiffres clés :\n\nDans 90 % des cas, les arrêts cardiaques surviennent soit sur la route, soit au domicile du patient. En tant qu'infirmier(ère) libéral(e), vous êtes donc exposé(e) dans les deux situations.\n\nDans 60 % des interventions réussies, c'est un(e) infirmier(ère) présent(e) sur les lieux qui a pu sauver une vie grâce à une réaction rapide face à une fibrillation ventriculaire. »\n",
@@ -748,8 +748,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3833.262451171875,
-					"y": 5235.136093139648
+					"x": 4144.961639404297,
+					"y": 5217.802185058594
 				}
 			},
 			"prompt": "",
@@ -775,8 +775,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3206.606689453125,
-					"y": 5225.136093139648
+					"x": 3519.9671325683594,
+					"y": 5207.802185058594
 				}
 			},
 			"prompt": "",
@@ -802,8 +802,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 2550.0546184035784,
-					"y": 6399.040034871933
+					"x": 2874.972625732422,
+					"y": 6376.19384765625
 				}
 			},
 			"prompt": "Context:\nAfter sharing the statistics, the AI needs to stress the key problem (point crucial) and then validate the prospect's perception of the program.\n\nGoal:\nEmphasize the real risk of being unprepared and gauge the nurse's agreement or interest.\n\nPrompt:\n\"The real problem is that you're often required to stop in an emergency because of your caduceus, but if you don't have the right equipment—like a defibrillator—you're unfortunately left to your own devices in these critical situations.\n\nGiven what I've just explained to you, do you find this program useful and relevant to your work?\"",
@@ -839,8 +839,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 5589.901794433594,
-					"y": 7198.21907043457
+					"x": 5897.447784423828,
+					"y": 7174.491973876953
 				}
 			},
 			"tool": {
@@ -894,8 +894,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 963.3115234375,
-					"y": 7220.21907043457
+					"x": 1282.4862670898438,
+					"y": 7196.491973876953
 				}
 			},
 			"tool": {
@@ -922,8 +922,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 4963.24609375,
-					"y": 7190.21907043457
+					"x": 5272.453277587891,
+					"y": 7166.491973876953
 				}
 			},
 			"tool": {
@@ -977,8 +977,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 4336.590393066406,
-					"y": 7198.21907043457
+					"x": 4647.458770751953,
+					"y": 7174.491973876953
 				}
 			},
 			"tool": {
@@ -1032,8 +1032,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1933.295166015625,
-					"y": 7210.21907043457
+					"x": 2249.9780883789062,
+					"y": 7186.491973876953
 				}
 			},
 			"tool": {
@@ -1060,8 +1060,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 2559.950927734375,
-					"y": 7220.21907043457
+					"x": 2874.972625732422,
+					"y": 7196.491973876953
 				}
 			},
 			"tool": {
@@ -1088,8 +1088,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 3913.262451171875,
-					"y": 710.8915328979492
+					"x": 4224.961578369141,
+					"y": 707.0654983520508
 				}
 			},
 			"tool": {
@@ -1116,8 +1116,8 @@
 			"type": "conversation",
 			"metadata": {
 				"position": {
-					"x": 3286.606689453125,
-					"y": -60.92570495605469
+					"x": 2974.9725036621094,
+					"y": -62.301414489746094
 				}
 			},
 			"prompt": "[Contexte]\nL’utilisateur demande explicitement de ne plus être contacté (DNC/blacklist).\n\n[Objectif]\nConfirmer la demande, informer du retrait du numéro et enclencher l’outil de blacklist.\n\n[Instructions]\n- Demander confirmation courtoise\n- Expliquer qu’aucun contact ultérieur ne sera effectué une fois confirmé\n- Rester concis et respectueux",
@@ -1141,8 +1141,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 3286.606689453125,
-					"y": 704.8915328979492
+					"x": 2974.9725036621094,
+					"y": 701.0654983520508
 				}
 			},
 			"toolId": "66ef871a-abbd-4325-90d9-901def565957"
@@ -1152,8 +1152,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 3286.606689453125,
-					"y": 1349.0425872802734
+					"x": 2974.9725036621094,
+					"y": 1342.8388977050781
 				}
 			},
 			"tool": {
@@ -1180,8 +1180,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 963.3115234375,
-					"y": 2024.0258026123047
+					"x": 1615.8393282404847,
+					"y": 1895.0279262640067
 				}
 			},
 			"toolId": "66ef871a-abbd-4325-90d9-901def565957"
@@ -1191,8 +1191,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 4559.918212890625,
-					"y": 720.8915328979492
+					"x": 4869.956207275391,
+					"y": 717.0654983520508
 				}
 			},
 			"tool": {
@@ -1204,8 +1204,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1393.2504435166209,
-					"y": 9468.062462255668
+					"x": 7004.939544677734,
+					"y": 9783.501892089844
 				}
 			},
 			"tool": {
@@ -1232,8 +1232,8 @@
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 2190.211317813273,
-					"y": 9117.218579604567
+					"x": 7004.939544677734,
+					"y": 9144.457885742188
 				}
 			},
 			"toolId": "4f1b5b40-d477-491f-954a-35ff87d877a0"
@@ -1269,7 +1269,7 @@
 			"to": "Question de découverte",
 			"condition": {
 				"type": "ai",
-				"prompt": "si l'utilisateur manifeste de l'intérêt/curiosité ou demande des détails (ex. « c’est quoi ? », « expliquez », « dites‑m’en plus », « comment ça marche ? », « quels avantages ? »)"
+				"prompt": "Détecter lorsque l’utilisateur manifeste de l’intérêt (réponses positives, accord, curiosité) et confirme qu’il est disponible maintenant pour continuer."
 			}
 		},
 		{
@@ -1642,30 +1642,6 @@
 		},
 		{
 			"from": "Crucial point",
-			"to": "transfer_1753622856507",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l’utilisateur exprime une hésitation positive (« peut‑être », « pourquoi pas ») et demande d’être rassuré (sans engagement)"
-			}
-		},
-		{
-			"from": "Crucial point",
-			"to": "Transfer Call Copy",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l’utilisateur est intéressé mais pose encore des questions/souhaites des précisions avant d’avancer"
-			}
-		},
-		{
-			"from": "Crucial point",
-			"to": "transfer_1753564858122",
-			"condition": {
-				"type": "ai",
-				"prompt": "si l’utilisateur est très intéressé et prêt à parler immédiatement à un conseiller"
-			}
-		},
-		{
-			"from": "Crucial point",
 			"to": "hangup_1753623048097",
 			"condition": {
 				"type": "ai",
@@ -1717,7 +1693,7 @@
 			"to": "hangup_1753887748996",
 			"condition": {
 				"type": "ai",
-				"prompt": "lorsque l’outil de blacklist a été exécuté avec succès"
+				"prompt": ""
 			}
 		},
 		{
@@ -1749,7 +1725,7 @@
 			"to": "hangup_1753554610820",
 			"condition": {
 				"type": "ai",
-				"prompt": "lorsque l’outil de blacklist a été exécuté avec succès"
+				"prompt": "if the tool finishes"
 			}
 		},
 		{
@@ -1775,9 +1751,34 @@
 				"type": "ai",
 				"prompt": ""
 			}
+		},
+		{
+			"from": "Crucial point",
+			"to": "Transfer Call Copy",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l’utilisateur est intéressé mais pose encore des questions/souhaites des précisions avant d’avancer"
+			}
+		},
+		{
+			"from": "Crucial point",
+			"to": "transfer_1753622856507",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l’utilisateur exprime une hésitation positive (« peut‑être », « pourquoi pas ») et demande d’être rassuré (sans engagement)"
+			}
+		},
+		{
+			"from": "Crucial point",
+			"to": "transfer_1753564858122",
+			"condition": {
+				"type": "ai",
+				"prompt": "si l’utilisateur est très intéressé et prêt à parler immédiatement à un conseiller"
+			}
 		}
 	],
 	"globalPrompt": "[Identité]\nVous êtes Anthony Monaldi de PRESTA LIB.\n\n[Style]\n- Ton chaleureux et professionnel\n- Français uniquement (sauf demande explicite d'anglais)\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec le nom quand possible\n\n[Règles]\n- Ne jamais interrompre\n- Restez poli même en cas de refus\n- Évitez : 'Vous avez tort', 'Mais écoutez-moi', 'C'est gratuit', 'Vous devriez'\n\n[PRESTA LIB]\nProgramme national de prévention des arrêts cardiaques pour infirmiers libéraux.\n\nObjectifs :\n- Sensibiliser aux risques (90% des arrêts sur route/domicile)\n- Encourager l'équipement en défibrillateurs\n- Évaluer l'éligibilité à une aide financière\n\nStatistiques clés :\n- 90% des arrêts cardiaques : route ou domicile\n- 60% des vies sauvées : intervention d'infirmiers\n\nPoint crucial : Les infirmiers doivent s'arrêter pour porter secours (caducée) mais souvent sans équipement adéquat.\n\nVotre rôle est de toujours essayer de les transmettre au nœud suivant\n\nle date d'aujourd'hui est: {{now}}",
+
 	"backgroundSpeechDenoisingPlan": {
 		"smartDenoisingPlan": { "enabled": true },
 		"fourierDenoisingPlan": {

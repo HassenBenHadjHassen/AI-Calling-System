@@ -220,6 +220,9 @@ export class LeadController {
 			);
 
 			console.log("Call scheduled successfully");
+			console.log(
+				`📅 Lead ${lead.id} is now protected from status changes for 1 minute`
+			);
 			ResponseUtils.success(res, lead, "Call scheduled successfully");
 		} catch (error: any) {
 			console.error("Error scheduling call:", error);

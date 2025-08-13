@@ -5,6 +5,7 @@ import { vapiService } from "./vapiService";
 import { CallStatus, LeadStatus, ScheduledCallStatus } from "@prisma/client";
 import { socketService } from "./socketService";
 import { callStatusPoller } from "./callStatusPoller";
+import { activeCallManager } from "./activeCallManager";
 import { env } from "../config/env";
 
 export class CallService {
@@ -15,8 +16,6 @@ export class CallService {
 	// Active status polling now handled by CallStatusPoller
 
 	// Global call management
-	private activeCalls: Set<string> = new Set(); // Track active call IDs
-	private readonly maxGlobalCalls: number = 5; // Global call limit
 	private callQueue: Array<{
 		leadId: string;
 		title: string;
@@ -35,28 +34,28 @@ export class CallService {
 	 * Get current active call count
 	 */
 	private getActiveCallCount(): number {
-		return this.activeCalls.size;
+		return activeCallManager.getActiveCallCount();
 	}
 
 	/**
 	 * Check if we can make a new call
 	 */
 	private canMakeCall(): boolean {
-		return this.getActiveCallCount() < this.maxGlobalCalls;
+		return activeCallManager.canMakeCall();
 	}
 
 	/**
 	 * Add a call to the active calls set
 	 */
 	private addActiveCall(callId: string): void {
-		this.activeCalls.add(callId);
+		activeCallManager.addActiveCall(callId);
 	}
 
 	/**
 	 * Remove a call from the active calls set
 	 */
 	private removeActiveCall(callId: string): void {
-		this.activeCalls.delete(callId);
+		activeCallManager.removeActiveCall(callId);
 	}
 
 	/**
@@ -123,7 +122,7 @@ export class CallService {
 
 		return {
 			activeCalls: this.getActiveCallCount(),
-			maxCalls: this.maxGlobalCalls,
+			maxCalls: activeCallManager.getMaxGlobalCalls(),
 			queueLength: this.callQueue.length,
 			scheduledInQueue,
 			campaignInQueue,
@@ -311,15 +310,13 @@ export class CallService {
 				// Add to queue instead
 				this.addToQueue(leadId, title, isScheduled);
 				console.log(
-					`📞 Call for lead ${leadId} queued (${this.getActiveCallCount()}/${
-						this.maxGlobalCalls
-					} active calls)`
+					`📞 Call for lead ${leadId} queued (${this.getActiveCallCount()}/${activeCallManager.getMaxGlobalCalls()} active calls)`
 				);
 				return {
 					queued: true,
 					queuePosition: this.callQueue.length,
 					activeCalls: this.getActiveCallCount(),
-					maxCalls: this.maxGlobalCalls,
+					maxCalls: activeCallManager.getMaxGlobalCalls(),
 				};
 			}
 
@@ -355,9 +352,7 @@ export class CallService {
 				}
 
 				console.log(
-					`📞 Call initiated for lead ${leadId} (${this.getActiveCallCount()}/${
-						this.maxGlobalCalls
-					} active calls)`
+					`📞 Call initiated for lead ${leadId} (${this.getActiveCallCount()}/${activeCallManager.getMaxGlobalCalls()} active calls)`
 				);
 
 				// Process queue after successful call initiation
@@ -893,3 +888,6 @@ export class CallService {
 		}
 	}
 }
+
+// Export singleton instance
+export const callService = new CallService();

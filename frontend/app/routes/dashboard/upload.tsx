@@ -135,7 +135,7 @@ export default function UploadPage() {
 		setDragActive(false);
 
 		const files = e.dataTransfer.files;
-		if (files && files[0]) {
+		if (files[0]) {
 			handleFileSelect(files[0]);
 		}
 	};

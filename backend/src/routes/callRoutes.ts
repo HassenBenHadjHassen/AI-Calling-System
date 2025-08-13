@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { CallController } from "../controllers/callController";
-import { CallService } from "../services/callService";
+import { callService } from "../services/callService";
 // import { authenticateToken } from "../middleware/auth"; // Commented out for testing
 
 const router = Router();
@@ -117,8 +117,7 @@ router.get(
 router.post("/reconcile/stale", async (req, res) => {
 	try {
 		const { lookbackMinutes = 60, batchSize = 100 } = req.body || {};
-		const svc = new CallService();
-		const result = await svc.reconcileStaleInitiatedCalls(
+		const result = await callService.reconcileStaleInitiatedCalls(
 			Number(lookbackMinutes),
 			Number(batchSize)
 		);

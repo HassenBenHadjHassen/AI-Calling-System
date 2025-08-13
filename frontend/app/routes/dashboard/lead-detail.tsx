@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
-import i18n from "~/lib/i18n";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "~/components/ui/card";
@@ -27,23 +26,14 @@ import {
 import {
 	ArrowLeft,
 	Phone,
-	MapPin,
-	Calendar,
 	Clock,
 	User,
-	Mail,
 	Edit,
 	Save,
 	X,
 	CheckCircle,
 	PhoneCall,
 	CalendarDays,
-	Headphones,
-	MicOff,
-	Mic,
-	MessageSquareText,
-	PhoneOff,
-	Share2,
 	RefreshCw,
 } from "lucide-react";
 import { Sidebar } from "~/components/dashboard/sidebar";
@@ -120,6 +110,39 @@ export default function LeadDetailPage() {
 		}
 	};
 
+	// Function to get user-friendly error message
+	const getErrorMessage = (error: any): string => {
+		const apiResponse = error?.response;
+		const errorText = (
+			apiResponse?.error ||
+			error?.message ||
+			""
+		).toLowerCase();
+
+		if (errorText.includes("blacklisted")) {
+			return t("leadDetail.errorBlacklistedLead");
+		}
+		if (errorText.includes("status")) {
+			return t("leadDetail.errorInvalidStatus");
+		}
+		if (errorText.includes("scheduled time")) {
+			return t("leadDetail.errorScheduledTime");
+		}
+		if (errorText.includes("not found")) {
+			return t("leadDetail.errorLeadNotFound");
+		}
+		if (errorText.includes("vapi")) {
+			return t("leadDetail.errorVapiService");
+		}
+		if (errorText.includes("network") || errorText.includes("connection")) {
+			return t("leadDetail.errorNetwork");
+		}
+
+		return (
+			apiResponse?.error || error?.message || t("leadDetail.callTriggerError")
+		);
+	};
+
 	useEffect(() => {
 		if (isClient) {
 			redirectIfNotAuthenticated("/login");
@@ -133,12 +156,8 @@ export default function LeadDetailPage() {
 	const [scheduleNote, setScheduleNote] = useState("");
 	const [scheduleDate, setScheduleDate] = useState("");
 	const [activeVapiCallId, setActiveVapiCallId] = useState<string | null>(null);
-	const [isListening, setIsListening] = useState(false);
-	const [transcript, setTranscript] = useState<string[]>([]);
 	const [sayMessage, setSayMessage] = useState("");
 	const [assistantMuted, setAssistantMuted] = useState(false);
-	const [transferNumber, setTransferNumber] = useState("");
-	const [transferMessage, setTransferMessage] = useState("");
 	const isCallInProgress = useRef(false);
 
 	// Fetch lead details
@@ -219,13 +238,26 @@ export default function LeadDetailPage() {
 			isCallInProgress.current = true;
 			return callAPI.triggerCall(id!, leadTitle, leadData?.data?.name || "");
 		},
-		onSuccess: () => {
-			console.log("Call triggered successfully");
+		onSuccess: (data) => {
+			console.log("Call triggered successfully", data);
 			queryClient.invalidateQueries({ queryKey: ["callHistory", id] });
+
+			// Show success message
+			if (data?.data?.queued) {
+				addToast(
+					t("leadDetail.callQueuedSuccess", {
+						position: data.data.queuePosition,
+					}),
+					"success"
+				);
+			} else {
+				addToast(t("leadDetail.callTriggeredSuccess"), "success");
+			}
 		},
-		onError: (error) => {
+		onError: (error: any) => {
 			console.log("Call trigger failed:", error);
 			isCallInProgress.current = false;
+			addToast(getErrorMessage(error), "error");
 		},
 		onSettled: () => {
 			console.log("Call trigger settled");
@@ -253,7 +285,7 @@ export default function LeadDetailPage() {
 		}
 	}, [leadData]);
 
-	const lead = leadData?.data as Lead | undefined;
+	const lead = leadData?.data;
 
 	const callHistory = callHistoryData?.data || [];
 
@@ -311,84 +343,6 @@ export default function LeadDetailPage() {
 		}
 		console.log("Triggering call...");
 		triggerCallMutation.mutate();
-	};
-
-	// Socket per-call events
-	useEffect(() => {
-		if (!socket || !activeVapiCallId) return;
-		socketService.joinCallRoom(activeVapiCallId);
-
-		const onCallMessage = (data: any) => {
-			if (data?.message?.transcript) {
-				setTranscript((prev) => [...prev, data.message.transcript]);
-			}
-		};
-		const onListeningStarted = () => setIsListening(true);
-		const onListeningStopped = () => setIsListening(false);
-		const onListeningError = (d: any) =>
-			addToast(d?.error || "Listening error", "error");
-
-		socket.on("call-message", onCallMessage);
-		socket.on("call-listening-started", onListeningStarted);
-		socket.on("call-listening-stopped", onListeningStopped);
-		socket.on("call-listening-error", onListeningError);
-
-		return () => {
-			socket.off("call-message", onCallMessage);
-			socket.off("call-listening-started", onListeningStarted);
-			socket.off("call-listening-stopped", onListeningStopped);
-			socket.off("call-listening-error", onListeningError);
-		};
-	}, [socket, activeVapiCallId, addToast]);
-
-	const handleStartListening = () => {
-		if (!activeVapiCallId) return addToast("No active call id", "error");
-		socketService.startCallListening(activeVapiCallId);
-	};
-
-	const handleStopListening = () => {
-		if (!activeVapiCallId) return;
-		socketService.stopCallListening(activeVapiCallId);
-	};
-
-	const handleSay = async () => {
-		if (!activeVapiCallId || !sayMessage.trim()) return;
-		const res = await callAPI.sayMessage(activeVapiCallId, {
-			message: sayMessage.trim(),
-			endCallAfterSpoken: false,
-		});
-		if (res.success) {
-			addToast("Message injected", "success");
-			setSayMessage("");
-		} else addToast(res.error || "Failed to send message", "error");
-	};
-
-	const handleMuteToggle = async () => {
-		if (!activeVapiCallId) return;
-		const action = assistantMuted ? "unmute-assistant" : "mute-assistant";
-		const res = await callAPI.controlAssistant(activeVapiCallId, action);
-		if (res.success) {
-			setAssistantMuted(!assistantMuted);
-		} else addToast(res.error || "Failed to control assistant", "error");
-	};
-
-	const handleEndCall = async () => {
-		if (!activeVapiCallId) return;
-		const res = await callAPI.endCall(activeVapiCallId);
-		if (!res.success) addToast(res.error || "Failed to end call", "error");
-	};
-
-	const handleTransfer = async () => {
-		if (!activeVapiCallId || !transferNumber.trim())
-			return addToast("Enter destination number", "error");
-		const res = await callAPI.transferCall(activeVapiCallId, {
-			destinationNumber: transferNumber.trim(),
-			transferMessage: transferMessage.trim() || undefined,
-		});
-		if (res.success) {
-			addToast("Transfer initiated", "success");
-			setTransferMessage("");
-		} else addToast(res.error || "Failed to transfer", "error");
 	};
 
 	const handleSave = () => {
@@ -479,7 +433,7 @@ export default function LeadDetailPage() {
 											<Button
 												size="sm"
 												onClick={handleSave}
-												disabled={updateLeadMutation.isPending}
+												disabled={updateLeadMutation.isPending || hasActiveCall}
 											>
 												<Save className="h-4 w-4 mr-2" />
 												{updateLeadMutation.isPending
@@ -490,7 +444,7 @@ export default function LeadDetailPage() {
 												variant="outline"
 												size="sm"
 												onClick={handleCancel}
-												disabled={updateLeadMutation.isPending}
+												disabled={updateLeadMutation.isPending || hasActiveCall}
 											>
 												<X className="h-4 w-4 mr-2" />
 												{t("leadDetail.cancel")}
@@ -501,9 +455,14 @@ export default function LeadDetailPage() {
 											variant="outline"
 											size="sm"
 											onClick={() => setIsEditing(true)}
+											disabled={hasActiveCall}
 										>
 											<Edit className="h-4 w-4 mr-2" />
-											{t("leadDetail.edit")}
+											{hasActiveCall
+												? `${t("leadDetail.edit")} (${t(
+														"leadDetail.callInProgress"
+												  )})`
+												: t("leadDetail.edit")}
 										</Button>
 									)}
 								</div>
@@ -541,6 +500,7 @@ export default function LeadDetailPage() {
 																})
 															}
 															className="mt-1"
+															disabled={hasActiveCall}
 														/>
 													) : (
 														<p className="text-gray-900">{lead.name}</p>
@@ -586,6 +546,7 @@ export default function LeadDetailPage() {
 																})
 															}
 															className="mt-1"
+															disabled={hasActiveCall}
 														/>
 													) : (
 														<p className="text-gray-900">
@@ -607,6 +568,7 @@ export default function LeadDetailPage() {
 																})
 															}
 															className="mt-1"
+															disabled={hasActiveCall}
 														/>
 													) : (
 														<p className="text-gray-900">
@@ -630,6 +592,7 @@ export default function LeadDetailPage() {
 																})
 															}
 															className="mt-1"
+															disabled={hasActiveCall}
 														/>
 													) : (
 														<p className="text-gray-900">
@@ -651,6 +614,7 @@ export default function LeadDetailPage() {
 																})
 															}
 															className="mt-1"
+															disabled={hasActiveCall}
 														/>
 													) : (
 														<p className="text-gray-900">
@@ -672,6 +636,7 @@ export default function LeadDetailPage() {
 																})
 															}
 															className="mt-1"
+															disabled={hasActiveCall}
 														/>
 													) : (
 														<p className="text-gray-900">
@@ -1029,6 +994,11 @@ export default function LeadDetailPage() {
 													{t("leadDetail.callInProgressNewCallsDisabled")}
 												</p>
 											)}
+											{triggerCallMutation.isError && (
+												<p className="text-sm text-red-600 mt-1">
+													❌ {t("leadDetail.callTriggerError")}
+												</p>
+											)}
 										</CardHeader>
 										<CardContent>
 											<Button
@@ -1040,7 +1010,9 @@ export default function LeadDetailPage() {
 													hasActiveCall ||
 													isCallInProgress.current
 												}
-												className="w-full text-xs sm:text-sm leading-tight"
+												className={`w-full text-xs sm:text-sm leading-tight ${
+													triggerCallMutation.isError ? "border-red-500" : ""
+												}`}
 											>
 												{triggerCallMutation.isPending
 													? t("leadDetail.triggering")

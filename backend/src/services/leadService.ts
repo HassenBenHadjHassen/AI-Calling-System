@@ -1,5 +1,6 @@
 import { LeadRepository } from "../repositories/leadRepository";
 import { CampaignRepository } from "../repositories/campaignRepository";
+import { callStatusPoller } from "./callStatusPoller";
 import { LeadStatus, ScheduledCallStatus } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -715,11 +716,18 @@ export class LeadService {
 				LeadStatus.SCHEDULED
 			);
 
-			return await this.leadRepository.updateScheduledCallByPhone(
+			const updatedLead = await this.leadRepository.updateScheduledCallByPhone(
 				formattedPhone,
 				scheduledCallAt,
 				note
 			);
+
+			// Track this lead as recently scheduled to prevent status overrides
+			if (updatedLead && updatedLead.id) {
+				callStatusPoller.trackScheduledLead(updatedLead.id);
+			}
+
+			return updatedLead;
 		} catch (error: any) {
 			throw new Error(`Failed to schedule call: ${error.message}`);
 		}

@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,8 +20,8 @@ import { Topbar } from "~/components/dashboard/topbar";
 import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { formatPhoneNumber, formatDate } from "~/lib/utils";
 import { socketService } from "~/lib/socket";
-import { callAPI, type CallHistory } from "~/services/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { callAPI } from "~/services/api";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 interface ActivityItem {
 	id: string;
@@ -74,6 +73,118 @@ export default function ActivityPage() {
 			default:
 				return status;
 		}
+	};
+
+	// Function to get status icon
+	const getStatusIcon = (status: string) => {
+		return statusIcons[status as keyof typeof statusIcons] || Clock;
+	};
+
+	// Function to render loading state
+	const renderLoadingState = () => (
+		<div className="text-center py-8 sm:py-12">
+			<div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+			<p className="text-gray-600 text-sm sm:text-base">
+				{t("activity.loadingActivityData")}
+			</p>
+		</div>
+	);
+
+	// Function to render empty state
+	const renderEmptyState = () => (
+		<div className="text-center py-8 sm:py-12">
+			<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+				<Clock className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
+			</div>
+			<p className="text-gray-500 text-base sm:text-lg">
+				{t("activity.noActivity")}
+			</p>
+			<p className="text-gray-400 text-sm">
+				{t("activity.activityWillAppearHere")}
+			</p>
+		</div>
+	);
+
+	// Function to render activity list
+	const renderActivityList = () => (
+		<ScrollArea className="h-64 sm:h-96 px-3 sm:px-6">
+			<div className="space-y-3 sm:space-y-4">
+				{activities.map((activity) => {
+					const StatusIcon = getStatusIcon(activity.status);
+					return (
+						<div
+							key={activity.id}
+							className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-200 group"
+						>
+							<div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors duration-200 flex-shrink-0">
+								<StatusIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+							</div>
+							<div className="flex-1 min-w-0">
+								<div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2 space-y-1 sm:space-y-0">
+									<span className="font-semibold text-gray-900 text-sm sm:text-base truncate">
+										{activity.lead}
+									</span>
+									<Badge
+										variant={
+											statusColors[
+												activity.status as keyof typeof statusColors
+											] as any
+										}
+										className="text-xs font-medium w-fit"
+									>
+										{translateStatus(activity.status)}
+									</Badge>
+									{activity.duration !== undefined && activity.duration > 0 && (
+										<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full w-fit">
+											{Math.round(activity.duration / 60)}m{" "}
+											{activity.duration % 60}s
+										</span>
+									)}
+								</div>
+								<div className="text-xs sm:text-sm text-gray-600 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+									<span className="truncate">
+										{formatPhoneNumber(activity.phone)}
+									</span>
+									<span className="hidden sm:inline text-gray-300">•</span>
+									<span>{formatDate(activity.timestamp)}</span>
+									{activity.campaignName && (
+										<>
+											<span className="hidden sm:inline text-gray-300">•</span>
+											<Link
+												to={`/dashboard/campaign/${activity.campaignId}`}
+												className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium truncate"
+											>
+												{activity.campaignName}
+											</Link>
+											<span className="hidden sm:inline text-gray-300">•</span>
+											<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full w-fit">
+												ID: {activity.campaignId}
+											</span>
+										</>
+									)}
+								</div>
+								{activity.notes && (
+									<div className="text-xs text-gray-500 mt-2 p-2 bg-blue-50 rounded-lg border-l-2 border-blue-200">
+										{activity.notes}
+									</div>
+								)}
+							</div>
+						</div>
+					);
+				})}
+			</div>
+		</ScrollArea>
+	);
+
+	// Function to determine what to render based on state
+	const renderActivityContent = () => {
+		if (callsLoading) {
+			return renderLoadingState();
+		}
+		if (activities.length === 0) {
+			return renderEmptyState();
+		}
+		return renderActivityList();
 	};
 
 	useEffect(() => {
@@ -498,103 +609,7 @@ export default function ActivityPage() {
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="p-0">
-								{callsLoading ? (
-									<div className="text-center py-8 sm:py-12">
-										<div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-										<p className="text-gray-600 text-sm sm:text-base">
-											{t("activity.loadingActivityData")}
-										</p>
-									</div>
-								) : activities.length === 0 ? (
-									<div className="text-center py-8 sm:py-12">
-										<div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-											<Clock className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
-										</div>
-										<p className="text-gray-500 text-base sm:text-lg">
-											{t("activity.noActivity")}
-										</p>
-										<p className="text-gray-400 text-sm">
-											{t("activity.activityWillAppearHere")}
-										</p>
-									</div>
-								) : (
-									<ScrollArea className="h-64 sm:h-96 px-3 sm:px-6">
-										<div className="space-y-3 sm:space-y-4">
-											{activities.map((activity) => {
-												const StatusIcon =
-													statusIcons[
-														activity.status as keyof typeof statusIcons
-													] || Clock;
-												return (
-													<div
-														key={activity.id}
-														className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md transition-all duration-200 group"
-													>
-														<div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors duration-200 flex-shrink-0">
-															<StatusIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-														</div>
-														<div className="flex-1 min-w-0">
-															<div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2 space-y-1 sm:space-y-0">
-																<span className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-																	{activity.lead}
-																</span>
-																<Badge
-																	variant={
-																		statusColors[
-																			activity.status as keyof typeof statusColors
-																		] as any
-																	}
-																	className="text-xs font-medium w-fit"
-																>
-																	{translateStatus(activity.status)}
-																</Badge>
-																{activity.duration && (
-																	<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full w-fit">
-																		{Math.round(activity.duration / 60)}m{" "}
-																		{activity.duration % 60}s
-																	</span>
-																)}
-															</div>
-															<div className="text-xs sm:text-sm text-gray-600 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-																<span className="truncate">
-																	{formatPhoneNumber(activity.phone)}
-																</span>
-																<span className="hidden sm:inline text-gray-300">
-																	•
-																</span>
-																<span>{formatDate(activity.timestamp)}</span>
-																{activity.campaignName && (
-																	<>
-																		<span className="hidden sm:inline text-gray-300">
-																			•
-																		</span>
-																		<Link
-																			to={`/dashboard/campaign/${activity.campaignId}`}
-																			className="text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium truncate"
-																		>
-																			{activity.campaignName}
-																		</Link>
-																		<span className="hidden sm:inline text-gray-300">
-																			•
-																		</span>
-																		<span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full w-fit">
-																			ID: {activity.campaignId}
-																		</span>
-																	</>
-																)}
-															</div>
-															{activity.notes && (
-																<div className="text-xs text-gray-500 mt-2 p-2 bg-blue-50 rounded-lg border-l-2 border-blue-200">
-																	{activity.notes}
-																</div>
-															)}
-														</div>
-													</div>
-												);
-											})}
-										</div>
-									</ScrollArea>
-								)}
+								{renderActivityContent()}
 							</CardContent>
 						</Card>
 					</div>

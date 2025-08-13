@@ -21,7 +21,14 @@ class ApiService {
 		const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 		const json = await response.json().catch(() => ({}));
 
-		// Always return the parsed JSON, even for non-OK responses
+		// If the response indicates an error (success: false), throw an error
+		// so that React Query's useMutation will call onError instead of onSuccess
+		if (json.success === false) {
+			const error = new Error(json.error || "API request failed");
+			(error as any).response = json; // Attach the full response for error handling
+			throw error;
+		}
+
 		return json;
 	}
 	async get<T>(endpoint: string): Promise<ApiResponse<T>> {
@@ -208,6 +215,16 @@ export interface CallStats {
 export interface TriggerCallResponse {
 	triggeredCount: number;
 	calls: CallHistory[];
+}
+
+export interface TriggerCallResult {
+	callId?: string;
+	callRecord?: CallHistory;
+	vapiCallId?: string;
+	activeCalls?: number;
+	queued?: boolean;
+	queuePosition?: number;
+	maxCalls?: number;
 }
 
 export interface UpdateCallNotesRequest {
@@ -518,8 +535,8 @@ export const callAPI = {
 		leadId: string,
 		title: string,
 		name: string
-	): Promise<ApiResponse<CallHistory>> => {
-		return apiService.post<CallHistory>(`/calls/trigger/${leadId}`, {
+	): Promise<ApiResponse<TriggerCallResult>> => {
+		return apiService.post<TriggerCallResult>(`/calls/trigger/${leadId}`, {
 			title,
 		});
 	},
