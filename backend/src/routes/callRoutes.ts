@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { CallController } from "../controllers/callController";
 import { callService } from "../services/callService";
-// import { authenticateToken } from "../middleware/auth"; // Commented out for testing
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
 const callController = new CallController();
@@ -9,34 +9,34 @@ const callController = new CallController();
 // Call triggering routes
 router.post(
 	"/trigger/:leadId",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.triggerCall.bind(callController)
 );
 router.post(
 	"/trigger/scheduled",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.triggerScheduledCalls.bind(callController)
 );
 router.post(
 	"/trigger/campaign/:campaignId",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.triggerCampaignCalls.bind(callController)
 );
 router.post(
 	"/trigger/overdue",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.handleOverdueRescheduledCalls.bind(callController)
 );
 
 // Call statistics and reporting - these must come BEFORE parameterized routes
 router.get(
 	"/stats",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCallStats.bind(callController)
 );
 router.get(
 	"/management-stats",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCallManagementStats.bind(callController)
 );
 
@@ -49,22 +49,22 @@ router.get(
 
 router.get(
 	"/transferred",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getTransferredCalls.bind(callController)
 );
 router.get(
 	"/completed",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCompletedCalls.bind(callController)
 );
 router.get(
 	"/failed",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getFailedCalls.bind(callController)
 );
 router.get(
 	"/recent",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getRecentCalls.bind(callController)
 );
 
@@ -74,42 +74,42 @@ router.get(
 // Make the assistant say a specific message during a live call
 router.post(
 	"/control/:vapiCallId/say",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.sayMessage.bind(callController)
 );
 
 // Add a message to the conversation history
 router.post(
 	"/control/:vapiCallId/conversation",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.addMessageToConversation.bind(callController)
 );
 
 // Control assistant behavior (mute/unmute)
 router.post(
 	"/control/:vapiCallId/assistant",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.controlAssistant.bind(callController)
 );
 
 // End the call programmatically
 router.post(
 	"/control/:vapiCallId/end",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.endCall.bind(callController)
 );
 
 // Transfer the call to another number
 router.post(
 	"/control/:vapiCallId/transfer",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.transferCall.bind(callController)
 );
 
 // Get call monitoring URLs for real-time control and audio streaming
 router.get(
 	"/control/:vapiCallId/monitoring-urls",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCallMonitoringUrls.bind(callController)
 );
 
@@ -130,22 +130,22 @@ router.post("/reconcile/stale", async (req, res) => {
 // Call history and details - parameterized routes must come AFTER specific routes
 router.get(
 	"/lead/:leadId",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCallsByLead.bind(callController)
 );
 router.get(
 	"/campaign/:campaignId",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCallsByCampaign.bind(callController)
 );
 router.get(
 	"/:id",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.getCallById.bind(callController)
 );
 router.patch(
 	"/:id/notes",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	callController.updateCallNotes.bind(callController)
 );
 

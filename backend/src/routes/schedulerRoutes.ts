@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { SchedulerController } from "../controllers/schedulerController";
 import getScheduler from "../services/schedulerInstance";
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
 const schedulerController = new SchedulerController(getScheduler());
@@ -8,35 +9,35 @@ const schedulerController = new SchedulerController(getScheduler());
 // Get scheduler status
 router.get(
 	"/status",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	schedulerController.getSchedulerStatus.bind(schedulerController)
 );
 
 // Manually trigger due calls
 router.post(
 	"/trigger",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	schedulerController.triggerDueCalls.bind(schedulerController)
 );
 
 // Start scheduler
 router.post(
 	"/start",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	schedulerController.startScheduler.bind(schedulerController)
 );
 
 // Stop scheduler
 router.post(
 	"/stop",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	schedulerController.stopScheduler.bind(schedulerController)
 );
 
 // Manually trigger stale call reconciliation
 router.post(
 	"/reconcile-stale",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	schedulerController.triggerReconcileStaleCalls.bind(schedulerController)
 );
 

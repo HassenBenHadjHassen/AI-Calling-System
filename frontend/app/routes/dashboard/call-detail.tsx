@@ -30,6 +30,7 @@ import { useAuth, useClientSideAuth } from "~/hooks/use-auth";
 import { formatDate, formatPhoneNumber, formatDuration } from "~/lib/utils";
 import { callAPI } from "~/services/api";
 import { currencyService } from "~/services/currencyService";
+import { translationService } from "~/services/translationService";
 
 const statusColors: Record<string, string> = {
 	INITIATED: "secondary",
@@ -60,6 +61,22 @@ export default function CallDetailPage() {
 	});
 
 	const call = callData?.data;
+
+	// Translate summary (EN → FR)
+	const [translatedSummary, setTranslatedSummary] = useState<string | null>(
+		null
+	);
+	const [isTranslating, setIsTranslating] = useState(false);
+
+	const extractSummaryFromNotes = (notes?: string | null): string | null => {
+		if (!notes) return null;
+		const lines = notes.split(/\r?\n/);
+		const summaryLine = lines.find((l) =>
+			l.trim().toLowerCase().startsWith("summary:")
+		);
+		if (!summaryLine) return null;
+		return summaryLine.slice("Summary:".length).trim() || null;
+	};
 
 	// Function to translate status
 	const translateStatus = (status: string) => {
@@ -114,6 +131,31 @@ export default function CallDetailPage() {
 			setCostInEur(null);
 		}
 	}, [usdCostValue]);
+
+	useEffect(() => {
+		const summary = extractSummaryFromNotes(call?.notes ?? undefined);
+		if (!summary) {
+			setTranslatedSummary(null);
+			return;
+		}
+		let isCancelled = false;
+		setIsTranslating(true);
+		translationService
+			.translateEnToFr(summary)
+			.then((fr) => {
+				if (!isCancelled) setTranslatedSummary(fr);
+			})
+			.catch(() => {
+				if (!isCancelled) setTranslatedSummary(null);
+			})
+			.finally(() => {
+				if (!isCancelled) setIsTranslating(false);
+			});
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [call?.notes]);
 
 	const formatCost = (cost?: number) => {
 		if (cost === undefined || cost === null) return t("callDetail.na");
@@ -312,6 +354,18 @@ export default function CallDetailPage() {
 													<p className="text-gray-900 whitespace-pre-wrap text-sm sm:text-base">
 														{call.notes}
 													</p>
+													{translatedSummary && (
+														<div className="mt-3 sm:mt-4">
+															<Label className="text-xs sm:text-sm font-medium text-gray-700">
+																Résumé (FR)
+															</Label>
+															<p className="text-gray-900 whitespace-pre-wrap text-sm sm:text-base">
+																{isTranslating
+																	? t("callDetail.loading")
+																	: translatedSummary}
+															</p>
+														</div>
+													)}
 												</div>
 											) : (
 												<p className="text-gray-500 italic text-sm sm:text-base">

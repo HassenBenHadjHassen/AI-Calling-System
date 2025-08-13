@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { CampaignController } from "../controllers/campaignController";
-// import { authenticateToken } from "../middleware/auth"; // Commented out for testing
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
 const campaignController = new CampaignController();
@@ -8,99 +8,99 @@ const campaignController = new CampaignController();
 // Campaign management routes
 router.post(
 	"/",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.createCampaign.bind(campaignController)
 );
 router.get(
 	"/",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.getCampaigns.bind(campaignController)
 );
 
 // Campaign status and processing - these must come before /:id routes
 router.get(
 	"/active/current",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.getActiveCampaign.bind(campaignController)
 );
 router.get(
 	"/active/all",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.getAllActiveCampaigns.bind(campaignController)
 );
 router.get(
 	"/next/process",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.getNextCampaignToProcess.bind(campaignController)
 );
 router.get(
 	"/stats/overview",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.getCampaignStats.bind(campaignController)
 );
 
 // Auto-start functionality
 router.post(
 	"/auto-start/first",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.autoStartFirstCampaign.bind(campaignController)
 );
 router.post(
 	"/auto-start/next",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.startNextCampaign.bind(campaignController)
 );
 
 // Parameterized routes - these must come after specific routes
 router.get(
 	"/:id",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.getCampaignById.bind(campaignController)
 );
 router.post(
 	"/:id/start",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.startCampaign.bind(campaignController)
 );
 router.post(
 	"/:id/stop",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.stopCampaign.bind(campaignController)
 );
 router.post(
 	"/:id/complete",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.completeCampaign.bind(campaignController)
 );
 router.delete(
 	"/:id",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.deleteCampaign.bind(campaignController)
 );
 
 // Lead management within campaigns
 router.post(
 	"/:id/leads",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.addLeadsToCampaign.bind(campaignController)
 );
 router.delete(
 	"/:id/leads/:leadId",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.removeLeadFromCampaign.bind(campaignController)
 );
 
 // Campaign call control
 router.post(
 	"/:id/hang-up-calls",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.hangUpCampaignCalls.bind(campaignController)
 );
 
 // Clean all campaigns
 router.delete(
 	"/clean/all",
-	// authenticateToken, // Commented out for testing
+	authenticateToken,
 	campaignController.cleanAllCampaigns.bind(campaignController)
 );
 
