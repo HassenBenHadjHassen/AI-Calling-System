@@ -20,7 +20,6 @@ export default defineConfig(({ mode }) => {
 				output: {
 					manualChunks: {
 						// Separate vendor chunks for better caching
-						vendor: ["react", "react-dom"],
 						ui: [
 							"lucide-react",
 							"@radix-ui/react-dialog",
@@ -39,8 +38,6 @@ export default defineConfig(({ mode }) => {
 		optimizeDeps: {
 			// Pre-bundle dependencies for faster dev server
 			include: [
-				"react",
-				"react-dom",
 				"lucide-react",
 				"@radix-ui/react-dialog",
 				"@radix-ui/react-dropdown-menu",
