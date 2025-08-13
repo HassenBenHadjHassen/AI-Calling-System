@@ -446,7 +446,7 @@
 			},
 			"globalNodePlan": {
 				"enabled": true,
-				"enterCondition": "Détecter tout comportement grossier, agressif, hostile ou irrespectueux (insultes, injures, vulgarité, menaces, propos discriminatoires/diffamatoires, ton moqueur ou menaçant), y compris les demandes abruptes de mettre fin à l’appel (ex. « taisez‑vous », « raccrochez », « arrêtez », « foutez‑moi la paix ») et toute manifestation explicite de colère ou de rejet de la conversation, même sans mots vulgaires. NE PAS entrer si l’utilisateur a demandé l’arrêt définitif des contacts (DNC/blacklist) ou si un outil de blacklist a été exécuté lors de cet appel. Dans ces cas, terminer l’appel immédiatement."
+				"enterCondition": "if {{blacklist_flag}} == true:\nignore this prompt\nelse:\nDétecter tout comportement grossier, agressif, hostile ou irrespectueux (insultes, injures, vulgarité, menaces, propos discriminatoires/diffamatoires, ton moqueur ou menaçant), y compris les demandes abruptes de mettre fin à l’appel (ex. « taisez‑vous », « raccrochez », « arrêtez », « foutez‑moi la paix ») et toute manifestation explicite de colère ou de rejet de la conversation, même sans mots vulgaires. NE PAS entrer si l’utilisateur a demandé l’arrêt définitif des contacts (DNC/blacklist) ou si un outil de blacklist a été exécuté lors de cet appel. Dans ces cas, terminer l’appel immédiatement."
 			},
 			"variableExtractionPlan": {
 				"output": [
@@ -455,6 +455,12 @@
 						"type": "string",
 						"title": "user_availability",
 						"description": "this is the availability of the user"
+					},
+					{
+						"enum": [],
+						"type": "boolean",
+						"title": "blacklist_flag",
+						"description": "detect when the user is being agressive or says something like \"shut up\" or any sign of agression and set the variable to true"
 					}
 				]
 			},
@@ -462,34 +468,6 @@
 				"firstMessage": "Je comprends que ce n’est peut‑être pas le bon moment. Souhaitez‑vous que je reformule très brièvement, ou préférez‑vous que nous arrêtions ici ?"
 			},
 			"toolIds": []
-		},
-		{
-			"name": "hangup_1753554610820",
-			"type": "tool",
-			"metadata": {
-				"position": {
-					"x": 3599.967010498047,
-					"y": 30.198585510253906
-				}
-			},
-			"tool": {
-				"type": "endCall",
-				"function": {
-					"name": "untitled_tool",
-					"parameters": {
-						"type": "object",
-						"required": [],
-						"properties": {}
-					}
-				},
-				"messages": [
-					{
-						"type": "request-start",
-						"content": "Nous sommes désolés pour cet appel, votre numéro a été retiré de notre liste et vous ne serez plus contacté. Passez une excellente journée.",
-						"blocking": true
-					}
-				]
-			}
 		},
 		{
 			"name": "Message for the user",
@@ -1148,40 +1126,12 @@
 			"toolId": "66ef871a-abbd-4325-90d9-901def565957"
 		},
 		{
-			"name": "hangup_1753887748996",
-			"type": "tool",
-			"metadata": {
-				"position": {
-					"x": 2974.9725036621094,
-					"y": 1342.8388977050781
-				}
-			},
-			"tool": {
-				"type": "endCall",
-				"function": {
-					"name": "untitled_tool",
-					"parameters": {
-						"type": "object",
-						"required": [],
-						"properties": {}
-					}
-				},
-				"messages": [
-					{
-						"type": "request-start",
-						"content": "C'est noté, vous avez été retiré(e) de notre liste et vous ne serez plus contacté(e). Merci pour votre temps aujourd'hui !",
-						"blocking": true
-					}
-				]
-			}
-		},
-		{
 			"name": "blacklist",
 			"type": "tool",
 			"metadata": {
 				"position": {
-					"x": 1615.8393282404847,
-					"y": 1895.0279262640067
+					"x": 1625.2134646187783,
+					"y": 1900.3729167251563
 				}
 			},
 			"toolId": "66ef871a-abbd-4325-90d9-901def565957"
@@ -1197,34 +1147,6 @@
 			},
 			"tool": {
 				"type": "endCall"
-			}
-		},
-		{
-			"name": "hangup_1754944343082",
-			"type": "tool",
-			"metadata": {
-				"position": {
-					"x": 7004.939544677734,
-					"y": 9783.501892089844
-				}
-			},
-			"tool": {
-				"type": "endCall",
-				"function": {
-					"name": "untitled_tool",
-					"parameters": {
-						"type": "object",
-						"required": [],
-						"properties": {}
-					}
-				},
-				"messages": [
-					{
-						"type": "request-start",
-						"content": "votre appel est programmé, merci pour votre temps",
-						"blocking": true
-					}
-				]
 			}
 		},
 		{
@@ -1689,14 +1611,6 @@
 			}
 		},
 		{
-			"from": "blacklist-1",
-			"to": "hangup_1753887748996",
-			"condition": {
-				"type": "ai",
-				"prompt": ""
-			}
-		},
-		{
 			"from": "conversation_1753553554440",
 			"to": "blacklist",
 			"condition": {
@@ -1721,14 +1635,6 @@
 			}
 		},
 		{
-			"from": "blacklist",
-			"to": "hangup_1753554610820",
-			"condition": {
-				"type": "ai",
-				"prompt": "if the tool finishes"
-			}
-		},
-		{
 			"from": "introduction",
 			"to": "hangup_1754915898849",
 			"condition": {
@@ -1742,14 +1648,6 @@
 			"condition": {
 				"type": "ai",
 				"prompt": "Si l'utilisateur fournit une date et/ou une heure spécifique ou approximative — qu'elle soit exacte (par exemple, ‘demain à 15h’, ‘le 15 août à 10h00’)"
-			}
-		},
-		{
-			"from": "tool_1754954512055",
-			"to": "hangup_1754944343082",
-			"condition": {
-				"type": "ai",
-				"prompt": ""
 			}
 		},
 		{
@@ -1777,8 +1675,7 @@
 			}
 		}
 	],
-	"globalPrompt": "[Identité]\nVous êtes Anthony Monaldi de PRESTA LIB.\n\n[Style]\n- Ton chaleureux et professionnel\n- Français uniquement (sauf demande explicite d'anglais)\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec le nom quand possible\n\n[Règles]\n- Ne jamais interrompre\n- Restez poli même en cas de refus\n- Évitez : 'Vous avez tort', 'Mais écoutez-moi', 'C'est gratuit', 'Vous devriez'\n\n[PRESTA LIB]\nProgramme national de prévention des arrêts cardiaques pour infirmiers libéraux.\n\nObjectifs :\n- Sensibiliser aux risques (90% des arrêts sur route/domicile)\n- Encourager l'équipement en défibrillateurs\n- Évaluer l'éligibilité à une aide financière\n\nStatistiques clés :\n- 90% des arrêts cardiaques : route ou domicile\n- 60% des vies sauvées : intervention d'infirmiers\n\nPoint crucial : Les infirmiers doivent s'arrêter pour porter secours (caducée) mais souvent sans équipement adéquat.\n\nVotre rôle est de toujours essayer de les transmettre au nœud suivant\n\nle date d'aujourd'hui est: {{now}}",
-
+	"globalPrompt": "[Identité]\nVous êtes Anthony Monaldi de PRESTA LIB.\n\n[Style]\n- Ton chaleureux et professionnel\n- Français uniquement (sauf demande explicite d'anglais)\n- Questions courtes et directes\n- Pauses naturelles pour les réponses\n- Personnalisez avec le nom quand possible\n\n[Règles]\n- Ne jamais interrompre\n- Restez poli même en cas de refus\n- Évitez : 'Vous avez tort', 'Mais écoutez-moi', 'C'est gratuit', 'Vous devriez', 'Laissez-moi finir'\n\n[PRESTA LIB]\nProgramme national de prévention des arrêts cardiaques pour infirmiers libéraux.\n\nObjectifs :\n- Sensibiliser aux risques (90% des arrêts sur route/domicile)\n- Encourager l'équipement en défibrillateurs\n- Évaluer l'éligibilité à une aide financière\n\nStatistiques clés :\n- 90% des arrêts cardiaques : route ou domicile\n- 60% des vies sauvées : intervention d'infirmiers\n\nPoint crucial : Les infirmiers doivent s'arrêter pour porter secours (caducée) mais souvent sans équipement adéquat.\n\nVotre rôle est de toujours essayer de les transmettre au nœud suivant\n\nle date d'aujourd'hui est: {{now}}",
 	"backgroundSpeechDenoisingPlan": {
 		"smartDenoisingPlan": { "enabled": true },
 		"fourierDenoisingPlan": {

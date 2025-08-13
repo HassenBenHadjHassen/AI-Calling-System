@@ -3,9 +3,7 @@ import { ScheduledCallScheduler } from "./scheduledCallScheduler";
 let schedulerInstance: ScheduledCallScheduler | null = null;
 
 export function getScheduler(): ScheduledCallScheduler {
-	if (!schedulerInstance) {
-		schedulerInstance = new ScheduledCallScheduler();
-	}
+	schedulerInstance ??= new ScheduledCallScheduler();
 	return schedulerInstance;
 }
 

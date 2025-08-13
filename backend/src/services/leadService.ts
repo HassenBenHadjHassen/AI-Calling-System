@@ -758,7 +758,16 @@ export class LeadService {
 				);
 			}
 
-			return await this.leadRepository.blacklistByPhone(formattedPhone);
+			const updated = await this.leadRepository.blacklistByPhone(
+				formattedPhone
+			);
+
+			// Track this lead as recently blacklisted to prevent status overrides
+			if (updated && updated.id) {
+				callStatusPoller.trackBlacklistedLead(updated.id);
+			}
+
+			return updated;
 		} catch (error: any) {
 			throw new Error(`Failed to blacklist lead: ${error.message}`);
 		}
@@ -821,7 +830,9 @@ export class LeadService {
 
 	async getLeadByPhone(phone: string): Promise<any> {
 		try {
-			return await this.leadRepository.findByPhone(phone);
+			// Normalize phone to match how numbers are stored in DB
+			const formattedPhone = this.formatPhoneNumber(phone);
+			return await this.leadRepository.findByPhone(formattedPhone);
 		} catch (error: any) {
 			throw new Error(`Failed to get lead by phone: ${error.message}`);
 		}

@@ -22,7 +22,7 @@ interface PollingConfig {
 	lookbackMinutes: number;
 }
 
-// Track scheduled leads to prevent status overrides
+// Track recently protected leads (scheduled or blacklisted) to prevent status overrides
 interface ScheduledLeadTracker {
 	leadId: string;
 	scheduledAt: number;
@@ -34,8 +34,10 @@ export class CallStatusPoller {
 	private readonly leadRepository: LeadRepository;
 	private batchReconcileInterval?: NodeJS.Timeout;
 
-	// Track scheduled leads to prevent status overrides for 1 minute
+	// Track scheduled and blacklisted leads to prevent status overrides for 1 minute
 	private readonly scheduledLeads: Map<string, ScheduledLeadTracker> =
+		new Map();
+	private readonly blacklistedLeads: Map<string, ScheduledLeadTracker> =
 		new Map();
 	private readonly SCHEDULE_PROTECTION_DURATION = 60000; // 1 minute in milliseconds
 
@@ -73,19 +75,33 @@ export class CallStatusPoller {
 	}
 
 	/**
+	 * Track a lead as recently blacklisted to prevent status overrides
+	 */
+	public trackBlacklistedLead(leadId: string): void {
+		this.blacklistedLeads.set(leadId, {
+			leadId,
+			scheduledAt: Date.now(),
+		});
+		console.log(
+			`🛑 Tracking blacklisted lead ${leadId} - status changes blocked for 1 minute`
+		);
+	}
+
+	/**
 	 * Check if a lead is protected from status changes
 	 */
 	private isLeadStatusProtected(leadId: string): boolean {
-		const tracker = this.scheduledLeads.get(leadId);
+		const tracker =
+			this.scheduledLeads.get(leadId) || this.blacklistedLeads.get(leadId);
 		if (!tracker) return false;
 
-		const timeSinceScheduled = Date.now() - tracker.scheduledAt;
-		const isProtected = timeSinceScheduled < this.SCHEDULE_PROTECTION_DURATION;
+		const elapsedMs = Date.now() - tracker.scheduledAt;
+		const isProtected = elapsedMs < this.SCHEDULE_PROTECTION_DURATION;
 
 		if (isProtected) {
 			console.log(
 				`📅 Lead ${leadId} is protected from status changes (${Math.round(
-					(this.SCHEDULE_PROTECTION_DURATION - timeSinceScheduled) / 1000
+					(this.SCHEDULE_PROTECTION_DURATION - elapsedMs) / 1000
 				)}s remaining)`
 			);
 		}
@@ -107,9 +123,16 @@ export class CallStatusPoller {
 			}
 		}
 
+		for (const [leadId, tracker] of this.blacklistedLeads.entries()) {
+			if (now - tracker.scheduledAt >= this.SCHEDULE_PROTECTION_DURATION) {
+				this.blacklistedLeads.delete(leadId);
+				cleanedCount++;
+			}
+		}
+
 		if (cleanedCount > 0) {
 			console.log(
-				`📅 Cleaned up ${cleanedCount} expired scheduled lead entries`
+				`📅 Cleaned up ${cleanedCount} expired protected lead entries`
 			);
 		}
 	}
@@ -147,6 +170,33 @@ export class CallStatusPoller {
 			// ignore
 		}
 		return undefined;
+	}
+
+	/**
+	 * Calculate the next retry time for an auto-rescheduled call after busy
+	 * If current time is between 8am-10pm, schedule for 1 hour later
+	 * If outside business hours, schedule for next day at 8am
+	 */
+	private calculateNextRetryTime(): Date {
+		const now = new Date();
+		const currentHour = now.getHours();
+
+		// Business hours: 8am (8) to 6pm (18)
+		const businessStartHour = 8;
+		const businessEndHour = 18;
+
+		let nextRetryTime = new Date(now);
+
+		if (currentHour >= businessStartHour && currentHour < businessEndHour) {
+			// Within business hours: schedule for 1 hour later
+			nextRetryTime.setHours(currentHour + 1);
+		} else {
+			// Outside business hours: schedule for next day at 8am
+			nextRetryTime.setDate(now.getDate() + 1);
+			nextRetryTime.setHours(businessStartHour, 0, 0, 0);
+		}
+
+		return nextRetryTime;
 	}
 
 	/**
@@ -407,6 +457,61 @@ export class CallStatusPoller {
 				endedBy,
 				endReason,
 			});
+
+			// Auto-reschedule when customer is busy
+			try {
+				const shouldRescheduleForBusy =
+					(!!endReason && endReason.toLowerCase() === "customer-busy") ||
+					normalizedStatus === "busy";
+
+				if (shouldRescheduleForBusy) {
+					const dbCallForReschedule = await this.callRepository.findById(
+						dbCallId
+					);
+					if (dbCallForReschedule) {
+						const lead = await this.leadRepository.findById(
+							dbCallForReschedule.leadId
+						);
+						if (lead && !lead.blacklisted) {
+							const maxRetries = 3;
+							const currentRetryCount = (lead as any).retryCount || 0;
+
+							if (lead.scheduledCallAt) {
+								console.log(
+									`📅 Lead ${
+										lead.id
+									} already has a scheduled call at ${lead.scheduledCallAt.toLocaleString()}, skipping auto reschedule`
+								);
+							} else if (currentRetryCount >= maxRetries) {
+								console.log(
+									`📅 Lead ${lead.id} reached max retries (${maxRetries}), not auto-rescheduling after busy`
+								);
+							} else {
+								const nextRetryTime = this.calculateNextRetryTime();
+								await this.leadRepository.updateScheduledCall(
+									lead.id,
+									nextRetryTime,
+									`Retry ${
+										currentRetryCount + 1
+									}/${maxRetries} scheduled automatically after customer-busy at ${new Date().toLocaleString()}`
+								);
+								// Protect lead status from immediate overrides
+								this.trackScheduledLead(lead.id);
+								console.log(
+									`📅 Auto-rescheduled call for lead ${
+										lead.id
+									} at ${nextRetryTime.toLocaleString()} due to customer-busy`
+								);
+							}
+						}
+					}
+				}
+			} catch (autoRescheduleError: any) {
+				console.error(
+					"📅 Failed to auto-reschedule after customer-busy:",
+					autoRescheduleError?.message || autoRescheduleError
+				);
+			}
 		} catch (error: any) {
 			console.error(
 				`📞 Error handling terminal status for ${vapiCallId}:`,

@@ -602,6 +602,32 @@ export class CallService {
 	}
 
 	/**
+	 * Get the current or most recent Vapi call ID for a given phone number
+	 */
+	async getVapiCallIdByPhone(phoneNumber: string): Promise<string | null> {
+		try {
+			const formatted = this.formatPhoneNumber(phoneNumber);
+			const lead = await this.leadRepository.findByPhone(formatted);
+			if (!lead) return null;
+
+			const calls = await this.callRepository.findByLeadId(lead.id);
+			// Prefer an INITIATED call; otherwise fall back to the most recent with a vapiCallId
+			const active =
+				calls.find(
+					(c: any) => c.vapiCallId && c.callStatus === CallStatus.INITIATED
+				) || calls.find((c: any) => c.vapiCallId);
+
+			return active?.vapiCallId || null;
+		} catch (error) {
+			console.warn(
+				"Failed to get Vapi call ID by phone:",
+				(error as any)?.message || error
+			);
+			return null;
+		}
+	}
+
+	/**
 	 * Reconcile stale calls that remained INITIATED due to missed webhooks.
 	 * Looks back a window and polls Vapi to finalize status.
 	 */

@@ -104,15 +104,46 @@ class VapiService {
 		callId: string,
 		controlPayload: CallControlPayload
 	): Promise<void> {
+		console.log(
+			`[CONTROL] Starting control call operation for callId: ${callId}`,
+			{
+				controlType: controlPayload.type,
+				timestamp: new Date().toISOString(),
+			}
+		);
+
 		try {
 			// First get the call to obtain the control URL
+			console.log(`[CONTROL] Fetching call details for callId: ${callId}`);
 			const call = await this.getCall(callId);
+			console.log(`[CONTROL] Call details retrieved successfully`, {
+				callId: call.id,
+				status: call.status,
+				hasMonitor: !!call.monitor,
+				hasControlUrl: !!call.monitor?.controlUrl,
+			});
 
 			if (!call.monitor?.controlUrl) {
+				console.error(
+					`[CONTROL] Control URL not available for call ${callId}`,
+					{
+						callStatus: call.status,
+						monitorExists: !!call.monitor,
+						controlUrlExists: !!call.monitor?.controlUrl,
+					}
+				);
 				throw new Error(
 					"Call control URL not available - call may not be active"
 				);
 			}
+
+			console.log(
+				`[CONTROL] Control URL found, preparing to send control request`,
+				{
+					controlUrl: call.monitor.controlUrl,
+					controlPayload: controlPayload,
+				}
+			);
 
 			const response = await fetch(call.monitor.controlUrl, {
 				method: "POST",
@@ -122,17 +153,45 @@ class VapiService {
 				body: JSON.stringify(controlPayload),
 			});
 
+			console.log(`[CONTROL] Control request sent, response received`, {
+				status: response.status,
+				statusText: response.statusText,
+				ok: response.ok,
+			});
+
 			if (!response.ok) {
 				const errorData = await response.text();
+				console.error(`[CONTROL] Control request failed`, {
+					status: response.status,
+					statusText: response.statusText,
+					errorData: errorData,
+					controlPayload: controlPayload,
+				});
 				throw new Error(
 					`Call control failed: ${response.status} - ${errorData}`
 				);
 			}
 
+			const responseData = await response.text();
+			console.log(`[CONTROL] Control request successful`, {
+				callId: callId,
+				controlType: controlPayload.type,
+				responseStatus: response.status,
+				responseData: responseData || "No response body",
+				timestamp: new Date().toISOString(),
+			});
+
 			console.log(
 				`Call control action '${controlPayload.type}' executed successfully for call ${callId}`
 			);
 		} catch (error: any) {
+			console.error(`[CONTROL] Error in control call operation`, {
+				callId: callId,
+				controlPayload: controlPayload,
+				error: error.message,
+				stack: error.stack,
+				timestamp: new Date().toISOString(),
+			});
 			console.error("Error controlling call:", error);
 			throw new Error(`Failed to control call: ${error.message}`);
 		}

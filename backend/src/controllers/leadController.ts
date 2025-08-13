@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { LeadService } from "../services/leadService";
 import { ResponseUtils } from "../utils/responseUtils";
 import { socketService } from "../services/socketService";
+import { callService } from "../services/callService";
 
 enum LeadStatus {
 	NEW = "NEW",
@@ -14,7 +15,8 @@ enum LeadStatus {
 }
 
 export class LeadController {
-	private leadService: LeadService;
+	private readonly leadService: LeadService;
+	private readonly callService = callService;
 
 	constructor() {
 		this.leadService = new LeadService();
@@ -26,6 +28,31 @@ export class LeadController {
 			req.body.message.toolCalls[0].function.arguments.phoneNumber.number ||
 			req.body.phoneNumber
 		);
+	}
+
+	private async endCallIfVapi(phoneNumber: string): Promise<void> {
+		try {
+			const lead = await this.leadService.getLeadByPhone(phoneNumber);
+			if (!lead) return;
+			const calls = await this.callService.getCallsByLead(lead.id);
+			// Prefer an INITIATED call; otherwise fall back to the most recent with a vapiCallId
+			const active =
+				calls.find((c: any) => c.vapiCallId && c.callStatus === "INITIATED") ||
+				calls.find((c: any) => c.vapiCallId);
+			if (active?.vapiCallId) {
+				try {
+					await this.callService.endCall(active.vapiCallId);
+				} catch (innerErr) {
+					// Ignore if call already ended or control URL unavailable
+					console.warn(
+						`Attempted to auto-end Vapi call ${active.vapiCallId} but it may already be ended:`,
+						(innerErr as any)?.message || innerErr
+					);
+				}
+			}
+		} catch (e) {
+			console.warn("Failed to auto-end Vapi call after tool execution:", e);
+		}
 	}
 
 	async manualLeads(req: Request, res: Response): Promise<void> {
@@ -213,16 +240,37 @@ export class LeadController {
 				return;
 			}
 
+			// Get Vapi call id from phone number
+			const vapiCallId = await this.callService.getVapiCallIdByPhone(
+				phoneNumber
+			);
+
+			if (vapiCallId) {
+				await this.callService.sayMessage(
+					vapiCallId,
+					"D'accord, attendez juste un instant que je puisse vous programmer."
+				);
+			}
+
 			const lead = await this.leadService.scheduleCall(
 				phoneNumber,
 				scheduledTime,
 				note
 			);
 
+			if (vapiCallId) {
+				await this.callService.sayMessage(
+					vapiCallId,
+					"Votre appel est programmé, merci pour votre temps",
+					true
+				);
+			}
+
 			console.log("Call scheduled successfully");
 			console.log(
 				`📅 Lead ${lead.id} is now protected from status changes for 1 minute`
 			);
+			await this.endCallIfVapi(phoneNumber);
 			ResponseUtils.success(res, lead, "Call scheduled successfully");
 		} catch (error: any) {
 			console.error("Error scheduling call:", error);
@@ -254,8 +302,20 @@ export class LeadController {
 				return;
 			}
 
-			const lead = await this.leadService.blacklistLead(phoneNumber);
+			// Get Vapi call id from phone number
+			const vapiCallId = await this.callService.getVapiCallIdByPhone(
+				phoneNumber
+			);
 
+			if (vapiCallId) {
+				await this.callService.sayMessage(
+					vapiCallId,
+					"Nous sommes désolés pour cet appel, votre numéro a été retiré de notre liste et vous ne serez plus contacté. Passez une excellente journée.",
+					true
+				);
+			}
+
+			const lead = await this.leadService.blacklistLead(phoneNumber);
 			ResponseUtils.success(res, lead, "Lead blacklisted successfully");
 		} catch (error: any) {
 			console.error("Error blacklisting lead:", error);
@@ -269,47 +329,6 @@ export class LeadController {
 				ResponseUtils.error(res, error.message, 500);
 			} else {
 				ResponseUtils.error(res, "Failed to blacklist lead", 500);
-			}
-		}
-	}
-
-	async userIsInterested(req: Request, res: Response): Promise<void> {
-		try {
-			const phoneNumber = this.getPhoneNumberFromVapi(req);
-
-			if (!phoneNumber) {
-				ResponseUtils.badRequest(res, "Phone number is required");
-				return;
-			}
-
-			console.log("phoneNumber", phoneNumber);
-
-			// First find the lead by phone number
-			const existingLead = await this.leadService.getLeadByPhone(phoneNumber);
-			if (!existingLead) {
-				ResponseUtils.notFound(res, "Lead not found with this phone number");
-				return;
-			}
-
-			// Update the lead status using the lead ID
-			const lead = await this.leadService.updateLeadStatus(
-				existingLead.id,
-				LeadStatus.INTERESTED
-			);
-
-			console.log("Lead updated successfully");
-
-			ResponseUtils.success(res, lead, "Lead updated successfully");
-		} catch (error: any) {
-			console.error("Error checking if user is interested:", error);
-
-			// Handle specific error types
-			if (error.message.includes("Lead not found")) {
-				ResponseUtils.notFound(res, error.message);
-			} else if (error.message.includes("Failed to update lead status")) {
-				ResponseUtils.error(res, error.message, 500);
-			} else {
-				ResponseUtils.error(res, "Failed to check if user is interested", 500);
 			}
 		}
 	}
