@@ -1,10 +1,8 @@
-import { CallStatus } from "@prisma/client";
 import { CallRepository } from "../repositories/callRepository";
 import { LeadRepository } from "../repositories/leadRepository";
 import { vapiService } from "./vapiService";
 import { socketService } from "./socketService";
-import { LeadStatus } from "@prisma/client";
-import { Vapi } from "@vapi-ai/server-sdk";
+import { LeadStatus, CallStatus } from "@prisma/client";
 
 interface PollingSession {
 	interval: NodeJS.Timeout;
@@ -24,9 +22,9 @@ interface PollingConfig {
 }
 
 export class CallStatusPoller {
-	private activePollers: Map<string, PollingSession> = new Map();
-	private callRepository: CallRepository;
-	private leadRepository: LeadRepository;
+	private readonly activePollers: Map<string, PollingSession> = new Map();
+	private readonly callRepository: CallRepository;
+	private readonly leadRepository: LeadRepository;
 	private batchReconcileInterval?: NodeJS.Timeout;
 
 	private readonly config: PollingConfig = {
@@ -51,7 +49,7 @@ export class CallStatusPoller {
 		try {
 			const toMs = (val: any): number | undefined => {
 				if (!val) return undefined;
-				const d = new Date(val as any);
+				const d = new Date(val);
 				const ms = d.getTime();
 				return Number.isFinite(ms) ? ms : undefined;
 			};
@@ -136,7 +134,7 @@ export class CallStatusPoller {
 			const call = await vapiService.getCall(vapiCallId);
 
 			const currentStatus = (call as any)?.status as string | undefined;
-			const cost = (call as any)?.cost as number | undefined;
+			const cost = call.cost;
 
 			// Try to get duration from Vapi response, fallback to computing from timestamps
 			let duration = (call as any)?.duration as number | undefined;
@@ -217,7 +215,7 @@ export class CallStatusPoller {
 			const vapiCall = await vapiService.getCall(vapiCallId);
 			const normalizedStatus = status.toLowerCase();
 
-			// Determine if user hung up based on possible fields from Vapi payload
+			// Extract call metadata for logging and notes generation
 			const endedBy: string | undefined =
 				(vapiCall as any)?.endedBy ||
 				(vapiCall as any)?.endBy ||
@@ -228,19 +226,6 @@ export class CallStatusPoller {
 				(vapiCall as any)?.statusReason ||
 				(vapiCall as any)?.reason;
 
-			const reasonText = `${endedBy ? String(endedBy) : ""} ${
-				endReason ? String(endReason) : ""
-			}`.toLowerCase();
-			const userHungUp =
-				reasonText.includes("user") ||
-				reasonText.includes("customer") ||
-				reasonText.includes("callee") ||
-				reasonText.includes("recipient") ||
-				reasonText.includes("hung up") ||
-				reasonText.includes("hangup") ||
-				reasonText.includes("cancel") ||
-				reasonText.includes("disconnected by user");
-
 			// Map Vapi status to our CallStatus
 			const isCompleted = ["completed", "ended"].includes(normalizedStatus);
 			let newStatus: CallStatus;
@@ -248,12 +233,18 @@ export class CallStatusPoller {
 			// Check if call was transferred by assistant
 			if (endReason && endReason.toLowerCase() === "assistant-forwarded-call") {
 				newStatus = CallStatus.TRANSFERRED;
-			} else if (isCompleted && userHungUp) {
-				// Treat user hang up as a failed call in our domain
+			} else if (
+				endReason &&
+				endReason.toLowerCase() === "customer-did-not-answer"
+			) {
+				// Customer did not answer should be marked as FAILED
 				newStatus = CallStatus.FAILED;
 			} else if (isCompleted) {
+				// If call is completed/ended, it means user picked up and spoke
+				// This should be marked as COMPLETED, not FAILED
 				newStatus = CallStatus.COMPLETED;
 			} else {
+				// Only mark as FAILED for actual failures (no answer, API issues, etc.)
 				newStatus = CallStatus.FAILED;
 			}
 
@@ -278,7 +269,7 @@ export class CallStatusPoller {
 				}
 			}
 
-			const vapiCost = (vapiCall as any)?.cost as number | undefined;
+			const vapiCost = vapiCall.cost;
 
 			// If customer did not answer, set duration and cost to 0
 			if (isCustomerDidNotAnswer || customerBusy) {
@@ -317,9 +308,9 @@ export class CallStatusPoller {
 			await this.extractAndUpdateCallNotes(vapiCallId, dbCallId);
 
 			console.log(
-				`📞 Call ${vapiCallId} finalized: ${newStatus} (duration: ${duration}s, cost: $${
-					cost || 0
-				} USD)`
+				`📞 Call ${vapiCallId} finalized: ${newStatus} (duration: ${
+					vapiDuration ?? duration ?? 0
+				}s, cost: $${vapiCost ?? cost ?? 0} USD)`
 			);
 
 			// Emit real-time update
@@ -327,8 +318,8 @@ export class CallStatusPoller {
 				callId: dbCallId,
 				vapiCallId,
 				status: newStatus,
-				duration,
-				cost,
+				duration: vapiDuration ?? duration,
+				cost: vapiCost ?? cost,
 				endedBy,
 				endReason,
 			});
@@ -438,26 +429,14 @@ export class CallStatusPoller {
 				vapiCall.endedReason ||
 				vapiCall.statusReason ||
 				vapiCall.reason;
-			const reasonText = `${endedBy ? String(endedBy) : ""} ${
-				endReason ? String(endReason) : ""
-			}`.toLowerCase();
-			const userHungUp =
-				reasonText.includes("user") ||
-				reasonText.includes("customer") ||
-				reasonText.includes("callee") ||
-				reasonText.includes("recipient") ||
-				reasonText.includes("hung up") ||
-				reasonText.includes("hangup") ||
-				reasonText.includes("cancel");
+			// Note: We no longer use userHungUp logic since completed calls are considered successful
+			// regardless of who hung up, as long as the user picked up and spoke
 
 			if (status === "completed" || status === "ended") {
-				if (userHungUp) {
-					notes.push("Call Outcome: Failed - User hung up");
-					console.log(`📝 Call outcome: Failed - User hung up`);
-				} else {
-					notes.push("Call Outcome: Completed successfully");
-					console.log(`📝 Call outcome: Completed successfully`);
-				}
+				// If call is completed/ended, it means user picked up and spoke
+				// This is a successful call, regardless of who hung up
+				notes.push("Call Outcome: Completed successfully");
+				console.log(`📝 Call outcome: Completed successfully`);
 				if (endedBy) {
 					notes.push(`Ended By: ${endedBy}`);
 				}
@@ -667,33 +646,34 @@ export class CallStatusPoller {
 					if (!this.isTerminalVapiStatus(currentStatus)) continue;
 
 					const normalized = currentStatus.toLowerCase();
-					const endedBy: string | undefined =
-						(vapiCall as any)?.endedBy ||
-						(vapiCall as any)?.endBy ||
-						(vapiCall as any)?.hangupBy;
 					const endReason: string | undefined =
 						(vapiCall as any)?.endReason ||
 						(vapiCall as any)?.endedReason ||
 						(vapiCall as any)?.statusReason ||
 						(vapiCall as any)?.reason;
-					const reasonText = `${endedBy ? String(endedBy) : ""} ${
-						endReason ? String(endReason) : ""
-					}`.toLowerCase();
-					const userHungUp =
-						reasonText.includes("user") ||
-						reasonText.includes("customer") ||
-						reasonText.includes("callee") ||
-						reasonText.includes("recipient") ||
-						reasonText.includes("hung up") ||
-						reasonText.includes("hungup") ||
-						reasonText.includes("cancel") ||
-						reasonText.includes("disconnected by user");
+					// Note: We no longer use userHungUp logic since completed calls are considered successful
+					// regardless of who hung up, as long as the user picked up and spoke
 
 					const isCompleted = ["completed", "ended"].includes(normalized);
-					const newStatus =
-						isCompleted && !userHungUp
-							? CallStatus.COMPLETED
-							: CallStatus.FAILED;
+					let newStatus: CallStatus;
+
+					// Check if call was transferred by assistant
+					if (
+						endReason &&
+						endReason.toLowerCase() === "assistant-forwarded-call"
+					) {
+						newStatus = CallStatus.TRANSFERRED;
+					} else if (
+						endReason &&
+						endReason.toLowerCase() === "customer-did-not-answer"
+					) {
+						// Customer did not answer should be marked as FAILED
+						newStatus = CallStatus.FAILED;
+					} else if (isCompleted) {
+						newStatus = CallStatus.COMPLETED;
+					} else {
+						newStatus = CallStatus.FAILED;
+					}
 
 					await this.callRepository.updateStatus(call.id, newStatus);
 
@@ -707,7 +687,12 @@ export class CallStatusPoller {
 						);
 						await this.callRepository.updateDuration(call.id, 0, 0);
 					} else if (typeof duration === "number") {
-						await this.callRepository.updateDuration(call.id, duration);
+						const vapiCost = vapiCall.cost;
+						await this.callRepository.updateDuration(
+							call.id,
+							duration,
+							vapiCost
+						);
 					}
 
 					// Extract meaningful call notes for all terminal calls

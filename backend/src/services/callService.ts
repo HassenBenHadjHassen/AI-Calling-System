@@ -131,6 +131,50 @@ export class CallService {
 	}
 
 	/**
+	 * Get detailed information about queued calls
+	 */
+	async getQueuedCalls(): Promise<
+		Array<{
+			leadId: string;
+			title: string;
+			isScheduled: boolean;
+			priority: number;
+			timestamp: Date;
+			queuePosition: number;
+			estimatedWaitTime?: number; // in minutes
+			lead?: any; // Lead information if available
+		}>
+	> {
+		const queuedCallsWithLeads = await Promise.all(
+			this.callQueue.map(async (call, index) => {
+				// Calculate estimated wait time based on position and average call duration
+				const averageCallDurationMinutes = 5; // Average 5 minutes per call
+				const estimatedWaitTime = index * averageCallDurationMinutes;
+
+				// Try to get lead information
+				let lead = null;
+				try {
+					lead = await this.leadRepository.findById(call.leadId);
+				} catch (error) {
+					console.warn(
+						`Could not fetch lead information for leadId: ${call.leadId}`
+					);
+				}
+
+				return {
+					...call,
+					queuePosition: index + 1,
+					estimatedWaitTime:
+						estimatedWaitTime > 0 ? estimatedWaitTime : undefined,
+					lead,
+				};
+			})
+		);
+
+		return queuedCallsWithLeads;
+	}
+
+	/**
 	 * Calculate the next retry time for a failed call
 	 * If current time is between 8am-10pm, schedule for 1 hour later
 	 * If outside business hours, schedule for next day at 8am

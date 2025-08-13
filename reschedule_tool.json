@@ -1,53 +1,46 @@
 {
-	"id": "3bfa64a3-0fd0-4df7-8b70-98400478375f",
-	"createdAt": "2025-07-29T23:25:54.573Z",
-	"updatedAt": "2025-08-10T13:28:03.768Z",
+	"id": "4f1b5b40-d477-491f-954a-35ff87d877a0",
+	"createdAt": "2025-08-11T23:20:16.956Z",
+	"updatedAt": "2025-08-12T14:09:08.615Z",
 	"type": "function",
 	"function": {
-		"name": "reschedule_tool",
-		"strict": true,
-		"description": "Reschedule a lead's call via API",
-		"parameters": {
-			"type": "object",
-			"properties": {
-				"note": {
-					"description": "Optional annotation",
-					"type": "string"
-				},
-				"scheduledCallAt": {
-					"description": "New time in ISO8601 UTC",
-					"type": "string"
-				},
-				"customerPhoneNumber": {
-					"description": "This is the customer phone number starting with country code",
-					"type": "string"
-				}
-			},
-			"required": ["customerPhoneNumber", "scheduledCallAt"]
-		}
+	  "name": "reschedule_tool",
+	  "strict": true,
+	  "description": "Reschedule a lead's call via API",
+	  "parameters": {
+		"type": "object",
+		"properties": {
+		  "note": {
+			"description": "Optional annotation",
+			"type": "string"
+		  },
+		  "phoneNumber": {
+			"description": "The time and day the client wants to reschedule the call. Must be in Paris timezone (Europe/Paris) in a format that JavaScript's new Date() can parse (e.g., '2024-01-15T14:30:00+01:00' for Paris time during standard time, '2024-01-15T14:30:00+02:00' for Paris time during daylight saving time).",
+			"type": "string",
+			"default": "+123456789"
+		  },
+		  "scheduledCallAt": {
+			"description": "The exact datetime to reschedule the call, in Paris timezone. Should be a value like {{reschedule_date}} formatted as ISO 8601 (e.g., 2024-01-15T14:30:00+01:00 or +02:00 during DST).",
+			"type": "string",
+			"default": "{{reschedule_date}}"
+		  }
+		},
+		"required": [
+		  "phoneNumber",
+		  "scheduledCallAt"
+		]
+	  }
 	},
 	"messages": [
-		{
-			"type": "request-start",
-			"content": "Updating schedule…",
-			"blocking": false
-		},
-		{
-			"role": "assistant",
-			"type": "request-complete",
-			"content": "Call rescheduled successfully",
-			"endCallAfterSpokenEnabled": false
-		},
-		{
-			"type": "request-failed",
-			"content": "Request Failed",
-			"endCallAfterSpokenEnabled": false
-		}
+	  {
+		"type": "request-start",
+		"blocking": false
+	  }
 	],
-	"orgId": "d7cb7022-f6bb-4f46-a5a8-c35aaa676ba9",
+	"orgId": "78bc9fb8-d291-4bd5-a044-64cd420ee9d2",
 	"server": {
-		"url": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads/schedule",
-		"headers": {}
+	  "url": "https://38597d2febee.ngrok-free.app/api/leads/schedule",
+	  "headers": {}
 	},
 	"async": true
-}
+  }

@@ -349,6 +349,7 @@ const resources = {
 				callTime: "Call Time",
 				durationSeconds: "Duration (seconds)",
 				campaign: "Campaign",
+				campaignId: "Campaign ID",
 				notes: "Notes",
 				unknown: "Unknown",
 				unknownLead: "Unknown Lead",
@@ -365,6 +366,13 @@ const resources = {
 				callQueue: "Call Queue",
 				scheduledInQueue: "Scheduled in Queue",
 				campaignInQueue: "Campaign in Queue",
+				// Stale calls management
+				staleCallsManagement: "Stale Calls Management",
+				staleCallsDescription:
+					"Some calls may remain in 'INITIATED' status if webhooks were missed. This can happen due to network issues or Vapi.ai service interruptions.",
+				staleCallsAutoReconcile:
+					"The system automatically reconciles stale calls every 5 minutes, but you can also trigger it manually.",
+				reconcileStaleCalls: "Reconcile Stale Calls",
 			},
 
 			// Statistics
@@ -463,6 +471,11 @@ const resources = {
 				cancel: "Cancel",
 				onlyNewLeads: "Only NEW leads can be called",
 				blacklisted: "Lead is blacklisted",
+				callInProgress: "Call in progress",
+				callInProgressStatusDisabled:
+					"Status updates disabled until call completes",
+				callInProgressNewCallsDisabled:
+					"New calls disabled until current call completes",
 				cannotScheduleInPast:
 					"Cannot schedule a call in the past. Please select a future date and time.",
 				viewDetails: "View Details",
@@ -894,6 +907,7 @@ const resources = {
 				callTime: "Heure d'Appel",
 				durationSeconds: "Durée (secondes)",
 				campaign: "Campagne",
+				campaignId: "ID de la Campagne",
 				notes: "Notes",
 				unknown: "Inconnu",
 				unknownLead: "Prospect Inconnu",
@@ -910,6 +924,13 @@ const resources = {
 				callQueue: "File d'Attente d'Appels",
 				scheduledInQueue: "Programmés en File",
 				campaignInQueue: "Campagne en File",
+				// Stale calls management
+				staleCallsManagement: "Gestion des Appels Anciens",
+				staleCallsDescription:
+					"Certains appels peuvent rester en 'INITIÉ' si les webhooks ont été manqués. Cela peut être dû à des problèmes de réseau ou des interruptions du service Vapi.ai.",
+				staleCallsAutoReconcile:
+					"Le système réconcile automatiquement les appels anciens toutes les 5 minutes, mais vous pouvez également le déclencher manuellement.",
+				reconcileStaleCalls: "Réconcilier les Appels Anciens",
 			},
 
 			// Statistics
@@ -1009,6 +1030,11 @@ const resources = {
 				cancel: "Annuler",
 				onlyNewLeads: "NOUVEAUX uniquement",
 				blacklisted: "Liste noire",
+				callInProgress: "Appel en cours",
+				callInProgressStatusDisabled:
+					"Mises à jour de statut désactivées jusqu'à la fin de l'appel",
+				callInProgressNewCallsDisabled:
+					"Nouveaux appels désactivés jusqu'à la fin de l'appel en cours",
 				cannotScheduleInPast:
 					"Impossible de programmer un appel dans le passé. Veuillez sélectionner une date et heure futures.",
 				viewDetails: "Voir les Détails",

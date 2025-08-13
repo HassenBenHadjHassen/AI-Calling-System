@@ -14,6 +14,7 @@ import { queryClient } from "./lib/query-client";
 import "./lib/i18n";
 import { ToastProvider } from "./components/ui/toast";
 import { bugsnagClient } from "./lib/bugsnag";
+import { useTranslation } from "react-i18next";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -27,6 +28,19 @@ export const links: Route.LinksFunction = () => [
 		href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
 	},
 ];
+
+function DynamicLangAttribute() {
+	const { i18n } = useTranslation();
+
+	// Update document lang attribute when language changes
+	React.useEffect(() => {
+		if (typeof document !== "undefined") {
+			document.documentElement.lang = i18n.language;
+		}
+	}, [i18n.language]);
+
+	return null;
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	// Create Bugsnag Error Boundary only in production
@@ -46,7 +60,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<body>
 				<QueryClientProvider client={queryClient}>
 					<ErrorBoundary>
-						<ToastProvider>{children}</ToastProvider>
+						<ToastProvider>
+							<DynamicLangAttribute />
+							{children}
+						</ToastProvider>
 					</ErrorBoundary>
 				</QueryClientProvider>
 				<ScrollRestoration />

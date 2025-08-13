@@ -144,6 +144,47 @@ export class LeadRepository {
 		}
 	}
 
+	async updateStatusByPhone(phone: string, status: LeadStatus): Promise<Lead> {
+		try {
+			const lead = await this.prisma.lead.findFirst({
+				where: {
+					OR: [{ phone1: phone }, { phone2: phone }],
+				},
+			});
+			if (!lead) {
+				throw new Error(`Lead with phone ${phone} not found`);
+			}
+			return await this.prisma.lead.update({
+				where: { id: lead.id },
+				data: { status },
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to update lead status by phone: ${error.message}`
+			);
+		}
+	}
+
+	async updateStatusAndBlacklisted(
+		id: string,
+		status: LeadStatus,
+		blacklisted: boolean
+	): Promise<Lead> {
+		try {
+			return await this.prisma.lead.update({
+				where: { id },
+				data: {
+					status,
+					blacklisted,
+				},
+			});
+		} catch (error: any) {
+			throw new Error(
+				`Failed to update lead status and blacklisted: ${error.message}`
+			);
+		}
+	}
+
 	async incrementRetryCount(id: string): Promise<Lead> {
 		try {
 			return await this.prisma.lead.update({

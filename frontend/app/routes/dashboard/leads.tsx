@@ -441,18 +441,20 @@ export default function LeadsPage() {
 																{formatPhoneNumber(lead.phone1)}
 															</TableCell>
 															<TableCell>
-																<Badge
-																	variant={
-																		statusColors[lead.status] as
-																			| "default"
-																			| "secondary"
-																			| "destructive"
-																			| "outline"
-																	}
-																	className="text-xs"
-																>
-																	{translateStatus(lead.status)}
-																</Badge>
+																<div className="flex flex-col space-y-1">
+																	<Badge
+																		variant={
+																			statusColors[lead.status] as
+																				| "default"
+																				| "secondary"
+																				| "destructive"
+																				| "outline"
+																		}
+																		className="text-xs"
+																	>
+																		{translateStatus(lead.status)}
+																	</Badge>
+																</div>
 															</TableCell>
 															<TableCell className="hidden sm:table-cell text-xs sm:text-sm">
 																{lead.city || "N/A"}

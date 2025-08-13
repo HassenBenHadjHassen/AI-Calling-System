@@ -433,6 +433,30 @@
 					}
 				},
 				{
+					"name": "Get Call Management Stats",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/management-stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "management-stats"]
+						}
+					}
+				},
+				{
+					"name": "Get Queued Calls",
+					"request": {
+						"method": "GET",
+						"header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+						"url": {
+							"raw": "{{baseUrl}}/api/calls/queue",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "calls", "queue"]
+						}
+					}
+				},
+				{
 					"name": "Get Transferred Calls",
 					"request": {
 						"method": "GET",

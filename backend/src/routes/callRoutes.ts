@@ -28,8 +28,6 @@ router.post(
 	callController.handleOverdueRescheduledCalls.bind(callController)
 );
 
-// Webhook routes removed - replaced with enhanced polling system
-
 // Call statistics and reporting - these must come BEFORE parameterized routes
 router.get(
 	"/stats",
@@ -41,6 +39,14 @@ router.get(
 	// authenticateToken, // Commented out for testing
 	callController.getCallManagementStats.bind(callController)
 );
+
+// Queue routes - must come before parameterized routes
+router.get(
+	"/queue",
+	// authenticateToken,
+	callController.getQueuedCalls.bind(callController)
+);
+
 router.get(
 	"/transferred",
 	// authenticateToken, // Commented out for testing

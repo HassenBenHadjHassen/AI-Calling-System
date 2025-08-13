@@ -637,7 +637,16 @@ export class LeadService {
 				await this.campaignRepository.removeLead(lead.campaignId, leadId);
 			}
 
-			return await this.leadRepository.updateStatus(leadId, status);
+			// Update both status and blacklisted field
+			// If status is BLACKLISTED, set blacklisted to true
+			// If status is anything else, set blacklisted to false
+			const blacklisted = status === LeadStatus.BLACKLISTED;
+
+			return await this.leadRepository.updateStatusAndBlacklisted(
+				leadId,
+				status,
+				blacklisted
+			);
 		} catch (error: any) {
 			throw new Error(`Failed to update lead status: ${error.message}`);
 		}
@@ -699,6 +708,12 @@ export class LeadService {
 					customerPhoneNumber
 				);
 			}
+
+			// Update lead status to SCHEDULED
+			await this.leadRepository.updateStatusByPhone(
+				formattedPhone,
+				LeadStatus.SCHEDULED
+			);
 
 			return await this.leadRepository.updateScheduledCallByPhone(
 				formattedPhone,

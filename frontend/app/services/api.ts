@@ -174,7 +174,7 @@ export interface CallHistory {
 	transferred: boolean;
 	transferTo?: string;
 	fromNumber?: string; // System phone number (Vapi phone number)
-	toNumber?: string;   // Lead's phone number
+	toNumber?: string; // Lead's phone number
 	duration?: number;
 	cost?: number; // Cost in dollars from Vapi.ai
 	callTime: string;

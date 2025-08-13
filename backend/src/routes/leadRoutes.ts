@@ -101,6 +101,10 @@ router.post(
 );
 router.post("/schedule", leadController.scheduleCall.bind(leadController));
 router.post("/blacklist", leadController.blacklistLead.bind(leadController));
+router.post(
+	"/interested",
+	leadController.userIsInterested.bind(leadController)
+);
 
 // Clean all leads
 router.delete(

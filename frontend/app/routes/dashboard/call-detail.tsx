@@ -59,9 +59,7 @@ export default function CallDetailPage() {
 		enabled: !!id,
 	});
 
-	const call = callData?.data as CallHistory | undefined;
-
-	console.log({ call });
+	const call = callData?.data;
 
 	// Function to translate status
 	const translateStatus = (status: string) => {
@@ -93,20 +91,21 @@ export default function CallDetailPage() {
 		return cost;
 	};
 
-	const estimatedCost = calculateCost(call?.duration);
+	// Prefer actual cost from backend (Vapi) if available; otherwise estimate from duration
+	const usdCostValue = call?.cost ?? calculateCost(call?.duration);
 
 	useEffect(() => {
-		if (estimatedCost > 0) {
+		if (usdCostValue > 0) {
 			setIsLoadingCost(true);
 			currencyService
-				.convertUSDToEUR(estimatedCost)
+				.convertUSDToEUR(usdCostValue)
 				.then((convertedCost) => {
 					setCostInEur(convertedCost);
 				})
 				.catch((error) => {
 					console.error("Failed to convert currency:", error);
 					// Fallback to static conversion
-					setCostInEur(estimatedCost * 0.86);
+					setCostInEur(usdCostValue * 0.86);
 				})
 				.finally(() => {
 					setIsLoadingCost(false);
@@ -114,7 +113,7 @@ export default function CallDetailPage() {
 		} else {
 			setCostInEur(null);
 		}
-	}, [estimatedCost]);
+	}, [usdCostValue]);
 
 	const formatCost = (cost?: number) => {
 		if (cost === undefined || cost === null) return t("callDetail.na");
@@ -262,7 +261,7 @@ export default function CallDetailPage() {
 														className="text-gray-900 cursor-help text-sm sm:text-base"
 														title={t("callDetail.costTooltip")}
 													>
-														{formatCost(estimatedCost)}
+														{formatCost(usdCostValue)}
 													</p>
 												</div>
 												<div>

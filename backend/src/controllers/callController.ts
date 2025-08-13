@@ -4,7 +4,7 @@ import { ResponseUtils } from "../utils/responseUtils";
 import { socketService } from "../services/socketService";
 
 export class CallController {
-	private callService: CallService;
+	private readonly callService: CallService;
 
 	constructor() {
 		this.callService = new CallService();
@@ -140,6 +140,25 @@ export class CallController {
 			ResponseUtils.error(
 				res,
 				error.message || "Failed to get call management statistics",
+				400
+			);
+		}
+	}
+
+	async getQueuedCalls(req: Request, res: Response): Promise<void> {
+		try {
+			const queuedCalls = await this.callService.getQueuedCalls();
+
+			ResponseUtils.success(
+				res,
+				queuedCalls,
+				"Queued calls retrieved successfully"
+			);
+		} catch (error: any) {
+			console.error("Error getting queued calls:", error);
+			ResponseUtils.error(
+				res,
+				error.message || "Failed to get queued calls",
 				400
 			);
 		}
@@ -316,7 +335,7 @@ export class CallController {
 			const { vapiCallId } = req.params;
 			const { message, triggerResponse = true } = req.body;
 
-			if (!message || !message.role || !message.content) {
+			if (!message.role || !message.content) {
 				ResponseUtils.badRequest(
 					res,
 					"Message with role and content is required"

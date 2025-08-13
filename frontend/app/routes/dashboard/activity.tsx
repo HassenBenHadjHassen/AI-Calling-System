@@ -151,7 +151,7 @@ export default function ActivityPage() {
 					id: call.id,
 					phone: call.lead?.phone1 || "",
 					status: call.callStatus,
-					lead: call.lead?.name || "Unknown Lead",
+					lead: call.lead?.name || t("activity.unknownLead"),
 					timestamp: call.callTime,
 					duration: call.duration,
 					notes: call.notes,
@@ -166,7 +166,7 @@ export default function ActivityPage() {
 	// Download activity data as CSV
 	const downloadActivityData = async () => {
 		setIsDownloading(true);
-		try {	
+		try {
 			// Fetch more data for download (e.g., last 1000 calls)
 			const response = await callAPI.getRecentCalls(1000);
 			if (response.success && response.data) {
@@ -179,7 +179,7 @@ export default function ActivityPage() {
 						t("activity.callTime"),
 						t("activity.durationSeconds"),
 						t("activity.campaign"),
-						"Campaign ID", // Keep ID in English as it's a technical field
+						t("activity.campaignId"), // Keep ID in English as it's a technical field
 						t("activity.notes"),
 					].join(","),
 					// CSV rows
@@ -439,20 +439,17 @@ export default function ActivityPage() {
 							<CardHeader className="pb-4">
 								<CardTitle className="text-lg sm:text-xl font-bold text-amber-900 flex items-center space-x-2">
 									<AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
-									<span>Stale Calls Management</span>
+									<span>{t("activity.staleCallsManagement")}</span>
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="p-4 sm:p-6">
 								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
 									<div className="flex-1">
 										<p className="text-xs sm:text-sm text-amber-700 mb-2">
-											Some calls may remain in "INITIATED" status if webhooks
-											were missed. This can happen due to network issues or
-											Vapi.ai service interruptions.
+											{t("activity.staleCallsDescription")}
 										</p>
 										<p className="text-xs text-amber-600">
-											The system automatically reconciles stale calls every 5
-											minutes, but you can also trigger it manually.
+											{t("activity.staleCallsAutoReconcile")}
 										</p>
 									</div>
 									<Button
@@ -487,7 +484,7 @@ export default function ActivityPage() {
 										className="sm:ml-4 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 text-sm"
 									>
 										<RefreshCw className="h-4 w-4 mr-2" />
-										Reconcile Stale Calls
+										{t("activity.reconcileStaleCalls")}
 									</Button>
 								</div>
 							</CardContent>

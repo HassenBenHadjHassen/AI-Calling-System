@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -102,6 +102,24 @@ export default function LeadDetailPage() {
 		}
 	};
 
+	// Function to translate call status
+	const translateCallStatus = (callStatus: string) => {
+		switch (callStatus) {
+			case "INITIATED":
+				return t("calls.initiated");
+			case "COMPLETED":
+				return t("calls.completed");
+			case "TRANSFERRED":
+				return t("calls.transferred");
+			case "FAILED":
+				return t("calls.failed");
+			case "SCHEDULED":
+				return t("calls.scheduled");
+			default:
+				return callStatus;
+		}
+	};
+
 	useEffect(() => {
 		if (isClient) {
 			redirectIfNotAuthenticated("/login");
@@ -121,6 +139,7 @@ export default function LeadDetailPage() {
 	const [assistantMuted, setAssistantMuted] = useState(false);
 	const [transferNumber, setTransferNumber] = useState("");
 	const [transferMessage, setTransferMessage] = useState("");
+	const isCallInProgress = useRef(false);
 
 	// Fetch lead details
 	const { data: leadData, isLoading: isLeadLoading } = useQuery({
@@ -195,10 +214,25 @@ export default function LeadDetailPage() {
 
 	// Trigger call mutation
 	const triggerCallMutation = useMutation({
-		mutationFn: () =>
-			callAPI.triggerCall(id!, leadTitle, leadData?.data?.name || ""),
+		mutationFn: () => {
+			console.log("Mutation function called");
+			isCallInProgress.current = true;
+			return callAPI.triggerCall(id!, leadTitle, leadData?.data?.name || "");
+		},
 		onSuccess: () => {
+			console.log("Call triggered successfully");
 			queryClient.invalidateQueries({ queryKey: ["callHistory", id] });
+		},
+		onError: (error) => {
+			console.log("Call trigger failed:", error);
+			isCallInProgress.current = false;
+		},
+		onSettled: () => {
+			console.log("Call trigger settled");
+			// Reset the flag after a delay to allow for call status updates
+			setTimeout(() => {
+				isCallInProgress.current = false;
+			}, 2000);
 		},
 	});
 
@@ -222,6 +256,18 @@ export default function LeadDetailPage() {
 	const lead = leadData?.data as Lead | undefined;
 
 	const callHistory = callHistoryData?.data || [];
+
+	// Check if there's an active call (INITIATED status)
+	const hasActiveCall = callHistory.some(
+		(call) => call.callStatus === "INITIATED"
+	);
+
+	// Reset the call in progress flag when we detect an active call
+	useEffect(() => {
+		if (hasActiveCall) {
+			isCallInProgress.current = false;
+		}
+	}, [hasActiveCall]);
 
 	const handleStatusUpdate = () => {
 		if (lead && newStatus && newStatus !== lead.status) {
@@ -248,6 +294,22 @@ export default function LeadDetailPage() {
 	};
 
 	const handleTriggerCall = () => {
+		console.log("handleTriggerCall called", {
+			isPending: triggerCallMutation.isPending,
+			hasActiveCall,
+			isCallInProgress: isCallInProgress.current,
+		});
+
+		// Prevent multiple calls if already pending, if there's an active call, or if we're already processing a call
+		if (
+			triggerCallMutation.isPending ||
+			hasActiveCall ||
+			isCallInProgress.current
+		) {
+			console.log("Call blocked - already in progress");
+			return;
+		}
+		console.log("Triggering call...");
 		triggerCallMutation.mutate();
 	};
 
@@ -500,6 +562,14 @@ export default function LeadDetailPage() {
 														>
 															{translateStatus(lead.status)}
 														</Badge>
+														{hasActiveCall && (
+															<Badge
+																variant="destructive"
+																className="animate-pulse"
+															>
+																{t("leadDetail.callInProgress")}
+															</Badge>
+														)}
 													</div>
 												</div>
 												<div>
@@ -681,7 +751,7 @@ export default function LeadDetailPage() {
 																				: "secondary"
 																		}
 																	>
-																		{call.callStatus}
+																		{translateCallStatus(call.callStatus)}
 																	</Badge>
 																</TableCell>
 																<TableCell>
@@ -884,6 +954,12 @@ export default function LeadDetailPage() {
 												<CheckCircle className="h-5 w-5 mr-2" />
 												{t("leadDetail.updateStatus")}
 											</CardTitle>
+											{hasActiveCall && (
+												<p className="text-sm text-amber-600 mt-1">
+													⚠️ {t("leadDetail.callInProgress")} -{" "}
+													{t("leadDetail.callInProgressStatusDisabled")}
+												</p>
+											)}
 										</CardHeader>
 										<CardContent className="space-y-4">
 											<Select
@@ -891,10 +967,15 @@ export default function LeadDetailPage() {
 												onValueChange={(value) =>
 													setNewStatus(value as LeadStatus)
 												}
+												disabled={hasActiveCall}
 											>
 												<SelectTrigger>
 													<SelectValue
-														placeholder={t("leadDetail.selectNewStatus")}
+														placeholder={
+															hasActiveCall
+																? t("leadDetail.callInProgress")
+																: t("leadDetail.selectNewStatus")
+														}
 													/>
 												</SelectTrigger>
 												<SelectContent>
@@ -921,11 +1002,16 @@ export default function LeadDetailPage() {
 												disabled={
 													!newStatus ||
 													lead.status === "SCHEDULED" ||
-													newStatus === lead.status
+													newStatus === lead.status ||
+													hasActiveCall
 												}
 												className="w-full"
 											>
-												{t("leadDetail.updateStatusBtn")}
+												{hasActiveCall
+													? `${t("leadDetail.updateStatusBtn")} (${t(
+															"leadDetail.callInProgress"
+													  )})`
+													: t("leadDetail.updateStatusBtn")}
 											</Button>
 										</CardContent>
 									</Card>
@@ -937,6 +1023,12 @@ export default function LeadDetailPage() {
 												<PhoneCall className="h-5 w-5 mr-2" />
 												<span>{t("leadDetail.triggerCall")}</span>
 											</CardTitle>
+											{hasActiveCall && (
+												<p className="text-sm text-amber-600 mt-1">
+													⚠️ {t("leadDetail.callInProgress")} -{" "}
+													{t("leadDetail.callInProgressNewCallsDisabled")}
+												</p>
+											)}
 										</CardHeader>
 										<CardContent>
 											<Button
@@ -944,12 +1036,22 @@ export default function LeadDetailPage() {
 												disabled={
 													triggerCallMutation.isPending ||
 													lead.status !== "NEW" ||
-													lead.blacklisted
+													lead.blacklisted ||
+													hasActiveCall ||
+													isCallInProgress.current
 												}
 												className="w-full text-xs sm:text-sm leading-tight"
 											>
 												{triggerCallMutation.isPending
 													? t("leadDetail.triggering")
+													: hasActiveCall
+													? `${t("leadDetail.callNow")} (${t(
+															"leadDetail.callInProgress"
+													  )})`
+													: isCallInProgress.current
+													? `${t("leadDetail.callNow")} (${t(
+															"leadDetail.triggering"
+													  )})`
 													: lead.status !== "NEW"
 													? `${t("leadDetail.callNow")} (${t(
 															"leadDetail.onlyNewLeads"

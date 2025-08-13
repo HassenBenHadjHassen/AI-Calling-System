@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, memo } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,42 @@ import {
 	Phone,
 	Calendar,
 } from "lucide-react";
+
+// Memoized dashboard section component for better performance
+const DashboardSection = memo(({ section }: { section: any }) => {
+	const IconComponent = section.icon;
+	return (
+		<Link to={section.href} className="block">
+			<Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+					<CardTitle className="text-sm font-medium">{section.title}</CardTitle>
+					<div className="flex items-center space-x-2">
+						{section.count !== undefined && (
+							<span className="text-lg font-bold text-gray-900">
+								{section.count}
+							</span>
+						)}
+						<Badge variant="secondary" className="text-xs">
+							{section.badge}
+						</Badge>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<div className="flex items-center space-x-4">
+						<div className={`p-2 rounded-lg ${section.color}`}>
+							<IconComponent className="h-6 w-6 text-white" />
+						</div>
+						<div className="flex-1">
+							<p className="text-sm text-gray-600">{section.description}</p>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		</Link>
+	);
+});
+
+DashboardSection.displayName = "DashboardSection";
 
 export default function DashboardIndex() {
 	const { isAuthenticated } = useAuth();
@@ -162,42 +198,9 @@ export default function DashboardIndex() {
 				</div>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-					{dashboardSections.map((section) => {
-						const IconComponent = section.icon;
-						return (
-							<Link key={section.href} to={section.href} className="block">
-								<Card className="hover:shadow-lg transition-shadow duration-200 cursor-pointer">
-									<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-										<CardTitle className="text-sm font-medium">
-											{section.title}
-										</CardTitle>
-										<div className="flex items-center space-x-2">
-											{section.count !== undefined && (
-												<span className="text-lg font-bold text-gray-900">
-													{section.count}
-												</span>
-											)}
-											<Badge variant="secondary" className="text-xs">
-												{section.badge}
-											</Badge>
-										</div>
-									</CardHeader>
-									<CardContent>
-										<div className="flex items-center space-x-4">
-											<div className={`p-2 rounded-lg ${section.color}`}>
-												<IconComponent className="h-6 w-6 text-white" />
-											</div>
-											<div className="flex-1">
-												<p className="text-sm text-gray-600">
-													{section.description}
-												</p>
-											</div>
-										</div>
-									</CardContent>
-								</Card>
-							</Link>
-						);
-					})}
+					{dashboardSections.map((section) => (
+						<DashboardSection key={section.href} section={section} />
+					))}
 				</div>
 
 				<div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">

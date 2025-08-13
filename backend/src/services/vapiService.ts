@@ -18,9 +18,9 @@ interface CallControlPayload {
 }
 
 class VapiService {
-	private client: VapiClient;
-	private phoneNumberId: string;
-	private workflowId: string;
+	private readonly client: VapiClient;
+	private readonly phoneNumberId: string;
+	private readonly workflowId: string;
 
 	constructor() {
 		this.phoneNumberId = env.VAPI_PHONE_NUMBER_ID;
@@ -45,6 +45,7 @@ class VapiService {
 					variableValues: {
 						title: callRequest.title,
 						name: callRequest.name,
+						phoneNumber: callRequest.phoneNumber,
 					},
 				},
 			};

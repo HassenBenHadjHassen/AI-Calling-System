@@ -20,6 +20,14 @@ export class LeadController {
 		this.leadService = new LeadService();
 	}
 
+	private getPhoneNumberFromVapi(req: Request): string {
+		return (
+			req.body.message.toolCalls[0].function.arguments.phoneNumber ||
+			req.body.message.toolCalls[0].function.arguments.phoneNumber.number ||
+			req.body.phoneNumber
+		);
+	}
+
 	async manualLeads(req: Request, res: Response): Promise<void> {
 		try {
 			const { name, phone1, phone2, address, postalCode, city } = req.body;
@@ -172,14 +180,24 @@ export class LeadController {
 
 	async scheduleCall(req: Request, res: Response): Promise<void> {
 		try {
-			const { customerPhoneNumber, scheduledCallAt, note } = req.body;
+			// VAPI custom tools send data in req.body.function.arguments
+			const { scheduledCallAt, note } =
+				req.body.message.toolCalls[0].function.arguments || req.body;
 
-			if (!customerPhoneNumber) {
+			const phoneNumber = this.getPhoneNumberFromVapi(req);
+
+			console.log("phoneNumber", phoneNumber);
+			console.log("scheduledCallAt", scheduledCallAt);
+			console.log("note", note);
+
+			if (!phoneNumber) {
+				console.log("Customer phone number is required");
 				ResponseUtils.badRequest(res, "Customer phone number is required");
 				return;
 			}
 
 			if (!scheduledCallAt) {
+				console.log("Scheduled call time is required");
 				ResponseUtils.badRequest(res, "Scheduled call time is required");
 				return;
 			}
@@ -187,6 +205,7 @@ export class LeadController {
 			// Validate that scheduledCallAt is in the future
 			const scheduledTime = new Date(scheduledCallAt);
 			if (scheduledTime <= new Date()) {
+				console.log("Scheduled call time must be in the future");
 				ResponseUtils.badRequest(
 					res,
 					"Scheduled call time must be in the future"
@@ -195,37 +214,100 @@ export class LeadController {
 			}
 
 			const lead = await this.leadService.scheduleCall(
-				customerPhoneNumber,
+				phoneNumber,
 				scheduledTime,
 				note
 			);
 
+			console.log("Call scheduled successfully");
 			ResponseUtils.success(res, lead, "Call scheduled successfully");
 		} catch (error: any) {
 			console.error("Error scheduling call:", error);
-			ResponseUtils.error(res, error.message || "Failed to schedule call", 400);
+
+			// Handle specific error types
+			if (error.message.includes("Lead not found")) {
+				ResponseUtils.notFound(res, error.message);
+			} else if (
+				error.message.includes("Cannot schedule call for blacklisted lead")
+			) {
+				ResponseUtils.forbidden(res, error.message);
+			} else if (error.message.includes("Call is already scheduled")) {
+				ResponseUtils.conflict(res, error.message);
+			} else if (error.message.includes("Failed to schedule call")) {
+				ResponseUtils.error(res, error.message, 500);
+			} else {
+				ResponseUtils.error(res, "Failed to schedule call", 500);
+			}
 		}
 	}
 
 	async blacklistLead(req: Request, res: Response): Promise<void> {
 		try {
-			const { customerPhoneNumber } = req.body;
+			// VAPI custom tools send data in req.body.function.arguments
+			const phoneNumber = this.getPhoneNumberFromVapi(req);
 
-			if (!customerPhoneNumber) {
+			if (!phoneNumber) {
 				ResponseUtils.badRequest(res, "Customer phone number is required");
 				return;
 			}
 
-			const lead = await this.leadService.blacklistLead(customerPhoneNumber);
+			const lead = await this.leadService.blacklistLead(phoneNumber);
 
 			ResponseUtils.success(res, lead, "Lead blacklisted successfully");
 		} catch (error: any) {
 			console.error("Error blacklisting lead:", error);
-			ResponseUtils.error(
-				res,
-				error.message || "Failed to blacklist lead",
-				400
+
+			// Handle specific error types
+			if (error.message.includes("Lead not found")) {
+				ResponseUtils.notFound(res, error.message);
+			} else if (error.message.includes("Lead is already blacklisted")) {
+				ResponseUtils.conflict(res, error.message);
+			} else if (error.message.includes("Failed to blacklist lead")) {
+				ResponseUtils.error(res, error.message, 500);
+			} else {
+				ResponseUtils.error(res, "Failed to blacklist lead", 500);
+			}
+		}
+	}
+
+	async userIsInterested(req: Request, res: Response): Promise<void> {
+		try {
+			const phoneNumber = this.getPhoneNumberFromVapi(req);
+
+			if (!phoneNumber) {
+				ResponseUtils.badRequest(res, "Phone number is required");
+				return;
+			}
+
+			console.log("phoneNumber", phoneNumber);
+
+			// First find the lead by phone number
+			const existingLead = await this.leadService.getLeadByPhone(phoneNumber);
+			if (!existingLead) {
+				ResponseUtils.notFound(res, "Lead not found with this phone number");
+				return;
+			}
+
+			// Update the lead status using the lead ID
+			const lead = await this.leadService.updateLeadStatus(
+				existingLead.id,
+				LeadStatus.INTERESTED
 			);
+
+			console.log("Lead updated successfully");
+
+			ResponseUtils.success(res, lead, "Lead updated successfully");
+		} catch (error: any) {
+			console.error("Error checking if user is interested:", error);
+
+			// Handle specific error types
+			if (error.message.includes("Lead not found")) {
+				ResponseUtils.notFound(res, error.message);
+			} else if (error.message.includes("Failed to update lead status")) {
+				ResponseUtils.error(res, error.message, 500);
+			} else {
+				ResponseUtils.error(res, "Failed to check if user is interested", 500);
+			}
 		}
 	}
 

@@ -1,49 +1,36 @@
 {
-	"id": "25308234-d387-41fd-8ba8-81312f25badd",
-	"createdAt": "2025-07-30T14:57:53.090Z",
-	"updatedAt": "2025-08-10T13:28:11.194Z",
+	"id": "66ef871a-abbd-4325-90d9-901def565957",
+	"createdAt": "2025-08-11T23:19:24.686Z",
+	"updatedAt": "2025-08-12T13:46:24.786Z",
 	"type": "function",
 	"function": {
-		"name": "blacklist_tool",
-		"strict": true,
-		"description": "Blocks a lead via API",
-		"parameters": {
-			"type": "object",
-			"properties": {
-				"note": {
-					"description": "Optional annotation",
-					"type": "string"
-				},
-				"customerPhoneNumber": {
-					"description": "This is the customer phone number starting with country code",
-					"type": "string"
-				}
-			},
-			"required": ["customerPhoneNumber"]
-		}
+	  "name": "blacklist_tool",
+	  "strict": true,
+	  "description": "Blocks a lead via API",
+	  "parameters": {
+		"type": "object",
+		"properties": {
+		  "phoneNumber": {
+			"description": "This is the phone number of the person being called, you can find it either as a param {{phoneNumber}} or in the call details. make sure its in the E.164 Format.",
+			"type": "string",
+			"default": "+123456789"
+		  }
+		},
+		"required": [
+		  "phoneNumber"
+		]
+	  }
 	},
 	"messages": [
-		{
-			"type": "request-start",
-			"content": "Blacklisting lead…",
-			"blocking": false
-		},
-		{
-			"role": "assistant",
-			"type": "request-complete",
-			"content": "Lead blacklisted successfully",
-			"endCallAfterSpokenEnabled": false
-		},
-		{
-			"type": "request-failed",
-			"content": "Request Failed",
-			"endCallAfterSpokenEnabled": false
-		}
+	  {
+		"type": "request-start",
+		"blocking": false
+	  }
 	],
-	"orgId": "d7cb7022-f6bb-4f46-a5a8-c35aaa676ba9",
+	"orgId": "78bc9fb8-d291-4bd5-a044-64cd420ee9d2",
 	"server": {
-		"url": "https://ai-calling-system-api.hassenbenhadjhassen.com/api/leads/blacklist",
-		"headers": {}
+	  "url": "https://38597d2febee.ngrok-free.app/api/leads/blacklist",
+	  "headers": {}
 	},
 	"async": true
-}
+  }
