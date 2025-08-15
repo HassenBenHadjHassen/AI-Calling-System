@@ -388,7 +388,7 @@ export default function LeadsPage() {
 									</div>
 								) : (
 									<>
-										<div className="overflow-x-auto">
+										<div className="hidden sm:block overflow-x-auto">
 											<Table>
 												<TableHeader>
 													<TableRow>
@@ -494,6 +494,116 @@ export default function LeadsPage() {
 													))}
 												</TableBody>
 											</Table>
+										</div>
+
+										{/* Mobile/Card view */}
+										<div className="sm:hidden space-y-3">
+											<div className="flex items-center justify-between px-1">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={handleSelectAll}
+													className="text-xs"
+												>
+													{selectedLeads.length === paginatedLeads.length &&
+													paginatedLeads.length > 0
+														? t("common.deselectAll", {
+																defaultValue: "Deselect all",
+														  })
+														: t("common.selectAll", {
+																defaultValue: "Select all",
+														  })}
+												</Button>
+												<span className="text-[11px] text-gray-500">
+													{t("leads.showing")} {startIndex + 1} {t("leads.to")}{" "}
+													{Math.min(
+														startIndex + itemsPerPage,
+														filteredLeads.length
+													)}{" "}
+													{t("leads.of")} {filteredLeads.length}
+												</span>
+											</div>
+											{paginatedLeads.map((lead) => (
+												<div
+													key={lead.id}
+													className="rounded-lg border bg-white p-3 shadow-sm"
+												>
+													<div className="flex items-start justify-between">
+														<div className="flex items-center space-x-2">
+															<input
+																type="checkbox"
+																checked={selectedLeads.includes(lead.id)}
+																onChange={() => handleSelectLead(lead.id)}
+																className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+															/>
+															<div className="font-semibold text-sm text-gray-900">
+																{lead.name}
+															</div>
+														</div>
+														<Badge
+															variant={
+																statusColors[lead.status] as
+																	| "default"
+																	| "secondary"
+																	| "destructive"
+																	| "outline"
+															}
+															className="text-[10px]"
+														>
+															{translateStatus(lead.status)}
+														</Badge>
+													</div>
+													<div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-700">
+														<div>
+															<span className="text-gray-500">
+																{t("common.phone")}:
+															</span>
+															<span className="ml-1">
+																{formatPhoneNumber(lead.phone1)}
+															</span>
+														</div>
+														<div>
+															<span className="text-gray-500">
+																{t("common.city")}:
+															</span>
+															<span className="ml-1">{lead.city || "N/A"}</span>
+														</div>
+														<div>
+															<span className="text-gray-500">
+																{t("common.created")}:
+															</span>
+															<span className="ml-1">
+																{formatDate(lead.createdAt)}
+															</span>
+														</div>
+													</div>
+													<div className="mt-3 flex space-x-2">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() =>
+																navigate(`/dashboard/leads/${lead.id}`)
+															}
+															className="text-xs"
+														>
+															{t("common.view")}
+														</Button>
+														<Button
+															variant="destructive"
+															size="sm"
+															onClick={() =>
+																handleDeleteLead(lead.id, lead.name)
+															}
+															disabled={deletingLeadId === lead.id}
+															className="text-xs"
+														>
+															{deletingLeadId === lead.id
+																? t("leads.deleting")
+																: t("common.delete")}
+														</Button>
+													</div>
+												</div>
+											))}
 										</div>
 
 										{totalPages > 1 && (
