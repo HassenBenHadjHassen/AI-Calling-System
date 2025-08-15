@@ -526,111 +526,241 @@ export default function CampaignPage() {
 										{t("campaigns.noCampaigns")}
 									</div>
 								) : (
-									<div className="space-y-4">
-										{campaigns?.data?.map((campaign) => (
-											<div
-												key={campaign.id}
-												className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg space-y-4 sm:space-y-0"
-											>
-												<div className="flex-1">
-													<div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-														<h3 className="font-semibold text-base sm:text-lg">
-															{campaign.name}
-														</h3>
-														<Badge
-															variant={getStatusColor(campaign.status) as any}
-															className="text-xs w-fit"
-														>
-															{t(`status.${campaign.status.toLowerCase()}`)}
-														</Badge>
+									<>
+										{/* Desktop view */}
+										<div className="hidden sm:block space-y-4">
+											{campaigns?.data?.map((campaign) => (
+												<div
+													key={campaign.id}
+													className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg space-y-4 sm:space-y-0"
+												>
+													<div className="flex-1">
+														<div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+															<h3 className="font-semibold text-base sm:text-lg">
+																{campaign.name}
+															</h3>
+															<Badge
+																variant={getStatusColor(campaign.status) as any}
+																className="text-xs w-fit"
+															>
+																{t(`status.${campaign.status.toLowerCase()}`)}
+															</Badge>
+														</div>
+														<div className="mt-2 sm:mt-1 text-xs sm:text-sm text-gray-600 space-y-1">
+															<p
+																className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors break-all"
+																onClick={() => {
+																	navigator.clipboard.writeText(campaign.id);
+																	addToast(
+																		t("campaigns.idCopiedToClipboard"),
+																		"success"
+																	);
+																}}
+																title="Click to copy ID"
+															>
+																ID: {campaign.id}
+															</p>
+															<p>
+																{t("campaigns.started")}{" "}
+																{campaign.startedAt
+																	? formatDate(campaign.startedAt) ?? ""
+																	: t("campaigns.notStarted")}
+															</p>
+															<p>
+																{t("campaigns.stopped")}{" "}
+																{campaign.stoppedAt
+																	? formatDate(campaign.stoppedAt)
+																	: t("campaigns.notStopped")}
+															</p>
+															<div className="flex items-center">
+																<Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+																<span>
+																	{campaign.leads?.length || 0}{" "}
+																	{t("nav.leads").toLowerCase()}
+																</span>
+																{campaign.leads?.length === 0 && (
+																	<Badge
+																		variant="secondary"
+																		className="ml-2 text-xs"
+																	>
+																		No leads
+																	</Badge>
+																)}
+															</div>
+														</div>
 													</div>
-													<div className="mt-2 sm:mt-1 text-xs sm:text-sm text-gray-600 space-y-1">
-														<p
-															className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors break-all"
-															onClick={() => {
-																navigator.clipboard.writeText(campaign.id);
-																addToast(
-																	t("campaigns.idCopiedToClipboard"),
-																	"success"
-																);
-															}}
-															title="Click to copy ID"
-														>
-															ID: {campaign.id}
-														</p>
-														<p>
-															{t("campaigns.started")}{" "}
-															{campaign.startedAt
-																? formatDate(campaign.startedAt) ?? ""
-																: t("campaigns.notStarted")}
-														</p>
-														<p>
-															{t("campaigns.stopped")}{" "}
-															{campaign.stoppedAt
-																? formatDate(campaign.stoppedAt)
-																: t("campaigns.notStopped")}
-														</p>
-														<div className="flex items-center">
-															<Users className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-															<span>
-																{campaign.leads?.length || 0}{" "}
-																{t("nav.leads").toLowerCase()}
+
+													<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+														<div className="flex items-center space-x-2">
+															<span className="text-xs sm:text-sm">
+																{campaign.status === "ACTIVE"
+																	? t("campaigns.running")
+																	: t("status.stopped")}
 															</span>
-															{campaign.leads?.length === 0 && (
+															<Switch
+																checked={campaign.status === "ACTIVE"}
+																onCheckedChange={() =>
+																	handleToggleCampaign(campaign)
+																}
+																disabled={
+																	startCampaignMutation.isPending ||
+																	stopCampaignMutation.isPending
+																}
+															/>
+														</div>
+
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() =>
+																navigate(`/dashboard/campaign/${campaign.id}`)
+															}
+															className="text-xs sm:text-sm"
+														>
+															{t("campaigns.viewDetails")}
+														</Button>
+
+														<Button
+															variant="ghost"
+															size="sm"
+															className="text-red-600 hover:text-red-700"
+															onClick={() => handleDeleteCampaign(campaign.id)}
+															disabled={deleteCampaignMutation.isPending}
+														>
+															<Trash2 className="h-4 w-4" />
+														</Button>
+													</div>
+												</div>
+											))}
+										</div>
+
+										{/* Mobile/Card view */}
+										<div className="sm:hidden space-y-3">
+											{campaigns?.data?.map((campaign) => (
+												<div
+													key={campaign.id}
+													className="rounded-lg border bg-white p-3 shadow-sm"
+												>
+													<div className="flex items-start justify-between">
+														<div className="flex-1">
+															<div className="flex items-center space-x-2 mb-2">
+																<h3 className="font-semibold text-sm text-gray-900">
+																	{campaign.name}
+																</h3>
 																<Badge
-																	variant="secondary"
-																	className="ml-2 text-xs"
+																	variant={
+																		getStatusColor(campaign.status) as any
+																	}
+																	className="text-[10px]"
 																>
-																	No leads
+																	{t(`status.${campaign.status.toLowerCase()}`)}
 																</Badge>
-															)}
+															</div>
+															<div className="space-y-1 text-xs text-gray-700">
+																<div>
+																	<span className="text-gray-500">ID:</span>
+																	<span
+																		className="ml-1 font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors break-all"
+																		onClick={() => {
+																			navigator.clipboard.writeText(
+																				campaign.id
+																			);
+																			addToast(
+																				t("campaigns.idCopiedToClipboard"),
+																				"success"
+																			);
+																		}}
+																		title="Click to copy ID"
+																	>
+																		{campaign.id}
+																	</span>
+																</div>
+																<div>
+																	<span className="text-gray-500">
+																		{t("campaigns.started")}:
+																	</span>
+																	<span className="ml-1">
+																		{campaign.startedAt
+																			? formatDate(campaign.startedAt) ?? ""
+																			: t("campaigns.notStarted")}
+																	</span>
+																</div>
+																<div>
+																	<span className="text-gray-500">
+																		{t("campaigns.stopped")}:
+																	</span>
+																	<span className="ml-1">
+																		{campaign.stoppedAt
+																			? formatDate(campaign.stoppedAt)
+																			: t("campaigns.notStopped")}
+																	</span>
+																</div>
+																<div className="flex items-center">
+																	<Users className="h-3 w-3 mr-1" />
+																	<span>
+																		{campaign.leads?.length || 0}{" "}
+																		{t("nav.leads").toLowerCase()}
+																	</span>
+																	{campaign.leads?.length === 0 && (
+																		<Badge
+																			variant="secondary"
+																			className="ml-2 text-[10px]"
+																		>
+																			No leads
+																		</Badge>
+																	)}
+																</div>
+															</div>
+														</div>
+													</div>
+
+													<div className="mt-3 space-y-2">
+														<div className="flex items-center justify-between">
+															<span className="text-xs text-gray-600">
+																{campaign.status === "ACTIVE"
+																	? t("campaigns.running")
+																	: t("status.stopped")}
+															</span>
+															<Switch
+																checked={campaign.status === "ACTIVE"}
+																onCheckedChange={() =>
+																	handleToggleCampaign(campaign)
+																}
+																disabled={
+																	startCampaignMutation.isPending ||
+																	stopCampaignMutation.isPending
+																}
+															/>
+														</div>
+
+														<div className="flex space-x-2">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() =>
+																	navigate(`/dashboard/campaign/${campaign.id}`)
+																}
+																className="text-xs flex-1"
+															>
+																{t("campaigns.viewDetails")}
+															</Button>
+															<Button
+																variant="ghost"
+																size="sm"
+																className="text-red-600 hover:text-red-700"
+																onClick={() =>
+																	handleDeleteCampaign(campaign.id)
+																}
+																disabled={deleteCampaignMutation.isPending}
+															>
+																<Trash2 className="h-4 w-4" />
+															</Button>
 														</div>
 													</div>
 												</div>
-
-												<div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-													<div className="flex items-center space-x-2">
-														<span className="text-xs sm:text-sm">
-															{campaign.status === "ACTIVE"
-																? t("campaigns.running")
-																: t("status.stopped")}
-														</span>
-														<Switch
-															checked={campaign.status === "ACTIVE"}
-															onCheckedChange={() =>
-																handleToggleCampaign(campaign)
-															}
-															disabled={
-																startCampaignMutation.isPending ||
-																stopCampaignMutation.isPending
-															}
-														/>
-													</div>
-
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() =>
-															navigate(`/dashboard/campaign/${campaign.id}`)
-														}
-														className="text-xs sm:text-sm"
-													>
-														{t("campaigns.viewDetails")}
-													</Button>
-
-													<Button
-														variant="ghost"
-														size="sm"
-														className="text-red-600 hover:text-red-700"
-														onClick={() => handleDeleteCampaign(campaign.id)}
-														disabled={deleteCampaignMutation.isPending}
-													>
-														<Trash2 className="h-4 w-4" />
-													</Button>
-												</div>
-											</div>
-										))}
-									</div>
+											))}
+										</div>
+									</>
 								)}
 							</CardContent>
 						</Card>
