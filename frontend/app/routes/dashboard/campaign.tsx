@@ -38,6 +38,7 @@ export default function CampaignPage() {
 	const [showCleanWarning, setShowCleanWarning] = useState(false);
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [newCampaignName, setNewCampaignName] = useState("");
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Move all hooks to the top, before any conditional logic
 	const { data: campaigns, isLoading } = useQuery({
@@ -299,9 +300,9 @@ export default function CampaignPage() {
 
 	return (
 		<div className="flex h-screen bg-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
 					<div className="space-y-4 sm:space-y-6">
 						<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">

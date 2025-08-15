@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet } from "react-router";
 import { Sidebar } from "~/components/dashboard/sidebar";
 import { Topbar } from "~/components/dashboard/topbar";
@@ -14,6 +14,7 @@ import { socketService } from "~/lib/socket";
 export default function Dashboard() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Set up global socket listeners for real-time updates
 	useGlobalSocketListeners();
@@ -55,9 +56,9 @@ export default function Dashboard() {
 
 	return (
 		<div className="flex h-screen bg-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 					<Outlet />
 				</main>

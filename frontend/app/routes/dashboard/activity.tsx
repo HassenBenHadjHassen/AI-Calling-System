@@ -56,6 +56,7 @@ export default function ActivityPage() {
 	const [isDownloading, setIsDownloading] = useState(false);
 	const queryClient = useQueryClient();
 	const { t } = useTranslation();
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Function to translate status
 	const translateStatus = (status: string) => {
@@ -352,9 +353,9 @@ export default function ActivityPage() {
 
 	return (
 		<div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 p-3 sm:p-6">
 					<div className="space-y-4 sm:space-y-8">
 						<div className="text-center">

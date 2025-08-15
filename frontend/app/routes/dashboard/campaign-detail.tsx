@@ -63,6 +63,7 @@ export default function CampaignDetailPage() {
 	const [showAddLeadsModal, setShowAddLeadsModal] = useState(false);
 	const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
 	const [showStopCampaignModal, setShowStopCampaignModal] = useState(false);
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Queries
 	const { data: campaign, isLoading: campaignLoading } = useQuery({
@@ -345,9 +346,12 @@ export default function CampaignDetailPage() {
 	if (campaignLoading) {
 		return (
 			<div className="flex h-screen bg-gray-100">
-				<Sidebar />
+				<Sidebar
+					isOpen={isSidebarOpen}
+					onClose={() => setIsSidebarOpen(false)}
+				/>
 				<div className="flex-1 flex flex-col overflow-hidden">
-					<Topbar />
+					<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 						<div className="text-center py-8">
 							{t("campaigns.loadingCampaignDetails")}
@@ -361,9 +365,12 @@ export default function CampaignDetailPage() {
 	if (!campaign?.data) {
 		return (
 			<div className="flex h-screen bg-gray-100">
-				<Sidebar />
+				<Sidebar
+					isOpen={isSidebarOpen}
+					onClose={() => setIsSidebarOpen(false)}
+				/>
 				<div className="flex-1 flex flex-col overflow-hidden">
-					<Topbar />
+					<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 						<Alert variant="destructive">
 							<AlertDescription>
@@ -380,9 +387,9 @@ export default function CampaignDetailPage() {
 
 	return (
 		<div className="flex h-screen bg-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
 					<div className="space-y-4 sm:space-y-6">
 						{/* Header */}

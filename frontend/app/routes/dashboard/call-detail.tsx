@@ -46,6 +46,11 @@ export default function CallDetailPage() {
 	const { id } = useParams();
 	const navigate = useNavigate();
 	const { t } = useTranslation();
+	const [translatedSummary, setTranslatedSummary] = useState<string | null>(
+		null
+	);
+	const [isTranslating, setIsTranslating] = useState(false);
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	useEffect(() => {
 		if (isClient) {
@@ -61,12 +66,6 @@ export default function CallDetailPage() {
 	});
 
 	const call = callData?.data;
-
-	// Translate summary (EN → FR)
-	const [translatedSummary, setTranslatedSummary] = useState<string | null>(
-		null
-	);
-	const [isTranslating, setIsTranslating] = useState(false);
 
 	const extractSummaryFromNotes = (notes?: string | null): string | null => {
 		if (!notes) return null;
@@ -178,9 +177,9 @@ export default function CallDetailPage() {
 
 	return (
 		<div className="flex h-screen bg-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
 					{(!isClient || !isAuthenticated) && (
 						<div className="flex items-center justify-center min-h-full">

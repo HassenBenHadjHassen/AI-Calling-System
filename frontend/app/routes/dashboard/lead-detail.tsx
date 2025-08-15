@@ -69,6 +69,7 @@ export default function LeadDetailPage() {
 	const { t } = useTranslation();
 	const { addToast } = useToast();
 	const [socket, setSocket] = useState<any>(null);
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Function to translate status
 	const translateStatus = (status: LeadStatus) => {
@@ -379,9 +380,9 @@ export default function LeadDetailPage() {
 
 	return (
 		<div className="flex h-screen bg-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 					{(!isClient || !isAuthenticated) && (
 						<div className="flex items-center justify-center min-h-full">

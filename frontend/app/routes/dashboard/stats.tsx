@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Progress } from "@radix-ui/react-progress";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -31,6 +31,7 @@ export default function StatsPage() {
 	const { isAuthenticated } = useAuth();
 	const { isClient, redirectIfNotAuthenticated } = useClientSideAuth();
 	const { t } = useTranslation();
+	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Move all hooks to the top, before any conditional logic
 	const { data: stats, isLoading } = useQuery({
@@ -107,9 +108,12 @@ export default function StatsPage() {
 	if (isLoading) {
 		return (
 			<div className="flex h-screen bg-gray-100">
-				<Sidebar />
+				<Sidebar
+					isOpen={isSidebarOpen}
+					onClose={() => setIsSidebarOpen(false)}
+				/>
 				<div className="flex-1 flex flex-col overflow-hidden">
-					<Topbar />
+					<Topbar onMenuClick={() => setIsSidebarOpen((v) => !v)} />
 					<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
 						<div className="space-y-4 sm:space-y-6">
 							<div>
@@ -129,9 +133,9 @@ export default function StatsPage() {
 
 	return (
 		<div className="flex h-screen bg-gray-100">
-			<Sidebar />
+			<Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 			<div className="flex-1 flex flex-col overflow-hidden">
-				<Topbar />
+				<Topbar onMenuClick={() => setIsSidebarOpen(true)} />
 				<main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-3 sm:p-6">
 					<div className="space-y-4 sm:space-y-6">
 						<div>
