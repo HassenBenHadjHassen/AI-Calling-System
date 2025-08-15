@@ -1,6 +1,20 @@
 // API service layer for communicating with backend
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
+// Centralized unauthorized handler
+function handleUnauthorized(endpoint: string) {
+	if (typeof window === "undefined") return;
+	try {
+		localStorage.removeItem("authToken");
+		// Clear persisted zustand auth store so session doesn't rehydrate as logged-in
+		localStorage.removeItem("auth-storage");
+	} catch {}
+	// Avoid redundant reloads on login endpoint
+	if (!endpoint.startsWith("/auth/login")) {
+		window.location.replace("/login");
+	}
+}
+
 class ApiService {
 	private async request<T>(
 		endpoint: string,
@@ -19,11 +33,33 @@ class ApiService {
 		};
 
 		const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+		// If unauthorized, force logout and redirect
+		if (response.status === 401) {
+			// Try to read error payload for debugging, but do not depend on it
+			await response
+				.clone()
+				.json()
+				.catch(() => ({}));
+			handleUnauthorized(endpoint);
+			throw new Error("Unauthorized");
+		}
 		const json = await response.json().catch(() => ({}));
 
 		// If the response indicates an error (success: false), throw an error
 		// so that React Query's useMutation will call onError instead of onSuccess
 		if (json.success === false) {
+			// Extra safeguard if backend encodes expired token in error field
+			if (
+				typeof json.error === "string" &&
+				/json|token|unauthorized|expired/i.test(json.error)
+			) {
+				// Do not double-redirect if we've already handled 401 above
+				if ((response as any)?.status === 401) {
+					// no-op; already handled
+				} else {
+					handleUnauthorized(endpoint);
+				}
+			}
 			const error = new Error(json.error || "API request failed");
 			(error as any).response = json; // Attach the full response for error handling
 			throw error;
@@ -304,6 +340,11 @@ export const leadAPI = {
 			},
 			body: formData,
 		});
+
+		if (response.status === 401) {
+			handleUnauthorized("/leads/upload");
+			throw new Error("Unauthorized");
+		}
 
 		const json = await response.json().catch(() => ({}));
 		return json;
@@ -666,7 +707,7 @@ export const callAPI = {
 		const queryParams = new URLSearchParams();
 		if (params?.campaignId) queryParams.append("campaignId", params.campaignId);
 		const queryString = queryParams.toString();
-		const endpoint = `/calls/stats${queryString ? `?${queryString}` : ""}`;
+		const endpoint = `/calls/stats${queryString ? "?" + queryString : ""}`;
 		return apiService.get<CallStats>(endpoint);
 	},
 
