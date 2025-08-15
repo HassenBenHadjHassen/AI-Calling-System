@@ -43,7 +43,7 @@ export const authenticateToken = (
 	res: Response,
 	next: NextFunction
 ) => {
-	const authHeader = req.headers["authorization"] as string | undefined;
+	const authHeader = req.headers["authorization"];
 	const headerToken = authHeader?.startsWith("Bearer ")
 		? authHeader.split(" ")[1]
 		: undefined;
