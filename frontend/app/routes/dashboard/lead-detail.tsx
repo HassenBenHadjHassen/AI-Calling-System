@@ -35,6 +35,9 @@ import {
 	PhoneCall,
 	CalendarDays,
 	RefreshCw,
+	Menu,
+	Loader2,
+	Check,
 } from "lucide-react";
 import { Sidebar } from "~/components/dashboard/sidebar";
 import { Topbar } from "~/components/dashboard/topbar";
@@ -70,6 +73,9 @@ export default function LeadDetailPage() {
 	const { addToast } = useToast();
 	const [socket, setSocket] = useState<any>(null);
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+	const [activeTab, setActiveTab] = useState<"info" | "calls" | "actions">(
+		"info"
+	);
 
 	// Function to translate status
 	const translateStatus = (status: LeadStatus) => {
@@ -409,7 +415,7 @@ export default function LeadDetailPage() {
 					{isClient && isAuthenticated && !isLeadLoading && !!lead && (
 						<div className="space-y-6">
 							{/* Header */}
-							<div className="flex items-center justify-between">
+							<div className="flex items-center justify-between md:block hidden">
 								<div className="flex items-center space-x-4">
 									<Button
 										variant="outline"
@@ -469,7 +475,545 @@ export default function LeadDetailPage() {
 								</div>
 							</div>
 
-							<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+							{/* Mobile Tab Navigation - Only on Mobile */}
+							<div className="lg:hidden">
+								{/* Mobile Header with Back Button and Title */}
+								<div className="flex items-center space-x-3 mb-4">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => navigate(-1)}
+										className="p-2 h-10 w-10 rounded-full bg-gray-100 hover:bg-gray-200 border-0"
+									>
+										<ArrowLeft className="h-5 w-5 text-gray-600" />
+									</Button>
+									<div className="flex-1">
+										<h1 className="text-xl font-bold text-gray-900">
+											{t("leadDetail.title")}
+										</h1>
+										<p className="text-sm text-gray-500">{lead.name}</p>
+									</div>
+								</div>
+
+								<div className="flex space-x-1 bg-white p-2 rounded-xl shadow-sm border">
+									<button
+										onClick={() => setActiveTab("info")}
+										className={`flex-1 py-3 px-4 text-sm font-medium rounded-lg transition-all duration-200 ${
+											activeTab === "info"
+												? "bg-blue-50 text-blue-700 border border-blue-200"
+												: "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+										}`}
+									>
+										{t("leadDetail.leadInformation")}
+									</button>
+									<button
+										onClick={() => setActiveTab("calls")}
+										className={`flex-1 py-3 px-4 text-sm font-medium rounded-lg transition-all duration-200 ${
+											activeTab === "calls"
+												? "bg-blue-50 text-blue-700 border border-blue-200"
+												: "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+										}`}
+									>
+										{t("leadDetail.callHistory")}
+									</button>
+									<button
+										onClick={() => setActiveTab("actions")}
+										className={`flex-1 py-3 px-4 text-sm font-medium rounded-lg transition-all duration-200 ${
+											activeTab === "actions"
+												? "bg-blue-50 text-blue-700 border border-blue-200"
+												: "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+										}`}
+									>
+										{t("leadDetail.actions") || "Actions"}
+									</button>
+								</div>
+							</div>
+
+							{/* Mobile Content - Only on Mobile */}
+							<div className="lg:hidden">
+								{activeTab === "info" && (
+									<div className="space-y-6">
+										{/* Lead Information Card */}
+										<Card className="border-0 shadow-lg bg-white rounded-2xl">
+											<CardHeader className="pb-6 pt-6 px-6">
+												<CardTitle className="flex items-center text-xl font-bold text-gray-900">
+													<div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+														<User className="h-5 w-5 text-blue-600" />
+													</div>
+													{t("leadDetail.leadInformation")}
+												</CardTitle>
+											</CardHeader>
+											<CardContent className="space-y-6 px-6 pb-6">
+												{/* Status and Edit Button Row */}
+												<div className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
+													<div className="flex items-center space-x-3">
+														<Badge
+															variant={
+																statusColors[lead.status] as
+																	| "default"
+																	| "secondary"
+																	| "destructive"
+																	| "outline"
+															}
+															className="text-sm px-4 py-2 font-semibold"
+														>
+															{translateStatus(lead.status)}
+														</Badge>
+														{hasActiveCall && (
+															<Badge
+																variant="destructive"
+																className="animate-pulse text-sm px-4 py-2 font-semibold"
+															>
+																{t("leadDetail.callInProgress")}
+															</Badge>
+														)}
+													</div>
+													{!isEditing && (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => setIsEditing(true)}
+															disabled={hasActiveCall}
+															className="px-4 py-2 text-sm font-medium border-gray-300 hover:bg-gray-50"
+														>
+															<Edit className="h-4 w-4 mr-2" />
+															{t("leadDetail.edit")}
+														</Button>
+													)}
+												</div>
+
+												{/* Lead Details Grid */}
+												<div className="space-y-6">
+													<div className="grid grid-cols-1 gap-6">
+														<div className="space-y-3">
+															<Label className="text-sm font-semibold text-gray-700">
+																{t("leadDetail.titleLabel")}
+															</Label>
+															<div className="bg-gray-50 p-4 rounded-xl">
+																<p className="text-base font-medium text-gray-900">
+																	{leadTitle}
+																</p>
+															</div>
+														</div>
+														<div className="space-y-3">
+															<Label className="text-sm font-semibold text-gray-700">
+																{t("common.name")}
+															</Label>
+															{isEditing ? (
+																<Input
+																	value={editedLead.name || ""}
+																	onChange={(e) =>
+																		setEditedLead({
+																			...editedLead,
+																			name: e.target.value,
+																		})
+																	}
+																	className="h-12 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																/>
+															) : (
+																<div className="bg-gray-50 p-4 rounded-xl">
+																	<p className="text-base font-medium text-gray-900">
+																		{lead.name}
+																	</p>
+																</div>
+															)}
+														</div>
+														<div className="space-y-3">
+															<Label className="text-sm font-semibold text-gray-700">
+																{t("common.phone")}
+															</Label>
+															{isEditing ? (
+																<Input
+																	value={editedLead.phone1 || ""}
+																	onChange={(e) =>
+																		setEditedLead({
+																			...editedLead,
+																			phone1: e.target.value,
+																		})
+																	}
+																	className="h-12 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																/>
+															) : (
+																<div className="bg-gray-50 p-4 rounded-xl">
+																	<p className="text-base font-medium text-gray-900">
+																		{formatPhoneNumber(lead.phone1)}
+																	</p>
+																</div>
+															)}
+														</div>
+														<div className="space-y-3">
+															<Label className="text-sm font-semibold text-gray-700">
+																{t("leadDetail.secondaryPhone")}
+															</Label>
+															{isEditing ? (
+																<Input
+																	value={editedLead.phone2 || ""}
+																	onChange={(e) =>
+																		setEditedLead({
+																			...editedLead,
+																			phone2: e.target.value,
+																		})
+																	}
+																	className="h-12 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																/>
+															) : (
+																<div className="bg-gray-50 p-4 rounded-xl">
+																	<p className="text-base font-medium text-gray-900">
+																		{lead.phone2
+																			? formatPhoneNumber(lead.phone2)
+																			: t("leadDetail.na")}
+																	</p>
+																</div>
+															)}
+														</div>
+														<div className="space-y-3">
+															<Label className="text-sm font-semibold text-gray-700">
+																{t("leadDetail.address")}
+															</Label>
+															{isEditing ? (
+																<Input
+																	value={editedLead.address || ""}
+																	onChange={(e) =>
+																		setEditedLead({
+																			...editedLead,
+																			address: e.target.value,
+																		})
+																	}
+																	className="h-12 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																/>
+															) : (
+																<div className="bg-gray-50 p-4 rounded-xl">
+																	<p className="text-base font-medium text-gray-900">
+																		{lead.address || t("leadDetail.na")}
+																	</p>
+																</div>
+															)}
+														</div>
+														<div className="grid grid-cols-2 gap-4">
+															<div className="space-y-3">
+																<Label className="text-sm font-semibold text-gray-700">
+																	{t("leadDetail.city")}
+																</Label>
+																{isEditing ? (
+																	<Input
+																		value={editedLead.city || ""}
+																		onChange={(e) =>
+																			setEditedLead({
+																				...editedLead,
+																				city: e.target.value,
+																			})
+																		}
+																		className="h-12 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																	/>
+																) : (
+																	<div className="bg-gray-50 p-4 rounded-xl">
+																		<p className="text-base font-medium text-gray-900">
+																			{lead.city || t("leadDetail.na")}
+																		</p>
+																	</div>
+																)}
+															</div>
+															<div className="space-y-3">
+																<Label className="text-sm font-semibold text-gray-700">
+																	{t("leadDetail.postalCode")}
+																</Label>
+																{isEditing ? (
+																	<Input
+																		value={editedLead.postalCode || ""}
+																		onChange={(e) =>
+																			setEditedLead({
+																				...editedLead,
+																				postalCode: e.target.value,
+																			})
+																		}
+																		className="h-12 text-base border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+																	/>
+																) : (
+																	<div className="bg-gray-50 p-4 rounded-xl">
+																		<p className="text-base font-medium text-gray-900">
+																			{lead.postalCode || t("leadDetail.na")}
+																		</p>
+																	</div>
+																)}
+															</div>
+														</div>
+													</div>
+
+													{/* Edit Actions */}
+													{isEditing && (
+														<div className="flex space-x-3 pt-6 border-t border-gray-200">
+															<Button
+																onClick={handleSave}
+																disabled={
+																	updateLeadMutation.isPending || hasActiveCall
+																}
+																className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl"
+															>
+																{updateLeadMutation.isPending ? (
+																	<>
+																		<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+																		{t("common.saving")}
+																	</>
+																) : (
+																	<>
+																		<Check className="h-4 w-4 mr-2" />
+																		{t("common.save")}
+																	</>
+																)}
+															</Button>
+															<Button
+																variant="outline"
+																onClick={handleCancel}
+																disabled={
+																	updateLeadMutation.isPending || hasActiveCall
+																}
+																className="flex-1 h-12 border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50"
+															>
+																<X className="h-4 w-4 mr-2" />
+																{t("leadDetail.cancel")}
+															</Button>
+														</div>
+													)}
+												</div>
+											</CardContent>
+										</Card>
+									</div>
+								)}
+
+								{/* Mobile Content - Calls Tab */}
+								{activeTab === "calls" && (
+									<div className="space-y-4">
+										<Card className="border-0 shadow-sm">
+											<CardHeader className="pb-4">
+												<CardTitle className="flex items-center text-lg font-semibold">
+													<Phone className="h-5 w-5 mr-2 text-blue-600" />
+													{t("leadDetail.callHistory")}
+												</CardTitle>
+											</CardHeader>
+											<CardContent>
+												{isCallHistoryLoading ? (
+													<div className="text-center py-8">
+														{t("leadDetail.loadingCallHistory")}
+													</div>
+												) : callHistory.length === 0 ? (
+													<div className="text-center py-8 text-gray-500">
+														{t("leadDetail.noCallHistory")}
+													</div>
+												) : (
+													<div className="space-y-3">
+														{callHistory.map((call) => (
+															<div
+																key={call.id}
+																className="p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-all duration-200"
+																onClick={() =>
+																	navigate(`/dashboard/calls/${call.id}`)
+																}
+															>
+																<div className="flex items-center justify-between mb-3">
+																	<Badge
+																		variant={
+																			call.callStatus === "COMPLETED"
+																				? "default"
+																				: call.callStatus === "FAILED"
+																				? "destructive"
+																				: "secondary"
+																		}
+																		className="text-xs px-3 py-1"
+																	>
+																		{translateCallStatus(call.callStatus)}
+																	</Badge>
+																	<span className="text-xs text-gray-500 font-medium">
+																		{formatDate(call.callTime)}
+																	</span>
+																</div>
+																<div className="text-sm text-gray-600 mb-2">
+																	{call.duration
+																		? formatDuration(call.duration)
+																		: t("leadDetail.na")}
+																</div>
+																{call.notes && (
+																	<div className="text-sm text-gray-600 bg-white p-3 rounded-lg border border-gray-100">
+																		{call.notes.length > 50
+																			? `${call.notes.substring(0, 50)}...`
+																			: call.notes}
+																	</div>
+																)}
+															</div>
+														))}
+													</div>
+												)}
+											</CardContent>
+										</Card>
+									</div>
+								)}
+
+								{/* Mobile Content - Actions Tab */}
+								{activeTab === "actions" && (
+									<div className="space-y-4">
+										{/* Quick Actions */}
+										<div className="grid grid-cols-1 gap-4">
+											<Button
+												onClick={handleTriggerCall}
+												disabled={
+													triggerCallMutation.isPending ||
+													lead.status !== "NEW" ||
+													lead.blacklisted ||
+													hasActiveCall ||
+													isCallInProgress.current
+												}
+												className="h-20 flex flex-col items-center justify-center space-y-2 bg-green-600 hover:bg-green-700 border-0 shadow-sm"
+											>
+												<PhoneCall className="h-7 w-7" />
+												<span className="text-sm font-medium">
+													{t("leadDetail.callNow")}
+												</span>
+											</Button>
+										</div>
+
+										{/* Status Update */}
+										<Card className="border-0 shadow-sm">
+											<CardHeader className="pb-4">
+												<CardTitle className="flex items-center text-lg font-semibold">
+													<CheckCircle className="h-5 w-5 mr-2 text-blue-600" />
+													{t("leadDetail.updateStatus")}
+												</CardTitle>
+											</CardHeader>
+											<CardContent className="space-y-4">
+												<Select
+													value={newStatus}
+													onValueChange={(value) =>
+														setNewStatus(value as LeadStatus)
+													}
+													disabled={hasActiveCall}
+												>
+													<SelectTrigger className="border-gray-200">
+														<SelectValue
+															placeholder={
+																hasActiveCall
+																	? t("leadDetail.callInProgress")
+																	: t("leadDetail.selectNewStatus")
+															}
+														/>
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="NEW">
+															{t("leads.new")}
+														</SelectItem>
+														<SelectItem value="CALLED">
+															{t("leads.called")}
+														</SelectItem>
+														<SelectItem value="INTERESTED">
+															{t("leads.interested")}
+														</SelectItem>
+														<SelectItem value="TRANSFERRED">
+															{t("leads.transferred")}
+														</SelectItem>
+														<SelectItem value="FAILED">
+															{t("leads.failed")}
+														</SelectItem>
+														<SelectItem value="BLACKLISTED">
+															{t("leads.blacklisted")}
+														</SelectItem>
+													</SelectContent>
+												</Select>
+												<Button
+													onClick={handleStatusUpdate}
+													disabled={
+														!newStatus ||
+														lead.status === "SCHEDULED" ||
+														newStatus === lead.status ||
+														hasActiveCall
+													}
+													className="w-full bg-blue-600 hover:bg-blue-700"
+												>
+													{t("leadDetail.updateStatusBtn")}
+												</Button>
+											</CardContent>
+										</Card>
+
+										{/* Schedule Call */}
+										<Card className="border-0 shadow-sm">
+											<CardHeader className="pb-4">
+												<CardTitle className="flex items-center text-lg font-semibold">
+													<CalendarDays className="h-5 w-5 mr-2 text-blue-600" />
+													{t("leadDetail.scheduleCall")}
+												</CardTitle>
+											</CardHeader>
+											<CardContent className="space-y-4">
+												<div className="space-y-2">
+													<Label className="text-sm font-medium text-gray-700">
+														{t("leadDetail.dateTime")}
+													</Label>
+													<Input
+														type="datetime-local"
+														value={scheduleDate}
+														onChange={(e) => setScheduleDate(e.target.value)}
+														className="border-gray-200"
+													/>
+												</div>
+												<div className="space-y-2">
+													<Label className="text-sm font-medium text-gray-700">
+														{t("leadDetail.note")}
+													</Label>
+													<Textarea
+														value={scheduleNote}
+														onChange={(e) => setScheduleNote(e.target.value)}
+														placeholder={t("leadDetail.addNote")}
+														className="border-gray-200"
+														rows={3}
+													/>
+												</div>
+												<Button
+													onClick={handleScheduleCall}
+													disabled={
+														!scheduleDate || scheduleCallMutation.isPending
+													}
+													className="w-full bg-blue-600 hover:bg-blue-700"
+												>
+													{scheduleCallMutation.isPending
+														? t("leadDetail.scheduling")
+														: t("leadDetail.scheduleCallBtn")}
+												</Button>
+											</CardContent>
+										</Card>
+
+										{/* Scheduled Call Info */}
+										{lead.scheduledCallAt && (
+											<Card className="border-0 shadow-sm bg-blue-50">
+												<CardHeader className="pb-4">
+													<CardTitle className="flex items-center text-lg font-semibold text-blue-800">
+														<Clock className="h-5 w-5 mr-2" />
+														{t("leadDetail.scheduledCall")}
+													</CardTitle>
+												</CardHeader>
+												<CardContent className="space-y-3">
+													<div className="space-y-2">
+														<Label className="text-sm font-medium text-blue-700">
+															{t("leadDetail.scheduledFor")}
+														</Label>
+														<p className="text-sm font-medium text-blue-900">
+															{formatDate(lead.scheduledCallAt)}
+														</p>
+													</div>
+													{lead.scheduledCallNote && (
+														<div className="space-y-2">
+															<Label className="text-sm font-medium text-blue-700">
+																{t("leadDetail.note")}
+															</Label>
+															<p className="text-sm text-blue-900 bg-white p-3 rounded-lg border border-blue-200">
+																{lead.scheduledCallNote}
+															</p>
+														</div>
+													)}
+												</CardContent>
+											</Card>
+										)}
+									</div>
+								)}
+							</div>
+
+							{/* Desktop Layout - Original Design */}
+							<div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-6">
 								{/* Lead Information */}
 								<div className="lg:col-span-2 space-y-6">
 									<Card>
@@ -796,123 +1340,6 @@ export default function LeadDetailPage() {
 
 								{/* Actions Sidebar */}
 								<div className="space-y-6">
-									{/* Live Call Monitor & Control */}
-									{/* <Card>
-										<CardHeader>
-											<CardTitle className="flex items-center">
-												<Headphones className="h-5 w-5 mr-2" />
-												Live Call Monitor
-											</CardTitle>
-										</CardHeader>
-										<CardContent className="space-y-4">
-											<div className="flex items-center gap-2">
-												<Button
-													variant={isListening ? "outline" : "default"}
-													size="sm"
-													onClick={
-														isListening
-															? handleStopListening
-															: handleStartListening
-													}
-													disabled={!activeVapiCallId}
-												>
-													<Headphones className="h-4 w-4 mr-2" />
-													{isListening ? "Stop Listening" : "Start Listening"}
-												</Button>
-												<Button
-													variant={assistantMuted ? "default" : "outline"}
-													size="sm"
-													onClick={handleMuteToggle}
-													disabled={!activeVapiCallId}
-												>
-													{assistantMuted ? (
-														<MicOff className="h-4 w-4 mr-2" />
-													) : (
-														<Mic className="h-4 w-4 mr-2" />
-													)}
-													{assistantMuted
-														? "Unmute Assistant"
-														: "Mute Assistant"}
-												</Button>
-												<Button
-													variant="destructive"
-													size="sm"
-													onClick={handleEndCall}
-													disabled={!activeVapiCallId}
-												>
-													<PhoneOff className="h-4 w-4 mr-2" />
-													End Call
-												</Button>
-											</div>
-
-											<div className="space-y-2">
-												<Label className="text-sm font-medium text-gray-700">
-													Inject Message
-												</Label>
-												<div className="flex gap-2">
-													<Input
-														value={sayMessage}
-														onChange={(e) => setSayMessage(e.target.value)}
-														placeholder="Type a message for the assistant to say"
-													/>
-													<Button
-														size="sm"
-														onClick={handleSay}
-														disabled={!activeVapiCallId || !sayMessage.trim()}
-													>
-														<MessageSquareText className="h-4 w-4 mr-2" />
-														Send
-													</Button>
-												</div>
-											</div>
-
-											<div className="space-y-2">
-												<Label className="text-sm font-medium text-gray-700">
-													Transfer Call
-												</Label>
-												<div className="flex gap-2">
-													<Input
-														value={transferNumber}
-														onChange={(e) => setTransferNumber(e.target.value)}
-														placeholder="Destination number"
-														className="w-40"
-													/>
-													<Input
-														value={transferMessage}
-														onChange={(e) => setTransferMessage(e.target.value)}
-														placeholder="Optional message"
-													/>
-													<Button
-														size="sm"
-														onClick={handleTransfer}
-														disabled={
-															!activeVapiCallId || !transferNumber.trim()
-														}
-													>
-														<Share2 className="h-4 w-4 mr-2" />
-														Transfer
-													</Button>
-												</div>
-											</div>
-
-											<div className="space-y-2">
-												<Label className="text-sm font-medium text-gray-700">
-													Transcript (live)
-												</Label>
-												<div className="p-3 bg-white rounded border h-40 overflow-auto text-sm">
-													{transcript.length === 0 ? (
-														<div className="text-gray-500">
-															No transcript yet
-														</div>
-													) : (
-														transcript.map((line, idx) => (
-															<div key={idx}>{line}</div>
-														))
-													)}
-												</div>
-											</div>
-										</CardContent>
-									</Card> */}
 									{/* Status Update */}
 									<Card>
 										<CardHeader>
