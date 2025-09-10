@@ -1,0 +1,103 @@
+{
+  "name": "PAPS Call Flow (Uploaded via JSON)",
+  "nodes": [
+    {
+      "name": "introduction",
+      "type": "conversation",
+      "isStart": true,
+      "metadata": {
+        "position": {
+          "x": 180,
+          "y": 211.5
+        }
+      },
+      "prompt": "Conduire l'appel en français uniquement. Après le message d'introduction, répondez brièvement et poliment selon l'intention: si l'utilisateur répond par une formule de politesse du type 'ça va et vous', répondez avec la relance prévue; si l'utilisateur indique manquer de temps ou être occupé, proposez immédiatement de recontacter et demandez un créneau.",
+      "model": {
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "maxTokens": 500,
+        "temperature": 0.7
+      },
+      "transcriber": {
+        "model": "nova-2",
+        "language": "fr",
+        "provider": "deepgram"
+      },
+      "messagePlan": {
+        "firstMessage": "Bonjour je suis Éloïse du programme PAPS programme d'aide au premier secours, comment allez-vous ?"
+      },
+      "toolIds": []
+    },
+    {
+      "name": "polite_greeting_followup",
+      "type": "conversation",
+      "metadata": {
+        "position": {
+          "x": 180,
+          "y": 1425.5
+        }
+      },
+      "prompt": "",
+      "model": {
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "maxTokens": 500,
+        "temperature": 0.7
+      },
+      "transcriber": {
+        "model": "nova-2",
+        "language": "fr",
+        "provider": "deepgram"
+      },
+      "messagePlan": {
+        "firstMessage": "Ça va merci, par contre au ton de voix je n'ai pas l'impression que cela vous parle ?"
+      },
+      "toolIds": []
+    },
+    {
+      "name": "busy_or_rushed",
+      "type": "conversation",
+      "metadata": {
+        "position": {
+          "x": 1260,
+          "y": 1405.5
+        }
+      },
+      "prompt": "",
+      "model": {
+        "model": "gpt-4o-mini",
+        "provider": "openai",
+        "maxTokens": 500,
+        "temperature": 0.7
+      },
+      "transcriber": {
+        "model": "nova-2",
+        "language": "fr",
+        "provider": "deepgram"
+      },
+      "messagePlan": {
+        "firstMessage": "C'est noté, dites-moi quand je peux vous recontacter car c'est assez important et pour une fois que l'on pense à vous cela serait dommage que cela vous passe sous le nez"
+      },
+      "toolIds": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "introduction",
+      "to": "polite_greeting_followup",
+      "condition": {
+        "type": "ai",
+        "prompt": "Détecter une réponse de politesse équivalente à ‘ça va et vous’ (ex.: ‘ça va et vous ?’, ‘ça va merci et vous’, ‘et vous ?’, ‘bien et vous’, ‘ça va et toi’)."
+      }
+    },
+    {
+      "from": "introduction",
+      "to": "busy_or_rushed",
+      "condition": {
+        "type": "ai",
+        "prompt": "Détecter toute expression indiquant que l'utilisateur n'a pas le temps ou est occupé/indisponible (ex.: ‘je n’ai pas le temps’, ‘je suis occupé(e)’, ‘pas disponible’, ‘je suis en consultation’, ‘je travaille’, ‘je conduis’, ‘rappeler plus tard’)."
+      }
+    }
+  ],
+  "globalPrompt": ""
+}
