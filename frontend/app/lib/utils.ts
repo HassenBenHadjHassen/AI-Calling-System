@@ -2,55 +2,62 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+	return twMerge(clsx(inputs));
 }
 
 export function formatDate(date: string) {
-  const dateObj = new Date(date);
+	const dateObj = new Date(date);
 
-  return new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(dateObj);
+	return new Intl.DateTimeFormat("fr-FR", {
+		timeZone: "Europe/Paris",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	}).format(dateObj);
 }
 
 export function formatPhoneNumber(phone1: string) {
-  if (phone1.startsWith("0")) {
-    return phone1.replace(
-      /(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
-      "$1 $2 $3 $4 $5"
-    );
-  }
+	if (phone1.startsWith("0")) {
+		return phone1.replace(
+			/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
+			"$1 $2 $3 $4 $5"
+		);
+	}
 
-  if (phone1.startsWith("33")) {
-    return phone1.replace(
-      /(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
-      "$1 $2 $3 $4 $5"
-    );
-  }
+	if (phone1.startsWith("+33")) {
+		return phone1.replace(
+			/(\+33)(\d)(\d{2})(\d{2})(\d{2})(\d{2})/,
+			"$1 $2 $3 $4 $5 $6"
+		);
+	}
 
-  if (phone1.startsWith("+216")) {
-    return phone1.replace(/(\+216)(\d{2})(\d{3})(\d{3})/, "$1 $2 $3 $4");
-  }
+	if (phone1.startsWith("33")) {
+		return phone1.replace(
+			/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
+			"$1 $2 $3 $4 $5"
+		);
+	}
 
-  return phone1;
+	if (phone1.startsWith("+216")) {
+		return phone1.replace(/(\+216)(\d{2})(\d{3})(\d{3})/, "$1 $2 $3 $4");
+	}
+
+	return phone1;
 }
 
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = seconds % 60;
+	const hours = Math.floor(seconds / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	const remainingSeconds = seconds % 60;
 
-  if (hours > 0) {
-    return `${hours}h ${minutes}m ${remainingSeconds}s`;
-  } else if (minutes > 0) {
-    return `${minutes}m ${remainingSeconds}s`;
-  } else {
-    return `${remainingSeconds}s`;
-  }
+	if (hours > 0) {
+		return `${hours}h ${minutes}m ${remainingSeconds}s`;
+	} else if (minutes > 0) {
+		return `${minutes}m ${remainingSeconds}s`;
+	} else {
+		return `${remainingSeconds}s`;
+	}
 }

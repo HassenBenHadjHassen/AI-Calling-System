@@ -1,0 +1,28 @@
+{
+	"name": "PAPS Call Flow",
+	"backgroundSpeechDenoisingPlan": {
+		"smartDenoisingPlan": {
+			"enabled": true
+		},
+		"fourierDenoisingPlan": {
+			"enabled": true,
+			"mediaDetectionEnabled": true,
+			"baselineOffsetDb": -10,
+			"windowSizeMs": 2000,
+			"baselinePercentile": 90
+		}
+	},
+	"startSpeakingPlan": {
+		"waitSeconds": 0,
+		"smartEndpointingEnabled": false,
+		"transcriptionEndpointingPlan": {
+			"onPunctuationSeconds": 0,
+			"onNoPunctuationSeconds": 0,
+			"onNumberSeconds": 0
+		}
+	},
+	"stopSpeakingPlan": {
+		"voiceSeconds": 0.15,
+		"backoffSeconds": 0.6
+	}
+}

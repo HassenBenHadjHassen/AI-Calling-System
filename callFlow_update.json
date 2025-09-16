@@ -1,103 +1,271 @@
 {
-  "name": "PAPS Call Flow (Uploaded via JSON)",
-  "nodes": [
-    {
-      "name": "introduction",
-      "type": "conversation",
-      "isStart": true,
-      "metadata": {
-        "position": {
-          "x": 180,
-          "y": 211.5
-        }
-      },
-      "prompt": "Conduire l'appel en français uniquement. Après le message d'introduction, répondez brièvement et poliment selon l'intention: si l'utilisateur répond par une formule de politesse du type 'ça va et vous', répondez avec la relance prévue; si l'utilisateur indique manquer de temps ou être occupé, proposez immédiatement de recontacter et demandez un créneau.",
-      "model": {
-        "model": "gpt-4o-mini",
-        "provider": "openai",
-        "maxTokens": 500,
-        "temperature": 0.7
-      },
-      "transcriber": {
-        "model": "nova-2",
-        "language": "fr",
-        "provider": "deepgram"
-      },
-      "messagePlan": {
-        "firstMessage": "Bonjour je suis Éloïse du programme PAPS programme d'aide au premier secours, comment allez-vous ?"
-      },
-      "toolIds": []
-    },
-    {
-      "name": "polite_greeting_followup",
-      "type": "conversation",
-      "metadata": {
-        "position": {
-          "x": 180,
-          "y": 1425.5
-        }
-      },
-      "prompt": "",
-      "model": {
-        "model": "gpt-4o-mini",
-        "provider": "openai",
-        "maxTokens": 500,
-        "temperature": 0.7
-      },
-      "transcriber": {
-        "model": "nova-2",
-        "language": "fr",
-        "provider": "deepgram"
-      },
-      "messagePlan": {
-        "firstMessage": "Ça va merci, par contre au ton de voix je n'ai pas l'impression que cela vous parle ?"
-      },
-      "toolIds": []
-    },
-    {
-      "name": "busy_or_rushed",
-      "type": "conversation",
-      "metadata": {
-        "position": {
-          "x": 1260,
-          "y": 1405.5
-        }
-      },
-      "prompt": "",
-      "model": {
-        "model": "gpt-4o-mini",
-        "provider": "openai",
-        "maxTokens": 500,
-        "temperature": 0.7
-      },
-      "transcriber": {
-        "model": "nova-2",
-        "language": "fr",
-        "provider": "deepgram"
-      },
-      "messagePlan": {
-        "firstMessage": "C'est noté, dites-moi quand je peux vous recontacter car c'est assez important et pour une fois que l'on pense à vous cela serait dommage que cela vous passe sous le nez"
-      },
-      "toolIds": []
-    }
-  ],
-  "edges": [
-    {
-      "from": "introduction",
-      "to": "polite_greeting_followup",
-      "condition": {
-        "type": "ai",
-        "prompt": "Détecter une réponse de politesse équivalente à ‘ça va et vous’ (ex.: ‘ça va et vous ?’, ‘ça va merci et vous’, ‘et vous ?’, ‘bien et vous’, ‘ça va et toi’)."
-      }
-    },
-    {
-      "from": "introduction",
-      "to": "busy_or_rushed",
-      "condition": {
-        "type": "ai",
-        "prompt": "Détecter toute expression indiquant que l'utilisateur n'a pas le temps ou est occupé/indisponible (ex.: ‘je n’ai pas le temps’, ‘je suis occupé(e)’, ‘pas disponible’, ‘je suis en consultation’, ‘je travaille’, ‘je conduis’, ‘rappeler plus tard’)."
-      }
-    }
-  ],
-  "globalPrompt": ""
+	"name": "PAPS Call Flow",
+	"nodes": [
+		{
+			"name": "introduction",
+			"type": "conversation",
+			"isStart": true,
+			"metadata": {
+				"position": {
+					"x": 2230.5264282226562,
+					"y": -9.712356567382812
+				}
+			},
+			"prompt": "Conduire l'appel en français uniquement. Après le message d'introduction, répondez brièvement et poliment selon l'intention: si l'utilisateur répond par une formule de politesse du type 'ça va et vous', répondez avec la relance prévue; si l'utilisateur indique manquer de temps ou être occupé, proposez immédiatement de recontacter et demandez un créneau.\n\nSi l'utilisateur dit quelque chose qui ne correspond pas au sujet ou au déroulement logique de la conversation (par exemple : une question sans rapport, une phrase incohérente ou un changement soudain de sujet), répondez : « Désolé, je n'ai pas compris. Pouvez-vous répéter s'il vous plaît ? »\n",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure",
+				"segmentationStrategy": "Default"
+			},
+			"messagePlan": {
+				"firstMessage": "Bonjour, je suis Charlotte du programme PAPSE, programme d'aide au premier secours, comment allez-vous ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "polite_greeting_followup",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 10.075225830078125,
+					"y": 874.9644165039062
+				}
+			},
+			"prompt": "",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "Ça va merci, par contre au ton de voix je n'ai pas l'impression que cela vous parle ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "busy_or_rushed",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 750.2256469726562,
+					"y": 854.9644165039062
+				}
+			},
+			"prompt": "",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "C'est noté, dites-moi quand je peux vous recontacter car c'est assez important et pour une fois que l'on pense à vous cela serait dommage que cela vous passe sous le nez"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "normal_polite_response",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 1490.3760375976562,
+					"y": 844.9644165039062
+				}
+			},
+			"prompt": "Répondre naturellement à une réponse polie normale (sans 'et vous') et continuer la conversation sur le programme PAPS.",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "Parfait ! Je vous appelle pour le programme PAPS, programme d'aide au premier secours. Est-ce que cela vous parle ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "arriving_at_patient",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 2230.5264282226562,
+					"y": 721.6310831705729
+				}
+			},
+			"prompt": "Répondre lorsqu'un interlocuteur indique être chez un patient ou en déplacement vers un patient (occupé/indisponible). Proposer de recontacter et demander un créneau.",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "C'est noté, dites-moi quand je peux vous recontacter car c'est assez important et pour une fois que l'on pense à vous, cela serait dommage que cela vous passe sous le nez."
+			},
+			"toolIds": []
+		},
+		{
+			"name": "what_is_it_question",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 2970.6768188476562,
+					"y": 854.9644165039062
+				}
+			},
+			"prompt": "Répondre à la question 'c'est quoi ?' ou équivalent en présentant brièvement le programme PAPS.",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "Le programme PAPS, Programme d'aide au premier secours, ça ne vous parle pas ?"
+			},
+			"toolIds": []
+		},
+		{
+			"name": "already_called_followup",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 3710.8272094726562,
+					"y": 844.9644165039062
+				}
+			},
+			"prompt": "Traiter le cas où l'interlocuteur dit avoir déjà été appelé ou contacté, et demander ce qu'il s'en est suivi.",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "D'accord, dites-moi ce qu'il s'en est suivi car je vois que nous ne vous avons toujours pas rencontré."
+			},
+			"toolIds": []
+		},
+		{
+			"name": "who_are_you_clarification",
+			"type": "conversation",
+			"metadata": {
+				"position": {
+					"x": 4223.152426356577,
+					"y": 852.1948918288617
+				}
+			},
+			"prompt": "Répondre quand l'interlocuteur indique ne pas avoir compris qui nous sommes, en réaffirmant clairement l'identité et le programme.",
+			"model": {
+				"model": "gpt-4o-mini",
+				"provider": "openai",
+				"maxTokens": 150,
+				"temperature": 0.3
+			},
+			"transcriber": {
+				"language": "fr-FR",
+				"provider": "azure"
+			},
+			"messagePlan": {
+				"firstMessage": "Alors comme je vous l'ai dit, je suis Charlotte du programme d'aide au premier secours, je n'ai pas l'impression que cela vous parle."
+			},
+			"toolIds": []
+		}
+	],
+	"edges": [
+		{
+			"from": "introduction",
+			"to": "polite_greeting_followup",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter UNIQUEMENT si l'utilisateur dit explicitement 'et vous', 'et toi', ou des phrases contenant ces mots (ex.: 'ça va et vous ?', 'ça va merci et vous', 'et vous ?', 'bien et vous', 'ça va et toi'). Ne PAS déclencher pour d'autres réponses polies comme 'ça va', 'bien', 'très bien', 'pas mal', etc."
+			}
+		},
+		{
+			"from": "introduction",
+			"to": "busy_or_rushed",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter toute expression indiquant que l'utilisateur n'a pas le temps ou est occupé/indisponible (ex.: 'je n'ai pas le temps', 'je suis occupé(e)', 'pas disponible', 'je suis en consultation', 'je travaille', 'je conduis', 'rappeler plus tard')."
+			}
+		},
+		{
+			"from": "introduction",
+			"to": "normal_polite_response",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter les réponses polies normales qui ne contiennent PAS 'et vous' ou 'et toi' (ex.: 'ça va', 'bien', 'très bien', 'pas mal', 'ça va bien', 'très bien merci', 'oui ça va')."
+			}
+		},
+		{
+			"from": "introduction",
+			"to": "arriving_at_patient",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter si l'utilisateur dit être chez un patient ou en train d'arriver chez un patient (ex.: 'j'arrive chez un patient', 'je suis chez un patient', 'je suis chez une patiente', 'je suis avec un patient', 'chez un patient')."
+			}
+		},
+		{
+			"from": "introduction",
+			"to": "what_is_it_question",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter les questions du type 'c'est quoi ?' ou 'qu'est-ce que c'est ?' y compris variantes informelles ou incomplètes (ex.: 'c'est quoi ça ?', 'c'est quoi le programme ?', 'c'est quoi PAPS ?', 'qu'est-ce que c'est ?')."
+			}
+		},
+		{
+			"from": "introduction",
+			"to": "already_called_followup",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter si l'utilisateur indique avoir déjà été appelé/contacté (ex.: 'vous m'avez déjà appelé', 'vous m'avez déjà contacté', 'on m'a déjà appelé', 'vous avez déjà appelé')."
+			}
+		},
+		{
+			"from": "introduction",
+			"to": "who_are_you_clarification",
+			"condition": {
+				"type": "ai",
+				"prompt": "Détecter si l'utilisateur n'a pas compris qui nous sommes (ex.: 'je n'ai pas compris qui vous êtes', 'vous êtes qui ?', 'qui êtes-vous ?', 'qui vous êtes ?')."
+			}
+		}
+	],
+	"voice": {
+		"speed": 1.1,
+		"voiceId": "fr-FR-DeniseNeural",
+		"provider": "azure"
+	},
+	"globalPrompt": ""
 }

@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => {
 		},
 		build: {
 			// Enable source maps for debugging
-			sourcemap: mode === "development",
-			
+			sourcemap: true,
+
 			// Optimize dependencies
 			commonjsOptions: {
 				include: [/node_modules/],
