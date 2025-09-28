@@ -20,11 +20,11 @@ interface CallControlPayload {
 class VapiService {
 	private readonly client: VapiClient;
 	private readonly phoneNumberId: string;
-	private readonly workflowId: string;
+	private readonly assistantId: string;
 
 	constructor() {
 		this.phoneNumberId = env.VAPI_PHONE_NUMBER_ID;
-		this.workflowId = env.VAPI_WORKFLOW_ID;
+		this.assistantId = env.VAPI_ASSISTANT_ID;
 		this.client = new VapiClient({
 			token: env.VAPI_API_KEY,
 		});
@@ -32,16 +32,16 @@ class VapiService {
 
 	async createCall(callRequest: any): Promise<Vapi.CallsCreateResponse> {
 		try {
-			const workflowId = callRequest.workflowId || this.workflowId;
+			const assistantId = callRequest.assistantId || this.assistantId;
 
 			const callPayload: Vapi.CreateCallDto = {
 				phoneNumberId: this.phoneNumberId,
 				customer: {
 					number: callRequest.phoneNumber,
 				},
-				workflowId: workflowId,
+				assistantId: assistantId,
 				name: callRequest.name,
-				workflowOverrides: {
+				assistantOverrides: {
 					variableValues: {
 						title: callRequest.title,
 						name: callRequest.name,
