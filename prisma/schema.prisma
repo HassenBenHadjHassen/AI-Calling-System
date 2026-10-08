@@ -1,0 +1,302 @@
+// Prisma schema for AI Calling System
+// Configured for PostgreSQL with Prisma 7 driver adapter
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BusinessType {
+  HEALTHCARE
+  BUILDING_SERVICES
+}
+
+enum WorkflowType {
+  PATIENT_CARE
+  BUILDING_SERVICES
+}
+
+enum LineType {
+  MOBILE
+  LANDLINE
+  VOIP
+  UNKNOWN
+}
+
+enum AppointmentStatus {
+  PENDING
+  PENDING_LANDLINE
+  CONFIRMED
+  CONFIRMED_URGENT
+  REFUSED
+  CANCELLED
+  RESCHEDULE_PROPOSED
+  SCAM
+}
+
+enum ServiceRequestCategory {
+  DEVIS
+  ANNULATION
+  SUIVI
+  INTERVENTION
+  MESSAGE
+  GENERAL
+}
+
+enum ServiceRequestStatus {
+  NOT_COMPLETED
+  COMPLETED
+  MESSAGE
+  CANCELLED
+}
+
+enum WebhookProvider {
+  VAPI
+  TWILIO
+  JOTFORM
+}
+
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  DUPLICATE
+}
+
+enum NotificationChannel {
+  SMS
+  EMAIL
+  INTERNAL_ALERT
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+model Business {
+  id                  String             @id @default(uuid())
+  slug                String             @unique
+  name                String
+  businessType        BusinessType
+  timezone            String             @default("Europe/Paris")
+  inboundPhoneNumber  String?
+  outboundPhoneNumber String?
+  alertPhoneNumber    String?
+  calendarId          String?
+  formUrl             String?
+  metadata            Json?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  assistants          AssistantConfig[]
+  contacts            Contact[]
+  patients            Patient[]
+  appointments        Appointment[]
+  serviceRequests     ServiceRequest[]
+  allowlistEntries    CallerAllowlist[]
+  callRecords         CallRecord[]
+  webhookEvents       WebhookEvent[]
+  notificationJobs    NotificationJob[]
+
+  @@map("businesses")
+}
+
+model AssistantConfig {
+  id           String       @id @default(uuid())
+  assistantId  String       @unique
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String
+  workflowType WorkflowType
+  config       Json?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([assistantId])
+  @@index([businessId])
+  @@map("assistant_configs")
+}
+
+model Contact {
+  id           String            @id @default(uuid())
+  businessId   String
+  business     Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String
+  phoneNumber  String
+  email        String?
+  address      String?
+  postalCode   String?
+  city         String?
+  lineType     LineType          @default(UNKNOWN)
+  patient      Patient?
+  appointments Appointment[]
+  requests     ServiceRequest[]
+  callRecords  CallRecord[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([businessId, phoneNumber])
+  @@index([phoneNumber])
+  @@index([businessId])
+  @@map("contacts")
+}
+
+model Patient {
+  id            String        @id @default(uuid())
+  businessId    String
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contactId     String        @unique
+  contact       Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  medicalNotes  String?
+  isAllowlisted Boolean       @default(false)
+  lastScamScore Float?
+  appointments  Appointment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([businessId])
+  @@map("patients")
+}
+
+model CallRecord {
+  id              String           @id @default(uuid())
+  businessId      String
+  business        Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  vapiCallId      String           @unique
+  assistantId     String
+  contactId       String?
+  contact         Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  callerNumber    String
+  direction       String           @default("inbound")
+  status          String?
+  summary         String?
+  structuredData  Json?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  appointments    Appointment[]
+  serviceRequests ServiceRequest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([vapiCallId])
+  @@index([callerNumber])
+  @@index([businessId])
+  @@map("call_records")
+}
+
+model Appointment {
+  id                   String            @id @default(uuid())
+  businessId           String
+  business             Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contactId            String
+  contact              Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  patientId            String?
+  patient              Patient?          @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  callRecordId         String?
+  callRecord           CallRecord?       @relation(fields: [callRecordId], references: [id], onDelete: SetNull)
+  serviceType          String
+  date                 String
+  time                 String
+  startTime            DateTime
+  endTime              DateTime
+  status               AppointmentStatus @default(PENDING)
+  urgency              Boolean           @default(false)
+  scamScore            Float?
+  googleCalendarEventId String?
+  proposedNewTime      String?
+  notes                String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([businessId, status])
+  @@index([businessId, date])
+  @@map("appointments")
+}
+
+model ServiceRequest {
+  id                 String                 @id @default(uuid())
+  businessId         String
+  business           Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contactId          String
+  contact            Contact                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  callRecordId       String?
+  callRecord         CallRecord?            @relation(fields: [callRecordId], references: [id], onDelete: SetNull)
+  vapiCallId         String
+  category           ServiceRequestCategory
+  status             ServiceRequestStatus   @default(NOT_COMPLETED)
+  serviceType        String?
+  message            String?
+  address            String?
+  postalCode         String?
+  email              String?
+  formSubmissionData Json?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@index([vapiCallId])
+  @@index([businessId, status])
+  @@map("service_requests")
+}
+
+model CallerAllowlist {
+  id          String   @id @default(uuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phoneNumber String
+  label       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([businessId, phoneNumber])
+  @@index([phoneNumber])
+  @@map("caller_allowlists")
+}
+
+model WebhookEvent {
+  id           String                  @id @default(uuid())
+  businessId   String?
+  business     Business?               @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  provider     WebhookProvider
+  eventKey     String                  @unique
+  eventType    String
+  status       WebhookProcessingStatus @default(RECEIVED)
+  payload      Json?
+  error        String?
+  attemptCount Int                     @default(1)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@index([eventKey])
+  @@index([provider, status])
+  @@map("webhook_events")
+}
+
+model NotificationJob {
+  id                String              @id @default(uuid())
+  businessId        String
+  business          Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  channel           NotificationChannel @default(SMS)
+  recipient         String
+  message           String
+  status            NotificationStatus  @default(PENDING)
+  attemptCount      Int                 @default(0)
+  maxAttempts       Int                 @default(5)
+  nextRetryAt       DateTime?
+  providerMessageId String?
+  lastError         String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([status, nextRetryAt])
+  @@index([businessId])
+  @@map("notification_jobs")
+}

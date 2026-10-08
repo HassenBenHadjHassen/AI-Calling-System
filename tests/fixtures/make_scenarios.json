@@ -1,0 +1,253 @@
+{
+  "clientVip": {
+    "whitelistCaller": {
+      "message": {
+        "type": "tool-calls",
+        "assistant": { "id": "97808c43-384a-4f40-a8dd-9149ba4988f5" },
+        "customer": { "number": "+33612857915" },
+        "toolCalls": [
+          {
+            "id": "call_whitelist_001",
+            "type": "function",
+            "function": {
+              "name": "check_client_vip",
+              "arguments": { "caller": "+33612857915" }
+            }
+          }
+        ]
+      }
+    },
+    "existingPatientCaller": {
+      "message": {
+        "type": "tool-calls",
+        "assistant": { "id": "97808c43-384a-4f40-a8dd-9149ba4988f5" },
+        "customer": { "number": "+33601020304" },
+        "toolCalls": [
+          {
+            "id": "call_existing_002",
+            "type": "function",
+            "function": {
+              "name": "check_client_vip",
+              "arguments": { "caller": "+33601020304" }
+            }
+          }
+        ]
+      }
+    },
+    "newPatientCaller": {
+      "message": {
+        "type": "tool-calls",
+        "assistant": { "id": "97808c43-384a-4f40-a8dd-9149ba4988f5" },
+        "customer": { "number": "+33699887766" },
+        "toolCalls": [
+          {
+            "id": "call_new_003",
+            "type": "function",
+            "function": {
+              "name": "check_client_vip",
+              "arguments": { "caller": "+33699887766" }
+            }
+          }
+        ]
+      }
+    },
+    "daniBatimentCaller": {
+      "message": {
+        "type": "tool-calls",
+        "assistant": { "id": "38a56410-a3b6-49d5-96f1-8cd572b3f81c" },
+        "customer": { "number": "+33698765432" },
+        "toolCalls": [
+          {
+            "id": "call_batiment_004",
+            "type": "function",
+            "function": {
+              "name": "check_client_vip",
+              "arguments": { "caller": "+33698765432" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "calendarAvailability": {
+    "summerDstSlot": {
+      "message": {
+        "type": "tool-calls",
+        "assistant": { "id": "97808c43-384a-4f40-a8dd-9149ba4988f5" },
+        "toolCalls": [
+          {
+            "id": "call_cal_summer_001",
+            "type": "function",
+            "function": {
+              "name": "check_calendar_availability",
+              "arguments": { "date_time": "2026-07-15T14:00:00" }
+            }
+          }
+        ]
+      }
+    },
+    "winterDstSlot": {
+      "message": {
+        "type": "tool-calls",
+        "assistant": { "id": "97808c43-384a-4f40-a8dd-9149ba4988f5" },
+        "toolCalls": [
+          {
+            "id": "call_cal_winter_002",
+            "type": "function",
+            "function": {
+              "name": "check_calendar_availability",
+              "arguments": { "date_time": "2026-12-15T10:00:00" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "patientIntake": {
+    "urgentMobile": {
+      "message": {
+        "type": "end-of-call-report",
+        "call": {
+          "id": "vapi_call_urgent_101",
+          "assistantId": "97808c43-384a-4f40-a8dd-9149ba4988f5"
+        },
+        "customer": { "number": "+33611223344" },
+        "artifact": {
+          "summary": "Urgent patient needing immediate nurse assistance",
+          "structuredOutputs": {
+            "389d26dd-40e4-4670-9f2b-5acd1c40e6ee": {
+              "result": {
+                "patient_name": "Claire Martin",
+                "DATE": "2026-10-10",
+                "HEURE": "11h00",
+                "code_postal": "75015",
+                "service_type": "Perfusion urgente",
+                "urgency": "true"
+              }
+            },
+            "78937e6c-b9cc-46c2-a1c5-1e36df0fa42f": { "result": 9 },
+            "500a4dac-64f0-4d0a-9b0f-8523954132af": { "result": "false" }
+          }
+        }
+      }
+    },
+    "scamCall": {
+      "message": {
+        "type": "end-of-call-report",
+        "call": {
+          "id": "vapi_call_scam_102",
+          "assistantId": "97808c43-384a-4f40-a8dd-9149ba4988f5"
+        },
+        "customer": { "number": "+33600000000" },
+        "artifact": {
+          "summary": "Suspicious telemarketing call",
+          "structuredOutputs": {
+            "389d26dd-40e4-4670-9f2b-5acd1c40e6ee": {
+              "result": {
+                "patient_name": "Spam Caller",
+                "DATE": "2026-10-10",
+                "HEURE": "14h00",
+                "code_postal": "00000",
+                "service_type": "Promotion",
+                "urgency": "false"
+              }
+            },
+            "78937e6c-b9cc-46c2-a1c5-1e36df0fa42f": { "result": 2 },
+            "500a4dac-64f0-4d0a-9b0f-8523954132af": { "result": "false" }
+          }
+        }
+      }
+    },
+    "cancellation": {
+      "message": {
+        "type": "end-of-call-report",
+        "call": {
+          "id": "vapi_call_cancel_103",
+          "assistantId": "97808c43-384a-4f40-a8dd-9149ba4988f5"
+        },
+        "customer": { "number": "+33601020304" },
+        "artifact": {
+          "summary": "Cancellation of nursing appointment",
+          "structuredOutputs": {
+            "389d26dd-40e4-4670-9f2b-5acd1c40e6ee": {
+              "result": {
+                "patient_name": "Jean Dupont",
+                "DATE": "2026-10-11",
+                "HEURE": "10h00",
+                "code_postal": "75001",
+                "service_type": "Prise de sang"
+              }
+            },
+            "500a4dac-64f0-4d0a-9b0f-8523954132af": { "result": "true" }
+          }
+        }
+      }
+    }
+  },
+  "daniBatiment": {
+    "devis": {
+      "message": {
+        "type": "end-of-call-report",
+        "call": {
+          "id": "vapi_batiment_devis_201",
+          "assistantId": "38a56410-a3b6-49d5-96f1-8cd572b3f81c"
+        },
+        "customer": { "number": "+33655443322" },
+        "artifact": {
+          "summary": "Demande de devis pour rénovation toiture",
+          "structuredOutputs": {
+            "2e375095-f01f-40a6-ad7c-4a1ae3caf67a": {
+              "result": {
+                "patient_name": "Lucie Bernard",
+                "motif-appel": "Devis",
+                "service_type": "Couverture / Toiture",
+                "message": "Fuite d'eau suite aux intempéries",
+                "call_summary": "Demande de devis toiture urgente"
+              }
+            }
+          }
+        }
+      },
+      "_lead_metadata": { "phone_number": "+33655443322" }
+    },
+    "annulationOuSuivi": {
+      "message": {
+        "type": "end-of-call-report",
+        "call": {
+          "id": "vapi_batiment_suivi_202",
+          "assistantId": "38a56410-a3b6-49d5-96f1-8cd572b3f81c"
+        },
+        "customer": { "number": "+33655443322" },
+        "artifact": {
+          "summary": "Suivi du chantier",
+          "structuredOutputs": {
+            "2e375095-f01f-40a6-ad7c-4a1ae3caf67a": {
+              "result": {
+                "patient_name": "Lucie Bernard",
+                "motif-appel": "Suivi",
+                "service_type": "Chantier en cours",
+                "message": "Demande de date de passage des ouvriers",
+                "call_summary": "Point sur planning"
+              }
+            }
+          }
+        }
+      },
+      "_lead_metadata": { "phone_number": "+33655443322" }
+    }
+  },
+  "jotform": {
+    "validSubmission": {
+      "q14_callId": "vapi_batiment_devis_201",
+      "q17_nomDe": "Lucie Bernard",
+      "q3_email": "lucie.bernard@example.com",
+      "q4_adresse": {
+        "addr_line1": "8 Boulevard Haussmann",
+        "addr_line2": "Bâtiment B",
+        "postal": "75009",
+        "city": "Paris"
+      },
+      "submissionID": "sub_jotform_998877"
+    }
+  }
+}
