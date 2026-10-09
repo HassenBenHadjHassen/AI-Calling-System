@@ -6,6 +6,7 @@ import { JotformIntegration } from '../integrations/jotform';
 import { VapiServerMessagePayload } from '../validation/schemas';
 import { ServiceRequestCategory, ServiceRequestStatus } from '@prisma/client';
 import { env } from '../env';
+import { TenantService } from './tenant.service';
 
 export class ServiceRequestsService {
   /**
@@ -18,24 +19,8 @@ export class ServiceRequestsService {
     const vapiCallId = payload.message.call?.id || `call_${Date.now()}`;
     const assistantId = payload.message.call?.assistantId || payload.message.assistant?.id || '';
 
-    // 1. Resolve Business Tenant (Dani Bâtiment)
-    let business = await db.business.findUnique({
-      where: { slug: 'DANI_BATIMENT' },
-    });
-
-    if (!business) {
-      business = await db.business.create({
-        data: {
-          slug: 'DANI_BATIMENT',
-          name: 'Dani Bâtiment',
-          businessType: 'BUILDING_SERVICES',
-          timezone: env.TIMEZONE,
-          outboundPhoneNumber: env.BATIMENT_OUTBOUND_PHONE,
-          alertPhoneNumber: env.BATIMENT_ALERT_PHONE_NUMBER,
-          formUrl: env.JOTFORM_FORM_URL,
-        },
-      });
-    }
+    // 1. Resolve Business Tenant (Dani Bâtiment - auto-bootstraps if not seeded)
+    const business = await TenantService.ensureTenant('DANI_BATIMENT');
 
     const senderPhone = business.outboundPhoneNumber || env.BATIMENT_OUTBOUND_PHONE;
     const alertPhone = business.alertPhoneNumber || env.BATIMENT_ALERT_PHONE_NUMBER;

@@ -8,17 +8,11 @@ This checklist defines the operational procedure for migrating production traffi
 
 ### 1.1 Infrastructure & Database
 - [ ] Provision a production PostgreSQL database (v15+ recommended, e.g. Neon, Supabase, AWS RDS, or Railway).
-- [ ] Run Prisma migrations against the production database:
+- [ ] Deploy Prisma migrations against the production database:
   ```bash
   npx prisma migrate deploy
   ```
-- [ ] Seed initial tenants and assistant configurations:
-  ```bash
-  npm run db:seed
-  ```
-- [ ] Verify both tenants exist in the database:
-  - `CABINET_MICHELLE` (`97808c43-384a-4f40-a8dd-9149ba4988f5`)
-  - `DANI_BATIMENT` (`38a56410-a3b6-49d5-96f1-8cd572b3f81c`)
+  *(Tenants and assistant configurations are automatically bootstrapped on-the-fly from `.env` upon initial service boot or incoming requests - no manual seeding script required).*
 
 ### 1.2 Environment Variables & Secrets
 Ensure all production secrets are populated in the deployment environment:

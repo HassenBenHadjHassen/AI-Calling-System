@@ -11,9 +11,11 @@ vi.mock('@/lib/db', () => {
       },
       assistantConfig: {
         findUnique: vi.fn(),
+        upsert: vi.fn(),
       },
       callerAllowlist: {
         findFirst: vi.fn(),
+        upsert: vi.fn(),
       },
       contact: {
         findFirst: vi.fn(),

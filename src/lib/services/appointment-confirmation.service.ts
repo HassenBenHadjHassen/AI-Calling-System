@@ -5,6 +5,7 @@ import { googleCalendar } from '../integrations/google-calendar';
 import { NotificationService } from './notifications.service';
 import { AppointmentStatus } from '@prisma/client';
 import { env } from '../env';
+import { TenantService } from './tenant.service';
 
 export interface InboundSmsConfirmationParams {
   from: string;
@@ -21,15 +22,8 @@ export class AppointmentConfirmationService {
     const fromNumber = normalizePhoneNumber(params.from);
     console.log(`[AppointmentConfirmation] Received SMS from: ${fromNumber}`);
 
-    // 1. Resolve Business Tenant
-    const business = await db.business.findUnique({
-      where: { slug: 'CABINET_MICHELLE' },
-    });
-
-    if (!business) {
-      console.warn('[AppointmentConfirmation] Business CABINET_MICHELLE not found');
-      return { handled: false, reason: 'Business not found' };
-    }
+    // 1. Resolve Business Tenant (auto-bootstraps if not seeded)
+    const business = await TenantService.ensureTenant('CABINET_MICHELLE');
 
     // 2. Find matching pending appointment
     const appointment = await db.appointment.findFirst({

@@ -133,10 +133,9 @@ npm run db:generate
 
 # Run initial migrations
 npx prisma migrate deploy
-
-# Seed initial tenants, assistant configurations, and allowlists
-npm run db:seed
 ```
+
+> **Note**: No manual seeding script is required. The system dynamically auto-bootstraps tenant records, assistant UUID mappings, and initial allowlists directly from your `.env` configuration on initial boot and webhook arrival.
 
 ---
 

@@ -20,6 +20,8 @@ const envSchema = z.object({
   // Vapi
   VAPI_API_KEY: z.string().optional().default('vapi_test_key'),
   VAPI_WEBHOOK_SECRET: z.string().optional().default('vapi_test_secret'),
+  CABINET_ASSISTANT_ID: z.string().default('97808c43-384a-4f40-a8dd-9149ba4988f5'),
+  BATIMENT_ASSISTANT_ID: z.string().default('38a56410-a3b6-49d5-96f1-8cd572b3f81c'),
 
   // Twilio
   TWILIO_ACCOUNT_SID: z.string().optional().default('AC_mock_twilio_account_sid'),

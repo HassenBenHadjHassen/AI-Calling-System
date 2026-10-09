@@ -7,6 +7,7 @@ import { VapiIntegration, VAPI_STRUCTURED_OUTPUT_IDS } from '../integrations/vap
 import { VapiServerMessagePayload } from '../validation/schemas';
 import { AppointmentStatus, LineType } from '@prisma/client';
 import { env } from '../env';
+import { TenantService } from './tenant.service';
 
 export class PatientIntakeService {
   /**
@@ -19,24 +20,8 @@ export class PatientIntakeService {
     const vapiCallId = payload.message.call?.id || `call_${Date.now()}`;
     const assistantId = payload.message.call?.assistantId || payload.message.assistant?.id || '';
 
-    // 1. Resolve Business Tenant (Cabinet Michelle)
-    let business = await db.business.findUnique({
-      where: { slug: 'CABINET_MICHELLE' },
-    });
-
-    if (!business) {
-      business = await db.business.create({
-        data: {
-          slug: 'CABINET_MICHELLE',
-          name: 'Cabinet Michelle',
-          businessType: 'HEALTHCARE',
-          timezone: env.TIMEZONE,
-          alertPhoneNumber: env.NURSE_ALERT_PHONE_NUMBER,
-          inboundPhoneNumber: env.CABINET_INBOUND_PHONE,
-          calendarId: env.CABINET_CALENDAR_ID,
-        },
-      });
-    }
+    // 1. Resolve Business Tenant (Cabinet Michelle - auto-bootstraps if not seeded)
+    const business = await TenantService.ensureTenant('CABINET_MICHELLE');
 
     const alertPhone = business.alertPhoneNumber || env.NURSE_ALERT_PHONE_NUMBER;
 

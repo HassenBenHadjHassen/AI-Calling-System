@@ -1,6 +1,8 @@
 import { db } from '../db';
+import { env } from '../env';
 import { normalizePhoneNumber } from '../validation/phone';
 import { VapiIntegration } from '../integrations/vapi';
+import { TenantService } from './tenant.service';
 
 export interface CallerLookupParams {
   callerNumber: string;
@@ -15,21 +17,15 @@ export class CallerLookupService {
   static async lookupCaller(params: CallerLookupParams) {
     const normalizedPhone = normalizePhoneNumber(params.callerNumber);
 
-    // 1. Resolve Assistant & Business Tenant
+    // 1. Resolve Assistant & Business Tenant (auto-bootstraps if not seeded)
     const assistantConfig = await db.assistantConfig.findUnique({
       where: { assistantId: params.assistantId },
       include: { business: true },
     });
 
-    if (!assistantConfig) {
-      console.warn(`[CallerLookup] Unknown assistant ID: ${params.assistantId}`);
-      return VapiIntegration.buildToolResponse(
-        params.toolCallId,
-        'Utilisateur est un nouveau client'
-      );
-    }
-
-    const business = assistantConfig.business;
+    const business =
+      assistantConfig?.business ||
+      (await TenantService.resolveTenantByAssistantId(params.assistantId));
 
     // 2. Global / Tenant Whitelist / Allowlist Check (Module 31)
     const allowlistEntry = await db.callerAllowlist.findFirst({
@@ -41,7 +37,11 @@ export class CallerLookupService {
     });
 
     // 3. Cabinet Michelle Branch (Route 1)
-    if (params.assistantId === '97808c43-384a-4f40-a8dd-9149ba4988f5' || business.slug === 'CABINET_MICHELLE') {
+    if (
+      params.assistantId === env.CABINET_ASSISTANT_ID ||
+      params.assistantId === '97808c43-384a-4f40-a8dd-9149ba4988f5' ||
+      business.slug === 'CABINET_MICHELLE'
+    ) {
       // Whitelist match (Module 22)
       if (allowlistEntry) {
         return VapiIntegration.buildToolResponse(
