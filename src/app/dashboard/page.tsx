@@ -1,9 +1,8 @@
 import { db } from '@/lib/db';
 import Link from 'next/link';
+import { Prisma } from '@prisma/client';
 
 export const instant = false;
-
-import { Prisma, WebhookEvent, NotificationJob } from '@prisma/client';
 
 type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
   include: { contact: true; patient: true };
@@ -18,239 +17,326 @@ type CallRecordWithContact = Prisma.CallRecordGetPayload<{
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; category?: string; status?: string }>;
+  searchParams: Promise<{ tab?: string; filter?: string }>;
 }) {
   const params = await searchParams;
   const currentTab = params.tab || 'overview';
+  const currentFilter = params.filter || 'all';
 
   let appointments: AppointmentWithRelations[] = [];
   let serviceRequests: ServiceRequestWithContact[] = [];
   let callRecords: CallRecordWithContact[] = [];
-  let webhookEvents: WebhookEvent[] = [];
-  let notificationJobs: NotificationJob[] = [];
-  let dbError = '';
 
   try {
     const results = await Promise.all([
-      db.business.findMany({ include: { assistants: true } }),
       db.appointment.findMany({
         include: { contact: true, patient: true },
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: 100,
       }),
       db.serviceRequest.findMany({
         include: { contact: true },
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: 100,
       }),
       db.callRecord.findMany({
         include: { contact: true },
         orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      db.webhookEvent.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      db.notificationJob.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: 100,
       }),
     ]);
 
-    appointments = results[1];
-    serviceRequests = results[2];
-    callRecords = results[3];
-    webhookEvents = results[4];
-    notificationJobs = results[5];
+    appointments = results[0];
+    serviceRequests = results[1];
+    callRecords = results[2];
   } catch (err: unknown) {
-    dbError = err instanceof Error ? err.message : 'Database connection error';
+    console.error('Database query error on dashboard:', err);
   }
 
-  // Calculate high-level KPIs
-  const pendingAppointments = appointments.filter((a) => a.status === 'PENDING').length;
-  const confirmedAppointments = appointments.filter(
+  // Filtered lists
+  const filteredAppointments = appointments.filter((a) => {
+    if (currentFilter === 'confirmed') return a.status === 'CONFIRMED' || a.status === 'CONFIRMED_URGENT';
+    if (currentFilter === 'pending') return a.status === 'PENDING';
+    if (currentFilter === 'urgent') return a.status === 'CONFIRMED_URGENT';
+    return true;
+  });
+
+  const filteredRequests = serviceRequests.filter((r) => {
+    if (currentFilter === 'completed') return r.status === 'COMPLETED';
+    if (currentFilter === 'pending') return r.status === 'NOT_COMPLETED';
+    return true;
+  });
+
+  // Calculate clean, high-level business metrics
+  const confirmedCount = appointments.filter(
     (a) => a.status === 'CONFIRMED' || a.status === 'CONFIRMED_URGENT'
   ).length;
-  const pendingDevis = serviceRequests.filter(
-    (r) => r.category === 'DEVIS' && r.status === 'NOT_COMPLETED'
-  ).length;
-  const completedDevis = serviceRequests.filter((r) => r.status === 'COMPLETED').length;
-  const failedWebhooks = webhookEvents.filter((w) => w.status === 'FAILED').length;
-  const failedNotifications = notificationJobs.filter((n) => n.status === 'FAILED').length;
+  const pendingAppointmentsCount = appointments.filter((a) => a.status === 'PENDING').length;
+  const urgentCount = appointments.filter((a) => a.status === 'CONFIRMED_URGENT').length;
+  const devisCompletedCount = serviceRequests.filter((r) => r.status === 'COMPLETED').length;
+  const devisPendingCount = serviceRequests.filter((r) => r.status === 'NOT_COMPLETED').length;
+  const totalCallsCount = callRecords.length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-10 font-sans">
-      {/* Top Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between pb-8 border-b border-slate-800 gap-4">
-        <div>
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16">
+      {/* Top Navigation Bar */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-              AI Calling System — Mission Control
-            </h1>
+            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+              AI
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 leading-tight">
+                Centre de Gestion d&apos;Appels
+              </h1>
+              <p className="text-xs text-slate-500">
+                Cabinet Michelle &bull; Dani Bâtiment
+              </p>
+            </div>
           </div>
-          <p className="text-slate-400 text-sm mt-1">
-            Supervision opérationnelle des flux d&apos;appels Cabinet Michelle & Dani Bâtiment
-          </p>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-            Node: {process.env.NODE_ENV || 'development'}
-          </span>
-          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800">
-            Prisma 7 Adapter
-          </span>
-          <span className="px-3 py-1 text-xs font-semibold rounded-full bg-amber-950 text-amber-300 border border-amber-800">
-            DRY_RUN: Active
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Assistants Vocaux Actifs
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Database Connection Alert */}
-      {dbError && (
-        <div className="mt-6 p-4 rounded-xl bg-amber-950/60 border border-amber-800 text-amber-200">
-          <h3 className="font-semibold text-amber-100 flex items-center gap-2">
-            ⚠️ Base de données non connectée ou en attente d&apos;initialisation
-          </h3>
-          <p className="text-sm mt-1">
-            Erreur: {dbError}. Assurez-vous que PostgreSQL est lancé et exécutez{' '}
-            <code className="bg-amber-900/50 px-2 py-0.5 rounded text-amber-300 font-mono">
-              npm run db:seed
-            </code>
-            .
-          </p>
-        </div>
-      )}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+        {/* KPI Cards Row */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Card 1: Rendez-vous confirmés */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                RDV Confirmés
+              </span>
+              <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">
+                📅
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-slate-900">{confirmedCount}</span>
+              {urgentCount > 0 && (
+                <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                  {urgentCount} urgent{urgentCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Cabinet Michelle (Inscrits au planning)</p>
+          </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-8">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">RDV en attente</p>
-          <p className="text-2xl font-bold text-amber-400 mt-2">{pendingAppointments}</p>
-          <span className="text-xs text-slate-500">Cabinet Michelle</span>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">RDV confirmés</p>
-          <p className="text-2xl font-bold text-emerald-400 mt-2">{confirmedAppointments}</p>
-          <span className="text-xs text-slate-500">Google Calendar</span>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Devis en attente</p>
-          <p className="text-2xl font-bold text-cyan-400 mt-2">{pendingDevis}</p>
-          <span className="text-xs text-slate-500">Lien JotForm envoyé</span>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Devis complétés</p>
-          <p className="text-2xl font-bold text-blue-400 mt-2">{completedDevis}</p>
-          <span className="text-xs text-slate-500">JotForm → CRM</span>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Erreurs Webhook</p>
-          <p className="text-2xl font-bold text-rose-400 mt-2">{failedWebhooks}</p>
-          <span className="text-xs text-slate-500">Événements en échec</span>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Erreurs SMS</p>
-          <p className="text-2xl font-bold text-red-400 mt-2">{failedNotifications}</p>
-          <span className="text-xs text-slate-500">File de retries</span>
-        </div>
-      </div>
+          {/* Card 2: En attente de confirmation */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                RDV En Attente SMS
+              </span>
+              <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">
+                💬
+              </span>
+            </div>
+            <div className="mt-3">
+              <span className="text-3xl font-extrabold text-slate-900">{pendingAppointmentsCount}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">En attente de réponse du patient</p>
+          </div>
 
-      {/* Tabs Navigation */}
-      <nav className="flex items-center gap-2 border-b border-slate-800 mt-10 pb-2 overflow-x-auto">
-        {[
-          { id: 'overview', label: 'Vue d’ensemble' },
-          { id: 'appointments', label: `Rendez-vous (${appointments.length})` },
-          { id: 'requests', label: `Dani Bâtiment (${serviceRequests.length})` },
-          { id: 'calls', label: `Appels (${callRecords.length})` },
-          { id: 'webhooks', label: `Webhooks (${webhookEvents.length})` },
-          { id: 'notifications', label: `Notifications (${notificationJobs.length})` },
-        ].map((tab) => {
-          const isActive = currentTab === tab.id;
-          return (
-            <Link
-              key={tab.id}
-              href={`/dashboard?tab=${tab.id}`}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
-                isActive
-                  ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+          {/* Card 3: Devis complétés */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Devis Reçus &bull; JotForm
+              </span>
+              <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">
+                🏗️
+              </span>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold text-slate-900">{devisCompletedCount}</span>
+              {devisPendingCount > 0 && (
+                <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  {devisPendingCount} en attente
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Dani Bâtiment (Coordonnées complètes)</p>
+          </div>
 
-      {/* Tab Contents */}
-      <div className="mt-6">
-        {/* TAB 1: OVERVIEW */}
+          {/* Card 4: Total appels traités */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Total Appels Traités
+              </span>
+              <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">
+                📞
+              </span>
+            </div>
+            <div className="mt-3">
+              <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Flux vocaux gérés par IA</p>
+          </div>
+        </section>
+
+        {/* Tab Controls */}
+        <section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2">
+          <nav className="flex gap-2">
+            {[
+              { id: 'overview', label: 'Vue d’ensemble', icon: '📊' },
+              { id: 'appointments', label: `Cabinet Michelle — Rendez-vous (${appointments.length})`, icon: '🩺' },
+              { id: 'requests', label: `Dani Bâtiment — Devis (${serviceRequests.length})`, icon: '🏗️' },
+              { id: 'calls', label: `Journal d’appels (${callRecords.length})`, icon: '📞' },
+            ].map((tab) => {
+              const active = currentTab === tab.id;
+              return (
+                <Link
+                  key={tab.id}
+                  href={`/dashboard?tab=${tab.id}`}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    active
+                      ? 'bg-blue-50 text-blue-700 shadow-2xs border border-blue-200/60'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </section>
+
+        {/* TAB 1: OVERVIEW (Clean summary of both businesses) */}
         {currentTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Cabinet Michelle Card */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-lg text-white">Cabinet Michelle (Infirmière)</h3>
-                  <span className="px-2.5 py-0.5 rounded text-xs bg-emerald-950 text-emerald-300 border border-emerald-800">
-                    Santé
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Michelle Recent Appointments */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
+                    🩺
                   </span>
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-base">Cabinet Michelle &bull; Rendez-vous récents</h2>
+                    <p className="text-xs text-slate-500">Soins infirmiers à domicile</p>
+                  </div>
                 </div>
-                <div className="text-sm text-slate-400 space-y-2 mt-4">
-                  <p>Assistant Vapi: <code className="text-xs font-mono bg-slate-800 px-1 py-0.5 rounded text-slate-300">97808c43-384a-4f40-a8dd-9149ba4988f5</code></p>
-                  <p>Téléphone d&apos;alerte (Infirmière): <span className="text-slate-200 font-mono">+33612857915</span></p>
-                  <p>Calendrier Google: <span className="text-slate-200">monaldi2b@gmail.com</span></p>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between text-xs text-slate-400">
-                  <span>Derniers RDV reçus: {appointments.slice(0, 3).length}</span>
-                  <Link href="/dashboard?tab=appointments" className="text-emerald-400 hover:underline">
-                    Voir les rendez-vous →
-                  </Link>
-                </div>
+                <Link
+                  href="/dashboard?tab=appointments"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                >
+                  Voir tout &rarr;
+                </Link>
               </div>
 
-              {/* Dani Bâtiment Card */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-lg text-white">Dani Bâtiment (Travaux & Devis)</h3>
-                  <span className="px-2.5 py-0.5 rounded text-xs bg-cyan-950 text-cyan-300 border border-cyan-800">
-                    Bâtiment
-                  </span>
+              {appointments.length === 0 ? (
+                <div className="p-10 text-center">
+                  <p className="text-slate-400 text-sm">Aucun rendez-vous pour le moment.</p>
+                  <p className="text-xs text-slate-400 mt-1">Les appels entrants du Cabinet Michelle apparaîtront ici.</p>
                 </div>
-                <div className="text-sm text-slate-400 space-y-2 mt-4">
-                  <p>Assistant Vapi: <code className="text-xs font-mono bg-slate-800 px-1 py-0.5 rounded text-slate-300">38a56410-a3b6-49d5-96f1-8cd572b3f81c</code></p>
-                  <p>Numéro émetteur SMS: <span className="text-slate-200 font-mono">+33939036462</span></p>
-                  <p>Formulaire JotForm: <span className="text-slate-200 truncate">https://form.jotform.com/260901590611047</span></p>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {appointments.slice(0, 5).map((appt) => (
+                    <div key={appt.id} className="p-4 hover:bg-slate-50/60 transition-colors flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm text-slate-900">
+                            {appt.contact?.name || 'Patient'}
+                          </span>
+                          {appt.status === 'CONFIRMED_URGENT' && (
+                            <span className="px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-100 text-rose-800">
+                              Urgent
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {appt.serviceType || 'Soins'} &bull; {appt.contact?.phoneNumber}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-medium text-slate-700 block">
+                          {appt.date} {appt.time && `à ${appt.time}`}
+                        </span>
+                        <span
+                          className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : appt.status === 'REFUSED'
+                              ? 'bg-slate-100 text-slate-600'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}
+                        >
+                          {appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
+                            ? 'Confirmé'
+                            : appt.status === 'REFUSED'
+                            ? 'Refusé'
+                            : 'En attente SMS'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between text-xs text-slate-400">
-                  <span>Demandes actives: {serviceRequests.slice(0, 3).length}</span>
-                  <Link href="/dashboard?tab=requests" className="text-cyan-400 hover:underline">
-                    Voir les demandes →
-                  </Link>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Recent Live Activity */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-sm">
-              <h3 className="font-semibold text-lg text-white mb-4">Dernières Activités Système</h3>
-              {callRecords.length === 0 ? (
-                <p className="text-sm text-slate-500">Aucun appel enregistré pour l&apos;instant.</p>
+            {/* Dani Batiment Recent Requests */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
+                    🏗️
+                  </span>
+                  <div>
+                    <h2 className="font-bold text-slate-900 text-base">Dani Bâtiment &bull; Devis & Demandes</h2>
+                    <p className="text-xs text-slate-500">Artisan bâtiment & travaux</p>
+                  </div>
+                </div>
+                <Link
+                  href="/dashboard?tab=requests"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                >
+                  Voir tout &rarr;
+                </Link>
+              </div>
+
+              {serviceRequests.length === 0 ? (
+                <div className="p-10 text-center">
+                  <p className="text-slate-400 text-sm">Aucune demande de devis enregistrée.</p>
+                  <p className="text-xs text-slate-400 mt-1">Les prospects appelant Dani Bâtiment s&apos;afficheront ici.</p>
+                </div>
               ) : (
-                <div className="divide-y divide-slate-800">
-                  {callRecords.slice(0, 5).map((call) => (
-                    <div key={call.id} className="py-3 flex items-center justify-between text-sm">
-                      <div>
-                        <span className="font-mono text-slate-300">{call.callerNumber}</span>
-                        <span className="text-slate-500 mx-2">•</span>
-                        <span className="text-slate-400">{call.summary || 'Appel vocal Vapi'}</span>
+                <div className="divide-y divide-slate-100">
+                  {serviceRequests.slice(0, 5).map((req) => (
+                    <div key={req.id} className="p-4 hover:bg-slate-50/60 transition-colors flex items-center justify-between">
+                      <div className="space-y-1">
+                        <span className="font-semibold text-sm text-slate-900">
+                          {req.contact?.name || 'Client'}
+                        </span>
+                        <p className="text-xs text-slate-500">
+                          {req.serviceType || 'Devis'} &bull; {req.contact?.phoneNumber}
+                        </p>
                       </div>
-                      <span className="text-xs text-slate-500 font-mono">
-                        {new Date(call.createdAt).toLocaleTimeString('fr-FR')}
-                      </span>
+
+                      <div className="text-right">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            req.status === 'COMPLETED'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}
+                        >
+                          {req.status === 'COMPLETED' ? 'Formulaire Reçu' : 'Lien SMS Envoyé'}
+                        </span>
+                        <span className="text-2xs text-slate-400 block mt-1">
+                          {new Date(req.createdAt).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -259,67 +345,88 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* TAB 2: APPOINTMENTS */}
+        {/* TAB 2: APPOINTMENTS FULL TABLE */}
         {currentTab === 'appointments' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="font-semibold text-white">Rendez-vous Cabinet Michelle</h3>
-              <span className="text-xs text-slate-400">{appointments.length} enregistrements</span>
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-bold text-slate-900 text-lg">Rendez-vous &bull; Cabinet Michelle</h2>
+                <p className="text-xs text-slate-500">Suivi des rendez-vous et confirmation par SMS</p>
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-2">
+                {[
+                  { id: 'all', label: 'Tous' },
+                  { id: 'confirmed', label: 'Confirmés' },
+                  { id: 'pending', label: 'En attente' },
+                  { id: 'urgent', label: 'Urgents' },
+                ].map((f) => (
+                  <Link
+                    key={f.id}
+                    href={`/dashboard?tab=appointments&filter=${f.id}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      currentFilter === f.id
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f.label}
+                  </Link>
+                ))}
+              </div>
             </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold">
+              <table className="w-full text-left text-sm text-slate-700">
+                <thead className="bg-slate-50 text-2xs uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-4">Patient</th>
-                    <th className="py-3 px-4">Téléphone</th>
-                    <th className="py-3 px-4">Date & Heure</th>
-                    <th className="py-3 px-4">Soin</th>
-                    <th className="py-3 px-4">Statut</th>
-                    <th className="py-3 px-4">Scam / Urgence</th>
-                    <th className="py-3 px-4">Google Cal ID</th>
+                    <th className="py-3 px-6">Patient</th>
+                    <th className="py-3 px-6">Téléphone</th>
+                    <th className="py-3 px-6">Date & Heure</th>
+                    <th className="py-3 px-6">Type de Soin</th>
+                    <th className="py-3 px-6">Statut</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {appointments.length === 0 ? (
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAppointments.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        Aucun rendez-vous trouvé dans la base de données.
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        Aucun rendez-vous correspondant au filtre.
                       </td>
                     </tr>
                   ) : (
-                    appointments.map((a) => (
-                      <tr key={a.id} className="hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-medium text-white">{a.contact?.name || 'Inconnu'}</td>
-                        <td className="py-3 px-4 font-mono text-xs">{a.contact?.phoneNumber}</td>
-                        <td className="py-3 px-4">{a.date} à {a.time}</td>
-                        <td className="py-3 px-4">{a.serviceType}</td>
-                        <td className="py-3 px-4">
+                    filteredAppointments.map((appt) => (
+                      <tr key={appt.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-4 px-6 font-semibold text-slate-900">
+                          {appt.contact?.name || 'Patient Inconnu'}
+                        </td>
+                        <td className="py-4 px-6 text-slate-600 font-mono text-xs">
+                          {appt.contact?.phoneNumber}
+                        </td>
+                        <td className="py-4 px-6 text-slate-800">
+                          {appt.date} {appt.time && <span className="text-slate-500">à {appt.time}</span>}
+                        </td>
+                        <td className="py-4 px-6 text-slate-600">
+                          {appt.serviceType || 'Soins Infirmiers'}
+                        </td>
+                        <td className="py-4 px-6">
                           <span
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              a.status === 'CONFIRMED' || a.status === 'CONFIRMED_URGENT'
-                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                                : a.status === 'PENDING'
-                                ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                                : a.status === 'SCAM'
-                                ? 'bg-purple-950 text-purple-300 border border-purple-800'
-                                : 'bg-rose-950 text-rose-300 border border-rose-800'
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                              appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : appt.status === 'REFUSED'
+                                ? 'bg-slate-100 text-slate-600 border border-slate-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
                             }`}
                           >
-                            {a.status}
+                            {appt.status === 'CONFIRMED_URGENT' && '🚨'}
+                            {appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
+                              ? 'Confirmé'
+                              : appt.status === 'REFUSED'
+                              ? 'Refusé'
+                              : 'En attente SMS'}
                           </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-1.5 items-center">
-                            {a.urgency && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] bg-red-950 text-red-300 border border-red-800">
-                                URGENT
-                              </span>
-                            )}
-                            <span className="text-xs text-slate-400">Score: {a.scamScore ?? 'N/A'}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-xs text-slate-400 truncate max-w-[150px]">
-                          {a.googleCalendarEventId || '—'}
                         </td>
                       </tr>
                     ))
@@ -330,60 +437,88 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* TAB 3: SERVICE REQUESTS */}
+        {/* TAB 3: DANI BATIMENT FULL TABLE */}
         {currentTab === 'requests' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-              <h3 className="font-semibold text-white">Demandes Dani Bâtiment</h3>
-              <span className="text-xs text-slate-400">{serviceRequests.length} demandes</span>
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-bold text-slate-900 text-lg">Demandes de Devis &bull; Dani Bâtiment</h2>
+                <p className="text-xs text-slate-500">Envoi du formulaire JotForm par SMS et enrichissement CRM</p>
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-2">
+                {[
+                  { id: 'all', label: 'Toutes' },
+                  { id: 'completed', label: 'Formulaire reçu' },
+                  { id: 'pending', label: 'Lien SMS envoyé' },
+                ].map((f) => (
+                  <Link
+                    key={f.id}
+                    href={`/dashboard?tab=requests&filter=${f.id}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      currentFilter === f.id
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f.label}
+                  </Link>
+                ))}
+              </div>
             </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold">
+              <table className="w-full text-left text-sm text-slate-700">
+                <thead className="bg-slate-50 text-2xs uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-4">Client</th>
-                    <th className="py-3 px-4">Téléphone</th>
-                    <th className="py-3 px-4">Motif</th>
-                    <th className="py-3 px-4">Statut</th>
-                    <th className="py-3 px-4">Adresse</th>
-                    <th className="py-3 px-4">Call ID</th>
-                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-6">Client</th>
+                    <th className="py-3 px-6">Téléphone</th>
+                    <th className="py-3 px-6">Motif</th>
+                    <th className="py-3 px-6">Coordonnées / Adresse</th>
+                    <th className="py-3 px-6">Statut Devis</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {serviceRequests.length === 0 ? (
+                <tbody className="divide-y divide-slate-100">
+                  {filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        Aucune demande trouvée.
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        Aucune demande correspondant au filtre.
                       </td>
                     </tr>
                   ) : (
-                    serviceRequests.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-medium text-white">{r.contact?.name || 'Client'}</td>
-                        <td className="py-3 px-4 font-mono text-xs">{r.contact?.phoneNumber}</td>
-                        <td className="py-3 px-4 font-semibold text-cyan-300">{r.category}</td>
-                        <td className="py-3 px-4">
+                    filteredRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-4 px-6 font-semibold text-slate-900">
+                          {req.contact?.name || 'Client Inconnu'}
+                        </td>
+                        <td className="py-4 px-6 text-slate-600 font-mono text-xs">
+                          {req.contact?.phoneNumber}
+                        </td>
+                        <td className="py-4 px-6 text-slate-800">
+                          <span className="font-medium">{req.serviceType || 'Devis'}</span>
+                          {req.message && (
+                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{req.message}</p>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-xs text-slate-600">
+                          {req.address ? (
+                            <span>{req.address} {req.postalCode && `(${req.postalCode})`}</span>
+                          ) : (
+                            <span className="text-slate-400 italic">En attente de saisie JotForm</span>
+                          )}
+                          {req.email && <div className="text-slate-500 mt-0.5">{req.email}</div>}
+                        </td>
+                        <td className="py-4 px-6">
                           <span
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              r.status === 'COMPLETED'
-                                ? 'bg-blue-950 text-blue-300 border border-blue-800'
-                                : r.status === 'NOT_COMPLETED'
-                                ? 'bg-amber-950 text-amber-300 border border-amber-800'
-                                : 'bg-slate-800 text-slate-300 border border-slate-700'
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                              req.status === 'COMPLETED'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
                             }`}
                           >
-                            {r.status}
+                            {req.status === 'COMPLETED' ? 'Formulaire Reçu' : 'Lien SMS Envoyé'}
                           </span>
-                        </td>
-                        <td className="py-3 px-4 text-xs text-slate-400 max-w-[200px] truncate">
-                          {r.address || '—'} {r.postalCode && `(${r.postalCode})`}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-xs text-slate-400 truncate max-w-[140px]">
-                          {r.vapiCallId}
-                        </td>
-                        <td className="py-3 px-4 text-xs text-slate-400">
-                          {new Date(r.createdAt).toLocaleDateString('fr-FR')}
                         </td>
                       </tr>
                     ))
@@ -394,39 +529,45 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* TAB 4: CALLS */}
+        {/* TAB 4: CALL LOGS */}
         {currentTab === 'calls' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-slate-800">
-              <h3 className="font-semibold text-white">Journal des Appels Vapi</h3>
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="p-5 border-b border-slate-200">
+              <h2 className="font-bold text-slate-900 text-lg">Journal des Appels Vocaux</h2>
+              <p className="text-xs text-slate-500">Historique des communications enregistrées par les assistants Vapi</p>
             </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold">
+              <table className="w-full text-left text-sm text-slate-700">
+                <thead className="bg-slate-50 text-2xs uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
                   <tr>
-                    <th className="py-3 px-4">Call ID</th>
-                    <th className="py-3 px-4">Numéro</th>
-                    <th className="py-3 px-4">Assistant</th>
-                    <th className="py-3 px-4">Résumé</th>
-                    <th className="py-3 px-4">Date & Heure</th>
+                    <th className="py-3 px-6">Date & Heure</th>
+                    <th className="py-3 px-6">Appelant</th>
+                    <th className="py-3 px-6">Numéro</th>
+                    <th className="py-3 px-6">Résumé de l&apos;Appel</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-slate-100">
                   {callRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-500">
-                        Aucun appel enregistré.
+                      <td colSpan={4} className="py-12 text-center text-slate-400">
+                        Aucun appel enregistré pour l&apos;instant.
                       </td>
                     </tr>
                   ) : (
-                    callRecords.map((c) => (
-                      <tr key={c.id} className="hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-mono text-xs text-slate-400">{c.vapiCallId}</td>
-                        <td className="py-3 px-4 font-mono text-xs text-white">{c.callerNumber}</td>
-                        <td className="py-3 px-4 font-mono text-xs text-slate-400 truncate max-w-[120px]">{c.assistantId}</td>
-                        <td className="py-3 px-4 text-xs text-slate-300 max-w-[300px] truncate">{c.summary || '—'}</td>
-                        <td className="py-3 px-4 text-xs text-slate-400 font-mono">
-                          {new Date(c.createdAt).toLocaleString('fr-FR')}
+                    callRecords.map((call) => (
+                      <tr key={call.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-4 px-6 text-xs text-slate-500 whitespace-nowrap">
+                          {new Date(call.createdAt).toLocaleString('fr-FR')}
+                        </td>
+                        <td className="py-4 px-6 font-semibold text-slate-900">
+                          {call.contact?.name || 'Inconnu'}
+                        </td>
+                        <td className="py-4 px-6 text-slate-600 font-mono text-xs">
+                          {call.callerNumber}
+                        </td>
+                        <td className="py-4 px-6 text-slate-700 text-xs">
+                          {call.summary || 'Appel vocal enregistré'}
                         </td>
                       </tr>
                     ))
@@ -436,123 +577,7 @@ export default async function DashboardPage({
             </div>
           </div>
         )}
-
-        {/* TAB 5: WEBHOOKS */}
-        {currentTab === 'webhooks' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-slate-800">
-              <h3 className="font-semibold text-white">Événements Webhook & Idempotence</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold">
-                  <tr>
-                    <th className="py-3 px-4">Provider</th>
-                    <th className="py-3 px-4">Clé d’Idempotence</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Statut</th>
-                    <th className="py-3 px-4">Essais</th>
-                    <th className="py-3 px-4">Erreur</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {webhookEvents.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500">
-                        Aucun événement webhook reçu.
-                      </td>
-                    </tr>
-                  ) : (
-                    webhookEvents.map((w) => (
-                      <tr key={w.id} className="hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-semibold text-slate-200">{w.provider}</td>
-                        <td className="py-3 px-4 font-mono text-xs text-slate-400 truncate max-w-[200px]">{w.eventKey}</td>
-                        <td className="py-3 px-4 text-xs">{w.eventType}</td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              w.status === 'PROCESSED'
-                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                                : w.status === 'FAILED'
-                                ? 'bg-rose-950 text-rose-300 border border-rose-800'
-                                : 'bg-slate-800 text-slate-300 border border-slate-700'
-                            }`}
-                          >
-                            {w.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-xs">{w.attemptCount}</td>
-                        <td className="py-3 px-4 text-xs text-rose-400 max-w-[250px] truncate">{w.error || '—'}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: NOTIFICATIONS */}
-        {currentTab === 'notifications' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-slate-800">
-              <h3 className="font-semibold text-white">File de Notifications & Retries (Worker)</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-950/60 text-xs uppercase text-slate-400 border-b border-slate-800 font-semibold">
-                  <tr>
-                    <th className="py-3 px-4">Canal</th>
-                    <th className="py-3 px-4">Destinataire</th>
-                    <th className="py-3 px-4">Message</th>
-                    <th className="py-3 px-4">Statut</th>
-                    <th className="py-3 px-4">Essais</th>
-                    <th className="py-3 px-4">Provider ID</th>
-                    <th className="py-3 px-4">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {notificationJobs.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        Aucune notification dans la file.
-                      </td>
-                    </tr>
-                  ) : (
-                    notificationJobs.map((n) => (
-                      <tr key={n.id} className="hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-semibold text-slate-200">{n.channel}</td>
-                        <td className="py-3 px-4 font-mono text-xs">{n.recipient}</td>
-                        <td className="py-3 px-4 text-xs text-slate-300 max-w-[250px] truncate">{n.message}</td>
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              n.status === 'SENT'
-                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                                : n.status === 'FAILED'
-                                ? 'bg-rose-950 text-rose-300 border border-rose-800'
-                                : 'bg-amber-950 text-amber-300 border border-amber-800'
-                            }`}
-                          >
-                            {n.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-xs">{n.attemptCount}/{n.maxAttempts}</td>
-                        <td className="py-3 px-4 font-mono text-xs text-slate-400 truncate max-w-[120px]">
-                          {n.providerMessageId || '—'}
-                        </td>
-                        <td className="py-3 px-4 text-xs text-slate-400 font-mono">
-                          {new Date(n.createdAt).toLocaleTimeString('fr-FR')}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
   );
 }
