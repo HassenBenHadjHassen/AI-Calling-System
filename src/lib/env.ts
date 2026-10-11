@@ -8,8 +8,8 @@ const envSchema = z.object({
   DATABASE_URL: z
     .string()
     .default('postgresql://postgres:postgres@localhost:5432/ai_calling_system'),
-  PORT: z.coerce.number().default(3000),
-  APP_URL: z.string().default('http://localhost:3000'),
+  PORT: z.coerce.number().default(4050),
+  APP_URL: z.string().default('http://localhost:4050'),
 
   // Safe mode flag - when true, no actual SMS sent and no actual Google Calendar modifications made
   DRY_RUN: z
