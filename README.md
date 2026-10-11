@@ -1,14 +1,14 @@
 # AI Calling System: Enterprise Multi-Tenant Voice & SMS Platform
 
-An enterprise-grade, multi-tenant voice calling and SMS automation platform built with **Next.js 16 (App Router)**, **TypeScript**, **Prisma 7**, **PostgreSQL**, **Vapi**, **Twilio**, **Google Calendar**, **JotForm**, and **OpenAI**.
+An enterprise-grade, multi-tenant voice calling and SMS automation platform built with **Next.js 16 (App Router)**, **TypeScript**, **Prisma 7**, **PostgreSQL**, **Vapi**, **Twilio**, and **OpenAI**.
 
-This application completely replaces and modernizes the legacy Make.com scenario exports (`make.com/*.json`) with high-throughput, idempotent, duplicate-safe code running with deterministic timezone handling and an internal operational dashboard.
+This application completely replaces and modernizes the legacy Make.com scenarios, **replaces Google Calendar with an internal database-backed calendar & iCal synchronization feed**, and **replaces JotForm with a native, high-end Next.js quote intake portal**.
 
 ---
 
 ## 1. System Architecture & Multi-Tenancy
 
-The platform provides isolated multi-tenant routing, database persistence, and external service credentials for two distinct businesses:
+The platform provides isolated multi-tenant routing, database persistence, and internal workflow engines for two distinct businesses:
 
 ```
                             ┌────────────────────────┐
@@ -20,11 +20,12 @@ The platform provides isolated multi-tenant routing, database persistence, and e
 │                           Next.js App Router API                             │
 │                                                                              │
 │  /api/webhooks/vapi/tools/client-vip           (Allowlist & VIP caller check)│
-│  /api/webhooks/vapi/tools/calendar-availability(Google Calendar FreeBusy check)│
+│  /api/webhooks/vapi/tools/calendar-availability(Internal/Google Calendar check)│
 │  /api/webhooks/vapi/patient-intake             (Cabinet Michelle End-of-Call)│
 │  /api/webhooks/vapi/dani-batiment              (Dani Bâtiment End-of-Call)   │
 │  /api/webhooks/twilio/inbound-sms              (Twilio SMS 2-way replies)    │
-│  /api/webhooks/jotform/submission              (JotForm CRM enrichment)      │
+│  /devis/[callId] & /api/forms/devis            (Native Devis Portal - no JotForm)│
+│  /api/calendar/michelle.ics & /api/calendar/block (Native iCal & Slot Blocker)│
 └───────────────┬──────────────────────────────────────────────┬───────────────┘
                 │                                              │
                 ▼                                              ▼
@@ -34,7 +35,7 @@ The platform provides isolated multi-tenant routing, database persistence, and e
 │  - Assistant: 97808c43-...    │              │   - Assistant: 38a56410-...   │
 │  - Inbound SMS: +33939033663  │              │   - Outbound SMS: +33939036462│
 │  - Nurse Alert: +33612857915  │              │   - Staff Alert: +33612857915 │
-│  - Calendar: monaldi2b@...    │              │   - Form: JotForm Devis       │
+│  - Calendar: Internal / iCal  │              │   - Form: Native /devis/[id]  │
 └───────────────────────────────┘              └───────────────────────────────┘
                 │                                              │
                 └───────────────────────┬──────────────────────┘

@@ -128,3 +128,22 @@ export type VapiToolWebhookPayload = z.infer<typeof VapiToolWebhookPayloadSchema
 export type VapiServerMessagePayload = z.infer<typeof VapiServerMessagePayloadSchema>;
 export type TwilioInboundSmsPayload = z.infer<typeof TwilioInboundSmsSchema>;
 export type JotformSubmissionPayload = z.infer<typeof JotformSubmissionSchema>;
+
+// ==========================================
+// NATIVE DEVIS SUBMISSION SCHEMA
+// ==========================================
+
+export const DevisSubmissionSchema = z.object({
+  callId: z.string().min(1, "La référence d'appel est requise"),
+  name: z.string().min(1, 'Le nom est requis'),
+  email: z.string().email('Adresse email invalide').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  address: z.string().min(1, "L'adresse du chantier est requise"),
+  postalCode: z.string().min(2, 'Le code postal est requis'),
+  city: z.string().optional(),
+  serviceType: z.string().optional(),
+  message: z.string().optional(),
+});
+
+export type DevisSubmissionPayload = z.infer<typeof DevisSubmissionSchema>;
+

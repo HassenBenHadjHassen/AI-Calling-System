@@ -1,4 +1,5 @@
 import { googleCalendar } from '../integrations/google-calendar';
+import { InternalCalendarService } from './internal-calendar.service';
 import { VapiIntegration } from '../integrations/vapi';
 import { db } from '../db';
 import { env } from '../env';
@@ -12,7 +13,7 @@ export interface CalendarAvailabilityParams {
 export class CalendarAvailabilityService {
   /**
    * Checks calendar availability for the requested slot with Europe/Paris timezone awareness.
-   * Reproduces integration-webhooks-google-calendar.json.
+   * Reproduces integration-webhooks-google-calendar.json natively without external dependencies.
    */
   static async checkSlot(params: CalendarAvailabilityParams) {
     try {
@@ -29,13 +30,20 @@ export class CalendarAvailabilityService {
       }
 
       // 2. Parse date/time with correct French daylight savings transitions
-      const { start, end } = googleCalendar.parseAppointmentDateTime(params.dateTime);
+      const { start, end } = InternalCalendarService.parseAppointmentDateTime(params.dateTime);
 
       // 3. Check for conflict over the full interval [start, end]
-      const availability = await googleCalendar.checkAvailability(start, end, calendarId);
+      let isAvailable = false;
+      if (env.CALENDAR_PROVIDER === 'google') {
+        const availability = await googleCalendar.checkAvailability(start, end, calendarId);
+        isAvailable = availability.isAvailable;
+      } else {
+        const availability = await InternalCalendarService.checkAvailability(start, end, calendarId);
+        isAvailable = availability.isAvailable;
+      }
 
       // 4. Return matching Make.com response strings
-      if (!availability.isAvailable) {
+      if (!isAvailable) {
         return VapiIntegration.buildToolResponse(
           params.toolCallId,
           'available=False ,Donc Ce créneau est déjà pris '

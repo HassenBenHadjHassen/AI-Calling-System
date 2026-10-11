@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
+import DashboardCalendarTab from './calendar-tab';
 
 export const instant = false;
 
@@ -149,7 +150,7 @@ export default async function DashboardPage({
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Devis Reçus &bull; JotForm
+                Devis Reçus &bull; Formulaire Interne
               </span>
               <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">
                 🏗️
@@ -163,7 +164,7 @@ export default async function DashboardPage({
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-1">Dani Bâtiment (Coordonnées complètes)</p>
+            <p className="text-xs text-slate-500 mt-1">Dani Bâtiment (Portail web natif)</p>
           </div>
 
           {/* Card 4: Total appels traités */}
@@ -188,6 +189,7 @@ export default async function DashboardPage({
           <nav className="flex gap-2">
             {[
               { id: 'overview', label: 'Vue d’ensemble', icon: '📊' },
+              { id: 'calendar', label: 'Planning & Calendrier Interne', icon: '📅' },
               { id: 'appointments', label: `Cabinet Michelle — Rendez-vous (${appointments.length})`, icon: '🩺' },
               { id: 'requests', label: `Dani Bâtiment — Devis (${serviceRequests.length})`, icon: '🏗️' },
               { id: 'calls', label: `Journal d’appels (${callRecords.length})`, icon: '📞' },
@@ -509,7 +511,7 @@ export default async function DashboardPage({
                           )}
                           {req.email && <div className="text-slate-500 mt-0.5">{req.email}</div>}
                         </td>
-                        <td className="py-4 px-6">
+                        <td className="py-4 px-6 space-y-1">
                           <span
                             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
                               req.status === 'COMPLETED'
@@ -519,6 +521,16 @@ export default async function DashboardPage({
                           >
                             {req.status === 'COMPLETED' ? 'Formulaire Reçu' : 'Lien SMS Envoyé'}
                           </span>
+                          <div className="pt-1">
+                            <Link
+                              href={`/devis/${encodeURIComponent(req.vapiCallId)}`}
+                              target="_blank"
+                              className="text-2xs font-semibold text-amber-600 hover:text-amber-700 underline inline-flex items-center gap-1"
+                            >
+                              <span>Ouvrir formulaire client</span>
+                              <span>↗</span>
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -527,6 +539,11 @@ export default async function DashboardPage({
               </table>
             </div>
           </div>
+        )}
+
+        {/* TAB 5: INTERNAL CALENDAR VIEW */}
+        {currentTab === 'calendar' && (
+          <DashboardCalendarTab appointments={appointments} />
         )}
 
         {/* TAB 4: CALL LOGS */}

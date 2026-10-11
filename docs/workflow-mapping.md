@@ -306,4 +306,7 @@ Webhook receiver for JotForm form submissions. Enriches the existing `ServiceReq
 | **C. Patient Intake** | `patient-info.json` | `/api/webhooks/vapi/patient-intake` | `POST` | Cabinet Michelle | `Patient`, `Contact`, `Appointment`, `CallRecord` |
 | **D. Appointment Confirmation** | `confirmation_de_rdv.json` | `/api/webhooks/twilio/inbound-sms` | `POST` | Cabinet Michelle | `Appointment`, `NotificationJob`, `WebhookEvent` |
 | **E. Dani Bâtiment CRM** | `links-v3-vapi-crm-sms-dani-batiment.json` | `/api/webhooks/vapi/dani-batiment` | `POST` | Dani Bâtiment | `ServiceRequest`, `Contact`, `CallRecord`, `NotificationJob` |
-| **F. JotForm CRM by Call ID** | `integration-google-forms-v2-jotform-crm-by-call-id.json` | `/api/webhooks/jotform/submission` | `POST` | Dani Bâtiment | `ServiceRequest`, `Contact`, `NotificationJob` |
+| **F. Native Devis Portal (replaces Jotform)** | *Native Next.js Application* | `/devis/[callId]`, `/api/forms/devis` | `GET`, `POST` | Dani Bâtiment | `ServiceRequest`, `Contact`, `NotificationJob` |
+| **G. Internal Calendar & iCal (replaces Google Cal)** | *Native Engine* | `/api/calendar/michelle.ics`, `/api/calendar/block` | `GET`, `POST` | Cabinet Michelle | `Appointment`, `Contact`, `Business` |
+| **H. Legacy JotForm Webhook** | `integration-google-forms-v2-jotform-crm-by-call-id.json` | `/api/webhooks/jotform/submission` | `POST` | Dani Bâtiment | `ServiceRequest`, `Contact`, `NotificationJob` |
+

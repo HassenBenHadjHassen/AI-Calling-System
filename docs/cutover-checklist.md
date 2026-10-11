@@ -25,11 +25,13 @@ Ensure all production secrets are populated in the deployment environment:
 - [ ] `BATIMENT_OUTBOUND_PHONE`: Dani Bâtiment outbound sender number (`+33939036462`).
 - [ ] `NURSE_ALERT_PHONE_NUMBER`: Alert mobile phone number for nurse notifications (`+33612857915`).
 - [ ] `BATIMENT_ALERT_PHONE_NUMBER`: Alert mobile phone number for building staff (`+33612857915`).
-- [ ] `CABINET_CALENDAR_ID`: Google Calendar email ID for nursing appointments (`monaldi2b@gmail.com`).
-- [ ] `GOOGLE_CALENDAR_CREDENTIALS`: Service Account JSON credentials string (or path) authorized with calendar read/write scopes.
+- [ ] `CALENDAR_PROVIDER`: Set to `internal` (default, database-backed scheduling + iCal) or `google` (legacy Google Calendar API).
+- [ ] `FORM_PROVIDER`: Set to `internal` (default, native Next.js `/devis/[callId]` portal) or `jotform` (legacy JotForm webhook).
+- [ ] `CABINET_CALENDAR_ID`: Calendar identifier (`monaldi2b@gmail.com`).
+- [ ] `GOOGLE_CALENDAR_CREDENTIALS`: *(Optional - only required if CALENDAR_PROVIDER=google)* Service Account JSON credentials.
 - [ ] `OPENAI_API_KEY`: Production OpenAI API key (`gpt-4o-mini` classification fallback).
-- [ ] `JOTFORM_FORM_URL`: Public JotForm URL (`https://form.jotform.com/260901590611047`).
-- [ ] `JOTFORM_WEBHOOK_SECRET`: Secret header or query param configured in JotForm webhook settings.
+- [ ] `JOTFORM_FORM_URL`: *(Optional - only required if FORM_PROVIDER=jotform)* Public JotForm URL.
+- [ ] `JOTFORM_WEBHOOK_SECRET`: *(Optional - only required if FORM_PROVIDER=jotform)* Secret header.
 - [ ] `DRY_RUN`: Set to `false` in production.
 
 ---
@@ -114,16 +116,18 @@ Navigate to the [Twilio Console](https://console.twilio.com):
 
 ---
 
-### 3.3 JotForm Dashboard Configuration
-Navigate to the [JotForm Form Settings](https://www.jotform.com/build/260901590611047/settings):
+### 3.3 Quote Intake Configuration (Native Portal vs JotForm)
+- **Native Portal (Default & Recommended - `FORM_PROVIDER=internal`)**:
+  - No JotForm account or webhook configuration needed!
+  - Customers automatically receive personalized SMS links to `https://<YOUR_DOMAIN>/devis/<callId>`.
+  - Submissions update PostgreSQL instantly and trigger staff alerts.
+  - You can safely cancel/retire JotForm.
 
-1. Go to **Settings** -> **Integrations**.
-2. Select **Webhooks**.
-3. Add or update Webhook URL to:
-   ```
-   https://<YOUR_DOMAIN>/api/webhooks/jotform/submission
-   ```
-4. Complete integration and save.
+- **Legacy JotForm Mode (`FORM_PROVIDER=jotform`)**:
+  - If using legacy JotForm, navigate to [JotForm Form Settings](https://www.jotform.com/build/260901590611047/settings) -> Integrations -> Webhooks:
+    ```
+    https://<YOUR_DOMAIN>/api/webhooks/jotform/submission
+    ```
 
 ---
 

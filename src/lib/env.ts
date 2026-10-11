@@ -50,6 +50,10 @@ const envSchema = z.object({
     .default('https://form.jotform.com/260901590611047?callId={callId}'),
   JOTFORM_WEBHOOK_SECRET: z.string().optional().default(''),
 
+  // Provider Overrides (Native vs External)
+  CALENDAR_PROVIDER: z.enum(['internal', 'google']).default('internal'),
+  FORM_PROVIDER: z.enum(['internal', 'jotform']).default('internal'),
+
   // Internal Dashboard
   DASHBOARD_PASSWORD: z.string().optional().default('admin123'),
 });

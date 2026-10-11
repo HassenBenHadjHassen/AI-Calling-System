@@ -7,6 +7,8 @@ import { AppointmentStatus } from '@prisma/client';
 import { env } from '../env';
 import { TenantService } from './tenant.service';
 
+import { InternalCalendarService } from './internal-calendar.service';
+
 export interface InboundSmsConfirmationParams {
   from: string;
   body: string;
@@ -47,16 +49,26 @@ export class AppointmentConfirmationService {
 
     switch (classification.intent) {
       case 'OUI': {
-        // Module 17: Create Google Calendar Event
+        // Module 17: Create Calendar Event (Internal or Google)
         let calendarEventId: string | null = null;
         try {
-          const calEvent = await googleCalendar.createEvent({
-            calendarId: business.calendarId || env.CABINET_CALENDAR_ID,
-            summary: `rendez-vous avec patient :${patientName}`,
-            start: appointment.startTime,
-            end: appointment.endTime,
-          });
-          calendarEventId = calEvent.eventId;
+          if (env.CALENDAR_PROVIDER === 'google') {
+            const calEvent = await googleCalendar.createEvent({
+              calendarId: business.calendarId || env.CABINET_CALENDAR_ID,
+              summary: `rendez-vous avec patient :${patientName}`,
+              start: appointment.startTime,
+              end: appointment.endTime,
+            });
+            calendarEventId = calEvent.eventId;
+          } else {
+            const calEvent = await InternalCalendarService.createEvent({
+              calendarId: business.calendarId || env.CABINET_CALENDAR_ID,
+              summary: `rendez-vous avec patient :${patientName}`,
+              start: appointment.startTime,
+              end: appointment.endTime,
+            });
+            calendarEventId = calEvent.eventId;
+          }
         } catch (calErr: unknown) {
           const errMsg = calErr instanceof Error ? calErr.message : String(calErr);
           console.error('[AppointmentConfirmation] Failed to create calendar event:', errMsg);

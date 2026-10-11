@@ -84,10 +84,12 @@ export class ServiceRequestsService {
 
     // 4. Branch 1: DEVIS (Route 1)
     if (motifLower.includes('devis')) {
-      const formUrl = JotformIntegration.buildFormUrl(
-        business.formUrl || env.JOTFORM_FORM_URL,
-        vapiCallId
-      );
+      const formTemplate =
+        env.FORM_PROVIDER === 'internal'
+          ? `${env.APP_URL}/devis/{callId}`
+          : (business.formUrl || env.JOTFORM_FORM_URL);
+
+      const formUrl = JotformIntegration.buildFormUrl(formTemplate, vapiCallId);
 
       // Create ServiceRequest with status NOT_COMPLETED
       const serviceRequest = await db.serviceRequest.create({

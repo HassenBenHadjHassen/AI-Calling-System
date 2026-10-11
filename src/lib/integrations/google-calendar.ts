@@ -263,6 +263,13 @@ class GoogleCalendarIntegration {
   clearMockEvents() {
     this.mockEvents = [];
   }
+
+  /**
+   * Exposes mock events for hybrid / internal calendar testing
+   */
+  getMockEvents() {
+    return this.mockEvents;
+  }
 }
 
 export const googleCalendar = new GoogleCalendarIntegration();
