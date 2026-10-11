@@ -13,7 +13,6 @@
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "worker": "tsx src/jobs/worker.ts",
-    "deploy": "bash deploy.sh",
     "pm2:start": "pm2 start ecosystem.config.cjs --env production",
     "pm2:reload": "pm2 reload ecosystem.config.cjs --env production",
     "pm2:restart": "pm2 restart ecosystem.config.cjs --env production",
