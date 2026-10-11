@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  typescript: {
+    // Skip duplicate tsc pass during next build to save RAM on VPS (typecheck is validated via npm run typecheck)
+    ignoreBuildErrors: true,
+  },
   experimental: {
     agentFeedback: true,
   },
