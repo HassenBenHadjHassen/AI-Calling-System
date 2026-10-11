@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "make.com/**",
     "tests/fixtures/**",
     "prisma/migrations/**",
+    "ecosystem.config.cjs",
+    "deploy/**",
   ]),
   {
     files: ["tests/**"],

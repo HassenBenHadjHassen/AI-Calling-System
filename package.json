@@ -47,12 +47,20 @@
     "prisma": "^7.10.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
   },
   "allowScripts": {
     "prisma@7.10.0": true,
     "@prisma/engines@7.10.0": true,
     "esbuild@0.28.2": true,
     "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "braces": "^3.0.3",
+    "fast-glob": "^3.3.3",
+    "micromatch": "^4.0.8",
+    "deepmerge-ts": "^8.0.2",
+    "mysql2": "^3.24.5",
+    "tinypool": "^2.2.0"
   }
 }

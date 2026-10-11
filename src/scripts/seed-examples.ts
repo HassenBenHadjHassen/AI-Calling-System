@@ -1,7 +1,6 @@
 import { db } from '../lib/db';
 import { TenantService } from '../lib/services/tenant.service';
 import {
-  BusinessType,
   ServiceRequestCategory,
   ServiceRequestStatus,
   AppointmentStatus,

@@ -169,7 +169,7 @@ export class InternalCalendarService {
         ev.calendarId === calendarIdOrBusinessSlug &&
         ev.start.getTime() < end.getTime() &&
         ev.end.getTime() > start.getTime() &&
-        (ev as any).status !== 'CANCELLED'
+        (!('status' in ev) || (ev as { status?: unknown }).status !== 'CANCELLED')
     );
 
     if (mockConflicts.length > 0) {

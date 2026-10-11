@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 
 interface AppointmentData {
   id: string;
@@ -70,7 +69,7 @@ export default function DashboardCalendarTab({
       setTimeout(() => setDownloadSuccess(false), 3500);
     } catch (err) {
       console.error('Erreur téléchargement iCal:', err);
-      window.location.href = '/api/calendar/michelle.ics';
+      window.open('/api/calendar/michelle.ics', '_blank');
     } finally {
       setIsDownloadingIcs(false);
     }
@@ -204,7 +203,7 @@ export default function DashboardCalendarTab({
           <button
             key={f.id}
             type="button"
-            onClick={() => setActiveFilter(f.id as any)}
+            onClick={() => setActiveFilter(f.id as typeof activeFilter)}
             className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
               activeFilter === f.id
                 ? 'bg-blue-600 text-white shadow-2xs'
