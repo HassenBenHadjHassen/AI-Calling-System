@@ -1,5 +1,6 @@
 import { db } from '../lib/db';
 import { TenantService } from '../lib/services/tenant.service';
+import { auth } from '../lib/auth';
 import {
   ServiceRequestCategory,
   ServiceRequestStatus,
@@ -368,9 +369,32 @@ async function seedExamples() {
     },
   });
 
+  // 5. Seed Better Auth Admin User if not exists
+  const existingUser = await db.user.findUnique({
+    where: { email: 'admin@moncabinet.fr' },
+  });
+
+  if (!existingUser) {
+    try {
+      await auth.api.signUpEmail({
+        body: {
+          name: 'Administrateur',
+          email: 'admin@moncabinet.fr',
+          password: 'AdminPassword2026!',
+        },
+      });
+      console.log('✓ Better Auth admin user seeded: admin@moncabinet.fr (Password: AdminPassword2026!)');
+    } catch (err: unknown) {
+      console.warn('⚠️ Admin user seeding notice:', err instanceof Error ? err.message : String(err));
+    }
+  } else {
+    console.log('✓ Better Auth admin user already exists: admin@moncabinet.fr');
+  }
+
   console.log('✓ Cabinet Michelle calendar planning seeded with 6 appointments & blocks:');
   console.log('  -> Planning URL: /dashboard?tab=calendar');
   console.log('  -> iCal Feed:    /api/calendar/michelle.ics');
+  console.log('  -> Login URL:    /login');
   console.log('🎉 Seed completed successfully!');
 }
 

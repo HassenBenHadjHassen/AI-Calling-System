@@ -20,6 +20,8 @@ Ce document répertorie l'intégralité des endpoints Webhooks, Tool Calls (fonc
 | **Portail Devis Natif** | Données pré-remplies devis | `GET` | `https://ai-calling-system.hassenbenhadjhassen.com/api/forms/devis?callId={callId}` |
 | **Abonnement Calendrier** | Flux iCal iPhone / Google / Outlook | `GET` | `https://ai-calling-system.hassenbenhadjhassen.com/api/calendar/michelle.ics` |
 | **Planning Interne** | Blocage manuel de créneau | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/calendar/block` |
+| **Better Auth** | Portail Connexion Dashboard | `GET` | `https://ai-calling-system.hassenbenhadjhassen.com/login` |
+| **Better Auth API** | Gestion Sessions & Auth | `*` | `https://ai-calling-system.hassenbenhadjhassen.com/api/auth/*` |
 
 ---
 
@@ -220,6 +222,31 @@ Ces webhooks reçoivent le compte-rendu complet dès que la communication est te
 }
 ```
 * **Effet** : L'assistante vocale Vapi traitera immédiatement ce créneau comme occupé lors des vérifications en direct.
+
+---
+
+## 6. Authentification & Sécurité Dashboard (Better Auth)
+
+Le tableau de bord Mission Control est protégé par **Better Auth** adossé à la base PostgreSQL (schéma Prisma `User`, `Session`, `Account`, `Verification`).
+
+### 🔹 Accès Dashboard & Redirection
+* **URL Protégée** : `https://ai-calling-system.hassenbenhadjhassen.com/dashboard`
+* **Comportement** : Vérification de session côté serveur (`auth.api.getSession`). Si l'utilisateur n'est pas connecté, il est automatiquement redirigé vers `/login?callbackUrl=/dashboard`.
+* **Portail de Connexion** : `https://ai-calling-system.hassenbenhadjhassen.com/login` (Supporte la connexion email/mot de passe et l'inscription sécurisée).
+
+### 🔹 Identifiants de Démonstration Administrateur
+* **Email** : `admin@moncabinet.fr`
+* **Mot de passe** : `AdminPassword2026!`
+* *(Un bouton de pré-remplissage rapide 1-clic est disponible directement sur l'écran `/login`)*.
+
+### 🔹 Endpoints API Better Auth (`/api/auth/*`)
+* `POST /api/auth/sign-in/email` — Authentification par email et mot de passe.
+* `POST /api/auth/sign-up/email` — Création d'un nouvel utilisateur.
+* `POST /api/auth/sign-out` — Révocation de la session et déconnexion.
+* `GET /api/auth/get-session` — Récupération de l'état de session actif.
+
+> [!IMPORTANT]
+> **Isolation stricte** : Tous les endpoints Webhooks (`/api/webhooks/*`), le portail client de devis (`/devis/*`, `/api/forms/devis`) et le flux de synchronisation iCal (`/api/calendar/michelle.ics`) restent ouverts et publics. L'authentification protège exclusivement le tableau de bord d'administration et les fonctions de configuration interne.
 
 ---
 

@@ -54,6 +54,10 @@ const envSchema = z.object({
   CALENDAR_PROVIDER: z.enum(['internal', 'google']).default('internal'),
   FORM_PROVIDER: z.enum(['internal', 'jotform']).default('internal'),
 
+  // Better Auth
+  BETTER_AUTH_SECRET: z.string().optional().default('ai_calling_system_secure_better_auth_secret_2026_xyz987'),
+  BETTER_AUTH_URL: z.string().optional().default('http://localhost:4050'),
+
   // Internal Dashboard
   DASHBOARD_PASSWORD: z.string().optional().default('admin123'),
 });

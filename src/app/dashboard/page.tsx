@@ -2,6 +2,10 @@ import { db } from '@/lib/db';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import DashboardCalendarTab from './calendar-tab';
+import UserNav from './user-nav';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export const instant = false;
 
@@ -20,6 +24,15 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ tab?: string; filter?: string }>;
 }) {
+  const reqHeaders = await headers();
+  const session = await auth.api.getSession({
+    headers: reqHeaders,
+  });
+
+  if (!session) {
+    redirect('/login?callbackUrl=/dashboard');
+  }
+
   const params = await searchParams;
   const currentTab = params.tab || 'overview';
   const currentFilter = params.filter || 'all';
@@ -102,6 +115,7 @@ export default async function DashboardPage({
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               Assistants Vocaux Actifs
             </div>
+            <UserNav user={session.user} />
           </div>
         </div>
       </header>

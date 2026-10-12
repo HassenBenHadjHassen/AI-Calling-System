@@ -1,8 +1,8 @@
 # AI Calling System: Enterprise Multi-Tenant Voice & SMS Platform
 
-An enterprise-grade, multi-tenant voice calling and SMS automation platform built with **Next.js 16 (App Router)**, **TypeScript**, **Prisma 7**, **PostgreSQL**, **Vapi**, **Twilio**, and **OpenAI**.
+An enterprise-grade, multi-tenant voice calling and SMS automation platform built with **Next.js 16 (App Router)**, **TypeScript**, **Prisma 7**, **PostgreSQL**, **Better Auth**, **Vapi**, **Twilio**, and **OpenAI**.
 
-This application completely replaces and modernizes the legacy Make.com scenarios, **replaces Google Calendar with an internal database-backed calendar & iCal synchronization feed**, and **replaces JotForm with a native, high-end Next.js quote intake portal**.
+This application completely replaces and modernizes the legacy Make.com scenarios, **replaces Google Calendar with an internal database-backed calendar & iCal synchronization feed**, **replaces JotForm with a native, high-end Next.js quote intake portal**, and **secures operational mission control with Better Auth**.
 
 ---
 
@@ -125,6 +125,8 @@ cp .env.example .env
 | `GOOGLE_CALENDAR_CREDENTIALS`| Google Service Account JSON | `{"type": "service_account", ...}` |
 | `OPENAI_API_KEY` | OpenAI API key for SMS intent classifier | `sk-...` |
 | `JOTFORM_FORM_URL` | Dani Bâtiment JotForm URL | `https://form.jotform.com/000000000000000?callId={callId}` |
+| `BETTER_AUTH_SECRET` | 32+ character random secret for session encryption | `min-32-chars-better-auth-secret-key-prod-2026` |
+| `BETTER_AUTH_URL` | Base URL used by Better Auth | `http://localhost:3000` (or prod URL) |
 | `DRY_RUN` | Set to `true` to mock Twilio & Google APIs | `true` |
 
 ### Database Setup & Seeding
@@ -134,9 +136,14 @@ npm run db:generate
 
 # Run initial migrations
 npx prisma migrate deploy
+
+# Seed example test cases & initial admin user
+npm run seed:examples
 ```
 
-> **Note**: No manual seeding script is required. The system dynamically auto-bootstraps tenant records, assistant UUID mappings, and initial allowlists directly from your `.env` configuration on initial boot and webhook arrival.
+> **Default Admin Account**:
+> - Email: `admin@moncabinet.fr`
+> - Mot de passe: `AdminPassword2026!`
 
 ---
 
@@ -146,7 +153,7 @@ npx prisma migrate deploy
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) to view the operational dashboard.
+Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) to view the operational dashboard. Unauthenticated users are automatically redirected to [http://localhost:3000/login](http://localhost:3000/login).
 
 ### Durable Background Retry Worker
 In a separate terminal or supervisor process:
@@ -162,7 +169,7 @@ npm start
 
 ### Quality Assurance & Tests
 ```bash
-# Run unit & integration test suite (44 tests)
+# Run unit & integration test suite (65 tests)
 npm test
 
 # Run TypeScript typechecker

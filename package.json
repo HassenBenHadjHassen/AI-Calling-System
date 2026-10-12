@@ -22,8 +22,10 @@
     "pm2:monit": "pm2 monit"
   },
   "dependencies": {
+    "@better-auth/prisma-adapter": "^1.7.7",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "better-auth": "^1.7.7",
     "dotenv": "^18.0.6",
     "googleapis": "^185.0.0",
     "luxon": "^3.7.2",
