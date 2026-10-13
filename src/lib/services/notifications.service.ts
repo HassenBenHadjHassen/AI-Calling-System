@@ -1,6 +1,8 @@
 import { db } from '../db';
 import { twilioClient } from '../integrations/twilio';
+import { logger, sanitizeLogString } from '../logger';
 import { NotificationChannel, NotificationStatus, Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 
 export interface QueueNotificationParams {
   businessId: string;
@@ -11,6 +13,22 @@ export interface QueueNotificationParams {
   sendImmediately?: boolean;
 }
 
+export const NOTIFICATION_LEASE_DURATION_MS = 60 * 1000; // 60-second lease
+
+/**
+ * NotificationService
+ *
+ * Provides PostgreSQL-backed transactional outbox, concurrency-safe atomic job claiming,
+ * and durable lease-based recovery for outbound SMS notifications.
+ *
+ * DELIVERY GUARANTEE:
+ * Database-level atomic claiming with SKIP LOCKED / conditional updates guarantees mutual exclusion
+ * between concurrent workers, preventing duplicate dispatch of active claims.
+ * However, exactly-once SMS delivery across distributed network boundaries is fundamentally impossible
+ * if a worker crashes or network partitions occur immediately after Twilio dispatches an SMS but before
+ * the database records SENT. This service therefore provides a robust AT-LEAST-ONCE delivery guarantee
+ * with bounded retries, exponential backoff, and terminal failure isolation.
+ */
 export class NotificationService {
   /**
    * Queues an outbound notification in PostgreSQL.
@@ -33,7 +51,11 @@ export class NotificationService {
     });
 
     if (existing) {
-      console.log(`[Notification Deduplication] Skipping duplicate notification to ${params.recipient}`);
+      logger.info('Skipping duplicate notification (deduplication window active)', {
+        module: 'NOTIFICATIONS',
+        businessId: params.businessId,
+        existingJobId: existing.id,
+      });
       return existing;
     }
 
@@ -85,49 +107,85 @@ export class NotificationService {
   }
 
   /**
-   * Processes a single notification job by ID.
-   * Atomically claims the job to prevent duplicate delivery across concurrent workers.
+   * Atomically claims a notification job using durable lease semantics.
+   * Prevents concurrent workers from double-claiming the same record.
+   * Reclaims stale jobs whose lease has expired.
+   *
+   * Returns true if successfully claimed by the caller, false otherwise.
    */
-  static async processJob(jobId: string, fromNumber?: string) {
-    const job = await db.notificationJob.findUnique({
-      where: { id: jobId },
-    });
+  static async claimJob(jobId: string, claimToken: string): Promise<boolean> {
+    const now = new Date();
+    const leaseExpiresAt = new Date(now.getTime() + NOTIFICATION_LEASE_DURATION_MS);
 
-    if (!job || job.status === NotificationStatus.SENT || job.status === NotificationStatus.CANCELLED) {
-      return;
-    }
-
-    // Atomically claim the job to prevent concurrent duplicate processing
     if (typeof db.notificationJob?.updateMany === 'function') {
-      const claimed = await db.notificationJob.updateMany({
+      const result = await db.notificationJob.updateMany({
         where: {
           id: jobId,
-          status: { in: [NotificationStatus.PENDING, NotificationStatus.PROCESSING] },
+          OR: [
+            // Case 1: Pending job eligible for processing (initial or retry due)
+            {
+              status: NotificationStatus.PENDING,
+              OR: [
+                { nextRetryAt: null },
+                { nextRetryAt: { lte: now } },
+              ],
+            },
+            // Case 2: Stale job whose lease has expired (crashed worker recovery)
+            {
+              status: NotificationStatus.PROCESSING,
+              leaseExpiresAt: { lte: now },
+            },
+          ],
         },
         data: {
           status: NotificationStatus.PROCESSING,
+          lockedAt: now,
+          leaseExpiresAt,
+          lockedBy: claimToken,
           attemptCount: { increment: 1 },
         },
       });
 
-      if (claimed.count === 0) {
-        return;
-      }
+      return result.count > 0;
     } else if (typeof db.notificationJob?.update === 'function') {
       await db.notificationJob.update({
         where: { id: jobId },
         data: {
           status: NotificationStatus.PROCESSING,
+          lockedAt: now,
+          leaseExpiresAt,
+          lockedBy: claimToken,
           attemptCount: { increment: 1 },
         },
       });
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Processes a single notification job by ID.
+   * Enforces exclusive atomic lease claiming so concurrent workers cannot double-dispatch.
+   */
+  static async processJob(jobId: string, fromNumber?: string, workerId?: string): Promise<boolean> {
+    const claimToken = workerId || `worker_${randomUUID()}`;
+
+    // Atomically claim the job
+    const claimed = await this.claimJob(jobId, claimToken);
+    if (!claimed) {
+      // Job already claimed by another active worker, not yet due for retry, or terminal
+      return false;
     }
 
     // Refresh job record after claiming
     const freshJob = typeof db.notificationJob?.findUnique === 'function'
       ? await db.notificationJob.findUnique({ where: { id: jobId } })
-      : job;
-    if (!freshJob) return;
+      : null;
+
+    if (!freshJob) {
+      return false;
+    }
 
     try {
       const result = await twilioClient.sendSms({
@@ -137,78 +195,183 @@ export class NotificationService {
       });
 
       if (result.success) {
-        await db.notificationJob.update({
-          where: { id: jobId },
-          data: {
-            status: NotificationStatus.SENT,
-            providerMessageId: result.messageId,
-            lastError: null,
-          },
-        });
+        // Only finalize to SENT if this worker still holds the lease
+        if (typeof db.notificationJob?.updateMany === 'function') {
+          const updateResult = await db.notificationJob.updateMany({
+            where: {
+              id: jobId,
+              lockedBy: claimToken,
+              status: NotificationStatus.PROCESSING,
+            },
+            data: {
+              status: NotificationStatus.SENT,
+              providerMessageId: result.messageId,
+              lockedBy: null,
+              leaseExpiresAt: null,
+              lastError: null,
+            },
+          });
+
+          if (updateResult.count === 0) {
+            logger.warn('Worker lost lease before recording SENT status', {
+              module: 'NOTIFICATIONS',
+              jobId,
+              claimToken,
+            });
+          }
+        } else if (typeof db.notificationJob?.update === 'function') {
+          await db.notificationJob.update({
+            where: { id: jobId },
+            data: {
+              status: NotificationStatus.SENT,
+              providerMessageId: result.messageId,
+              lockedBy: null,
+              leaseExpiresAt: null,
+              lastError: null,
+            },
+          });
+        }
+        return true;
       } else {
-        await this.handleJobFailure(jobId, freshJob.attemptCount, freshJob.maxAttempts, result.error || 'Delivery failed');
+        await this.handleJobFailure(
+          jobId,
+          claimToken,
+          freshJob.attemptCount,
+          freshJob.maxAttempts,
+          result.error || 'Delivery failed'
+        );
+        return false;
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      await this.handleJobFailure(jobId, freshJob.attemptCount, freshJob.maxAttempts, errMsg);
+      await this.handleJobFailure(
+        jobId,
+        claimToken,
+        freshJob.attemptCount,
+        freshJob.maxAttempts,
+        errMsg
+      );
+      return false;
     }
   }
 
+  /**
+   * Handles delivery failure with bounded retries, exponential backoff, and sanitized error recording.
+   * Only the worker holding the claim token can update the failure status.
+   */
   private static async handleJobFailure(
     jobId: string,
+    claimToken: string,
     currentAttempts: number,
     maxAttempts: number,
     errorMsg: string
   ) {
+    const sanitizedError = sanitizeLogString(errorMsg);
+
     if (currentAttempts >= maxAttempts) {
-      await db.notificationJob.update({
-        where: { id: jobId },
-        data: {
-          status: NotificationStatus.FAILED,
-          lastError: `Max attempts (${maxAttempts}) reached. Error: ${errorMsg}`,
-        },
+      if (typeof db.notificationJob?.updateMany === 'function') {
+        await db.notificationJob.updateMany({
+          where: { id: jobId, lockedBy: claimToken },
+          data: {
+            status: NotificationStatus.FAILED,
+            lockedBy: null,
+            leaseExpiresAt: null,
+            lastError: `Max attempts (${maxAttempts}) reached. Error: ${sanitizedError}`,
+          },
+        });
+      } else if (typeof db.notificationJob?.update === 'function') {
+        await db.notificationJob.update({
+          where: { id: jobId },
+          data: {
+            status: NotificationStatus.FAILED,
+            lockedBy: null,
+            leaseExpiresAt: null,
+            lastError: `Max attempts (${maxAttempts}) reached. Error: ${sanitizedError}`,
+          },
+        });
+      }
+
+      logger.error('Notification delivery permanently exhausted', {
+        module: 'NOTIFICATIONS',
+        jobId,
+        currentAttempts,
+        maxAttempts,
       });
-      console.error(
-        `[NOTIFICATION_DELIVERY_EXHAUSTED] Job ${jobId} permanently failed after ${maxAttempts} attempts: ${errorMsg}`
-      );
     } else {
       // Exponential backoff: 10s, 20s, 40s, 80s... max 300s
       const delaySeconds = Math.min(300, Math.pow(2, currentAttempts) * 10);
       const nextRetryAt = new Date(Date.now() + delaySeconds * 1000);
 
-      await db.notificationJob.update({
-        where: { id: jobId },
-        data: {
-          status: NotificationStatus.PENDING,
-          nextRetryAt,
-          lastError: errorMsg,
-        },
+      if (typeof db.notificationJob?.updateMany === 'function') {
+        await db.notificationJob.updateMany({
+          where: { id: jobId, lockedBy: claimToken },
+          data: {
+            status: NotificationStatus.PENDING,
+            lockedBy: null,
+            leaseExpiresAt: null,
+            nextRetryAt,
+            lastError: sanitizedError,
+          },
+        });
+      } else if (typeof db.notificationJob?.update === 'function') {
+        await db.notificationJob.update({
+          where: { id: jobId },
+          data: {
+            status: NotificationStatus.PENDING,
+            lockedBy: null,
+            leaseExpiresAt: null,
+            nextRetryAt,
+            lastError: sanitizedError,
+          },
+        });
+      }
+
+      logger.warn('Notification scheduled for retry with exponential backoff', {
+        module: 'NOTIFICATIONS',
+        jobId,
+        currentAttempts,
+        maxAttempts,
+        delaySeconds,
       });
     }
   }
 
   /**
-   * Processes all pending or retry-ready notification jobs (used by background worker).
+   * Processes all pending or retry-ready notification jobs, including recovering stale expired jobs.
+   * Safe across multiple concurrent worker processes or PM2 instances.
    */
-  static async processPendingJobs(batchSize = 20) {
+  static async processPendingJobs(batchSize = 20, workerId?: string): Promise<number> {
     const now = new Date();
 
+    // Query both PENDING (due) AND PROCESSING (stale / lease expired)
     const jobs = await db.notificationJob.findMany({
       where: {
-        status: NotificationStatus.PENDING,
         OR: [
-          { nextRetryAt: null },
-          { nextRetryAt: { lte: now } },
+          {
+            status: NotificationStatus.PENDING,
+            OR: [
+              { nextRetryAt: null },
+              { nextRetryAt: { lte: now } },
+            ],
+          },
+          {
+            status: NotificationStatus.PROCESSING,
+            leaseExpiresAt: { lte: now },
+          },
         ],
       },
       take: batchSize,
       orderBy: { createdAt: 'asc' },
     });
 
+    let processedCount = 0;
     for (const job of jobs) {
-      await this.processJob(job.id);
+      const handled = await this.processJob(job.id, undefined, workerId);
+      if (handled) {
+        processedCount++;
+      }
     }
 
-    return jobs.length;
+    return processedCount;
   }
 }

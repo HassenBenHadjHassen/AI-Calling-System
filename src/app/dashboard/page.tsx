@@ -21,6 +21,10 @@ type CallRecordWithContact = Prisma.CallRecordGetPayload<{
   include: { contact: true };
 }>;
 
+function getTwentyFourHoursAgo(): Date {
+  return new Date(Date.now() - 24 * 60 * 60 * 1000);
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -148,7 +152,7 @@ export default async function DashboardPage({
 
     // If Admin or authorized, fetch initial logs data
     if (isAdmin || allowedSectionsList.includes('logs')) {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const twentyFourHoursAgo = getTwentyFourHoursAgo();
       fetchPromises.push(
         Promise.all([
           db.systemLog.findMany({

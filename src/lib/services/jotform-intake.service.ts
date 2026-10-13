@@ -3,6 +3,7 @@ import { NotificationService } from './notifications.service';
 import { JotformSubmissionPayload } from '../validation/schemas';
 import { ServiceRequestStatus, Prisma } from '@prisma/client';
 import { env } from '../env';
+import { logger } from '../logger';
 
 export class JotformIntakeService {
   /**
@@ -12,7 +13,7 @@ export class JotformIntakeService {
   static async processSubmission(payload: JotformSubmissionPayload) {
     const callId = payload.q14_callId?.trim();
     if (!callId) {
-      console.warn('[JotformIntake] Submission missing q14_callId');
+      logger.warn('Jotform submission missing q14_callId', { module: 'JOTFORM_INTAKE' });
       return { handled: false, reason: 'Missing callId' };
     }
 
@@ -24,7 +25,10 @@ export class JotformIntakeService {
     });
 
     if (!serviceRequest) {
-      console.warn(`[JotformIntake] No ServiceRequest found for callId: ${callId}`);
+      logger.warn('No ServiceRequest found for callId', {
+        module: 'JOTFORM_INTAKE',
+        callId,
+      });
       return { handled: false, reason: 'ServiceRequest not found' };
     }
 

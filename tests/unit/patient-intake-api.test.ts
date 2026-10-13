@@ -7,6 +7,7 @@ vi.mock('@/lib/db', () => {
     db: {
       business: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
       },
       assistantConfig: {
@@ -53,6 +54,7 @@ vi.mock('@/lib/db', () => {
         findUnique: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
       },
       $transaction: vi.fn(),
     },
@@ -81,13 +83,15 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
   beforeEach(() => {
     vi.clearAllMocks();
     (db.$transaction as any).mockImplementation((fn: any) => fn(db));
-    (db.business.findUnique as any).mockResolvedValue({
+    const mockBiz = {
       id: 'biz_michelle',
       slug: 'CABINET_MICHELLE',
       name: 'Cabinet Michelle',
       alertPhoneNumber: '+33612857915',
       calendarId: 'monaldi2b@gmail.com',
-    });
+    };
+    (db.business.findUnique as any).mockResolvedValue(mockBiz);
+    (db.business.findFirst as any).mockResolvedValue(mockBiz);
     (db.contact.upsert as any).mockResolvedValue({
       id: 'contact_01',
       name: 'Jean Dupont',
@@ -106,6 +110,7 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
       recipient: '+33612857915',
       message: 'Test message',
     });
+    (db.notificationJob.updateMany as any).mockResolvedValue({ count: 1 });
     (db.appointment.findMany as any).mockResolvedValue([]);
     (db.patientRequest.findUnique as any).mockResolvedValue(null);
     (db.patientRequest.findFirst as any).mockResolvedValue(null);

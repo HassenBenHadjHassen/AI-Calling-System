@@ -4,6 +4,7 @@ import { VapiIntegration } from '../integrations/vapi';
 import { TenantService } from './tenant.service';
 import { db } from '../db';
 import { env } from '../env';
+import { logger } from '../logger';
 
 export interface CalendarAvailabilityParams {
   dateTime: string;
@@ -47,7 +48,26 @@ export class CalendarAvailabilityService {
     // 2. Query configured calendar provider
     if (env.CALENDAR_PROVIDER === 'google') {
       try {
-        const availability = await googleCalendar.checkAvailability(start, end, calendarId);
+        let resolvedCalendarId = calendarId;
+        if (businessId && db.business?.findFirst) {
+          const biz = await db.business.findFirst({
+            where: {
+              OR: [{ id: businessId }, { slug: businessId }, { calendarId: businessId }],
+            },
+          });
+          if (!biz) {
+            return {
+              isAvailable: false,
+              reason: 'verification_failed',
+              error: `Tenant business "${businessId}" could not be verified for Google Calendar`,
+              start,
+              end,
+            };
+          }
+          resolvedCalendarId = biz.calendarId || calendarId;
+        }
+
+        const availability = await googleCalendar.checkAvailability(start, end, resolvedCalendarId);
         if (!availability.isAvailable) {
           return {
             isAvailable: false,
@@ -63,7 +83,10 @@ export class CalendarAvailabilityService {
           end,
         };
       } catch (err: unknown) {
-        console.error('[CalendarAvailability Google Provider Error]:', err);
+        logger.error('CalendarAvailability Google Provider Error', {
+          module: 'CALENDAR_AVAILABILITY',
+          error: err,
+        });
         return {
           isAvailable: false,
           reason: 'verification_failed',
@@ -109,7 +132,10 @@ export class CalendarAvailabilityService {
         end,
       };
     } catch (err: unknown) {
-      console.error('[CalendarAvailability Internal Provider Error]:', err);
+      logger.error('CalendarAvailability Internal Provider Error', {
+        module: 'CALENDAR_AVAILABILITY',
+        error: err,
+      });
       return {
         isAvailable: false,
         reason: 'verification_failed',
@@ -177,9 +203,21 @@ export class CalendarAvailabilityService {
           if (biz) {
             businessId = biz.id;
             calendarId = biz.calendarId || env.CABINET_CALENDAR_ID;
+          } else {
+            return VapiIntegration.buildToolResponse(
+              params.toolCallId,
+              'available=False, Erreur technique lors de la vérification du calendrier: entreprise introuvable'
+            );
           }
-        } catch {
-          // Keep default calendarId
+        } catch (dbErr) {
+          logger.error('Failed to resolve default tenant for calendar availability', {
+            module: 'CALENDAR_AVAILABILITY',
+            error: dbErr,
+          });
+          return VapiIntegration.buildToolResponse(
+            params.toolCallId,
+            'available=False, Erreur technique lors de la vérification du calendrier'
+          );
         }
       }
 
@@ -222,8 +260,10 @@ export class CalendarAvailabilityService {
         'available=True, Donc Le créneau est libre'
       );
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[CalendarAvailability Error]:', errMsg);
+      logger.error('CalendarAvailability Error', {
+        module: 'CALENDAR_AVAILABILITY',
+        error: err,
+      });
       // Return distinct error rather than falsely claiming slot is occupied
       return VapiIntegration.buildToolResponse(
         params.toolCallId,

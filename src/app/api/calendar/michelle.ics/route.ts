@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { DateTime } from 'luxon';
+import { logger } from '@/lib/logger';
 
 function formatIcalDateTime(date: Date): string {
   return DateTime.fromJSDate(date, { zone: 'utc' }).toFormat("yyyyMMdd'T'HHmmss'Z'");
@@ -84,8 +85,10 @@ export async function GET() {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[iCal Feed Error]:', message);
+    logger.error('iCal feed generation error', {
+      module: 'ICAL_FEED',
+      error,
+    });
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

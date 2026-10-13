@@ -61,6 +61,96 @@ export class IntakeConflictError extends Error {
   }
 }
 
+export interface IdempotencyComparisonTarget {
+  requestType?: string | null;
+  patientName?: string | null;
+  requestedDate?: string | null;
+  requestedTime?: string | null;
+  serviceType?: string | null;
+  postalCode?: string | null;
+  summary?: string | null;
+  urgency?: boolean | string | null;
+  [key: string]: unknown;
+}
+
+export function isMateriallyIdenticalRequest(
+  existing: {
+    requestType?: string | null;
+    patientName?: string | null;
+    requestedDate?: string | null;
+    requestedTime?: string | null;
+    serviceType?: string | null;
+    postalCode?: string | null;
+    summary?: string | null;
+    urgency?: boolean | null;
+  },
+  incoming: IdempotencyComparisonTarget
+): { identical: boolean; differences: string[] } {
+  const differences: string[] = [];
+  const norm = (val?: string | null) => (val ? val.trim().toLowerCase() : '');
+
+  // 1. Request type
+  const incType = (incoming.requestType || '').toUpperCase();
+  const exType = (existing.requestType || '').toUpperCase();
+  if (incType && exType && incType !== exType) {
+    differences.push(`requestType (existing: ${exType}, incoming: ${incType})`);
+  }
+
+  // 2. Requested date (critical for appointments and cancellations)
+  const incDate = (incoming.requestedDate || '').trim();
+  const exDate = (existing.requestedDate || '').trim();
+  if (incDate || exDate) {
+    if (incDate !== exDate) {
+      differences.push(`requestedDate (existing: ${exDate || 'none'}, incoming: ${incDate || 'none'})`);
+    }
+  }
+
+  // 3. Requested time (critical for appointments)
+  const incTime = (incoming.requestedTime || '').trim();
+  const exTime = (existing.requestedTime || '').trim();
+  if (incTime || exTime) {
+    if (incTime !== exTime) {
+      differences.push(`requestedTime (existing: ${exTime || 'none'}, incoming: ${incTime || 'none'})`);
+    }
+  }
+
+  // 4. Patient name
+  const incName = norm(incoming.patientName);
+  const exName = norm(existing.patientName);
+  const isIncUnknown = !incName || incName === 'inconnu';
+  const isExUnknown = !exName || exName === 'inconnu';
+  if (!isIncUnknown && !isExUnknown && incName !== exName) {
+    differences.push(`patientName (existing: ${existing.patientName}, incoming: ${incoming.patientName})`);
+  }
+
+  // 5. Service type
+  const incService = norm(incoming.serviceType);
+  const exService = norm(existing.serviceType);
+  if (incService && exService && incService !== exService) {
+    differences.push(`serviceType (existing: ${existing.serviceType}, incoming: ${incoming.serviceType})`);
+  }
+
+  // 6. Postal code
+  const incPostal = (incoming.postalCode || '').trim();
+  const exPostal = (existing.postalCode || '').trim();
+  if (incPostal && exPostal && incPostal !== exPostal) {
+    differences.push(`postalCode (existing: ${exPostal}, incoming: ${incPostal})`);
+  }
+
+  // 7. Urgency
+  if (incoming.urgency !== undefined && existing.urgency !== undefined && existing.urgency !== null) {
+    const incUrgent = incoming.urgency === true || incoming.urgency === 'true';
+    if (incUrgent !== existing.urgency) {
+      differences.push(`urgency (existing: ${existing.urgency}, incoming: ${incUrgent})`);
+    }
+  }
+
+  return {
+    identical: differences.length === 0,
+    differences,
+  };
+}
+
 export class PatientIntakeService {
   /**
    * Processes live or mid-call patient requests (submit_patient_request).
@@ -547,14 +637,17 @@ export class PatientIntakeService {
         : <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => fn(db as unknown as Prisma.TransactionClient);
 
       txResult = await txRunner(async (tx) => {
-        // Concurrency Protection: Acquire transaction-level PostgreSQL advisory lock
-        // Serializes concurrent bookings for the same business & date, releasing automatically on commit/rollback
-        if (typeof tx.$executeRaw === 'function') {
-          const lockKey =
-            payload.requestType === 'appointment' && payload.requestedDate
-              ? `calendar_booking_${business.id}_${payload.requestedDate}`
-              : `patient_intake_${business.id}_${vapiCallId}`;
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        // Concurrency Protection: Acquire transaction-level PostgreSQL advisory locks
+        // 1. Serialize concurrent requests with the same vapiCallId
+        // 2. Serialize concurrent appointment bookings on the same calendar date
+        if (typeof tx.$queryRaw === 'function') {
+          const callLockKey = `patient_intake_${business.id}_${vapiCallId}`;
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${callLockKey}))::text AS locked`;
+
+          if (payload.requestType === 'appointment' && payload.requestedDate) {
+            const dateLockKey = `calendar_booking_${business.id}_${payload.requestedDate}`;
+            await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${dateLockKey}))::text AS locked`;
+          }
         }
 
         // A. Idempotency Check inside transaction
@@ -569,15 +662,13 @@ export class PatientIntakeService {
         });
 
         if (existing) {
-          // Check for materially different request data on repeated submission
-          const isMateriallyDifferent =
-            (payload.requestedDate && existing.requestedDate && payload.requestedDate !== existing.requestedDate) ||
-            (payload.requestedTime && existing.requestedTime && payload.requestedTime !== existing.requestedTime) ||
-            (payload.patientName && existing.patientName && payload.patientName !== existing.patientName && existing.patientName !== 'Inconnu') ||
-            (payload.summary && existing.summary && payload.summary !== existing.summary);
-
-          if (isMateriallyDifferent) {
-            throw new IntakeConflictError('The same call ID was submitted with different request details.', 409, 'IDEMPOTENCY_CONFLICT');
+          const comparison = isMateriallyIdenticalRequest(existing, payload);
+          if (!comparison.identical) {
+            throw new IntakeConflictError(
+              `The same call ID was submitted with materially different request details: ${comparison.differences.join(', ')}`,
+              409,
+              'IDEMPOTENCY_CONFLICT'
+            );
           }
 
           log.info('[DirectSubmission] Idempotent replay: returning existing request record', {
@@ -916,6 +1007,17 @@ export class PatientIntakeService {
         });
 
         if (existing) {
+          const comparison = isMateriallyIdenticalRequest(existing, payload);
+          if (!comparison.identical) {
+            return {
+              success: false,
+              status: 409,
+              conflict: true,
+              error: 'IDEMPOTENCY_CONFLICT',
+              message: `The same call ID was submitted with materially different request details: ${comparison.differences.join(', ')}`,
+            };
+          }
+
           return {
             success: true,
             requestId: existing.id,

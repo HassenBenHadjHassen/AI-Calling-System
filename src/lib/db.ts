@@ -31,7 +31,7 @@ export function createPrismaClient(): PrismaClient {
 
   const poolConfig: pg.PoolConfig = {
     connectionString: cleanConnectionString,
-    max: 10,
+    max: process.env.NODE_ENV === 'test' ? 3 : 10,
     idleTimeoutMillis: 30000,
   };
 

@@ -3,6 +3,7 @@ import { JotformIntegration } from '@/lib/integrations/jotform';
 import { JotformIntakeService } from '@/lib/services/jotform-intake.service';
 import { WebhookProcessingService } from '@/lib/services/webhook-processing.service';
 import { WebhookProvider } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,7 +33,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (isDuplicate) {
-      console.log(`[JotForm Webhook] Duplicate submission ignored for callId: ${callId}`);
+      logger.info('Duplicate Jotform submission ignored', {
+        module: 'WEBHOOK:Jotform',
+        callId,
+      });
       return NextResponse.json({ success: true, message: 'Submission already processed' });
     }
 
@@ -46,10 +50,12 @@ export async function POST(req: NextRequest) {
       throw processError;
     }
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error('[JotForm Webhook Exception]:', errMsg);
+    logger.error('JotForm Webhook Exception', {
+      module: 'WEBHOOK:Jotform',
+      error: err,
+    });
     return NextResponse.json(
-      { error: 'Internal server error', message: errMsg },
+      { error: 'Internal server error', message: 'Failed to process submission' },
       { status: 500 }
     );
   }

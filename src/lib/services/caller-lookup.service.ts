@@ -3,6 +3,7 @@ import { env } from '../env';
 import { normalizePhoneNumber } from '../validation/phone';
 import { VapiIntegration } from '../integrations/vapi';
 import { TenantService } from './tenant.service';
+import { logger } from '../logger';
 
 export interface CallerLookupParams {
   callerNumber: string;
@@ -151,7 +152,10 @@ export class CallerLookupService {
         ],
       };
     } catch (err: unknown) {
-      console.error('[CallerLookupService Database Exception]:', err);
+      logger.error('CallerLookupService database exception', {
+        module: 'CALLER_LOOKUP',
+        error: err,
+      });
       return {
         results: [
           {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface SystemLogEntry {
   id: string;
@@ -31,7 +31,7 @@ export default function DashboardLogsTab({
   const [logs, setLogs] = useState<SystemLogEntry[]>(initialLogs);
   const [stats, setStats] = useState<LogStats>(initialStats);
   const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const isMounted = useRef(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -43,7 +43,7 @@ export default function DashboardLogsTab({
 
   // Auto-refresh state
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(5000); // 5s
+  const refreshInterval = 5000; // 5s
 
   // Expanded row details
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
@@ -80,9 +80,13 @@ export default function DashboardLogsTab({
     }
   }, [page, selectedLevel, selectedModule, search]);
 
-  // Initial load or filter change
+  // Load logs on filter/page changes (server passes initialLogs on mount)
   useEffect(() => {
-    fetchLogs();
+    if (!isMounted.current) {
+      isMounted.current = true;
+      return;
+    }
+    void fetchLogs();
   }, [fetchLogs]);
 
   // Periodic polling when autoRefresh is enabled

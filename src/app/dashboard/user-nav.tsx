@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signOut } from '@/lib/auth-client';
 
 export default function UserNav({
@@ -13,6 +14,7 @@ export default function UserNav({
     assignedBusiness?: string | null;
   };
 }) {
+  const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -23,8 +25,7 @@ export default function UserNav({
     } catch {
       // ignore
     }
-    // Hard navigate to /login to purge client cache and cleanly reset form state
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   const getBadge = () => {

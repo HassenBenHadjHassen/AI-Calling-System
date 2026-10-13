@@ -3,6 +3,7 @@ import { PatientIntakeService } from '@/lib/services/patient-intake.service';
 import { TenantService } from '@/lib/services/tenant.service';
 import { db } from '@/lib/db';
 import { AppointmentStatus } from '@prisma/client';
+import { assertApprovedTestDatabase } from '../helpers/test-db-guard';
 
 // Mock only external Twilio SMS network calls, leaving PostgreSQL DB completely unmocked
 vi.mock('@/lib/integrations/twilio', () => ({
@@ -23,6 +24,7 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
     'call_pg_nonconflict_1',
     'call_pg_dup_1',
     'call_tampered_001',
+    'call_diff_date_001',
   ];
 
   const TEST_PHONES = [
@@ -42,12 +44,13 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       await db.patientRequest.deleteMany({
         where: { vapiCallId: { in: TEST_CALL_IDS } },
       });
+      // SAFE CLEANUP: Only delete appointments linked to explicit test call records or test phone numbers.
+      // NEVER delete by date alone, which could destroy unrelated tenant or genuine user data!
       await db.appointment.deleteMany({
         where: {
           OR: [
             { callRecord: { vapiCallId: { in: TEST_CALL_IDS } } },
             { contact: { phoneNumber: { in: TEST_PHONES } } },
-            { date: TEST_DATE },
           ],
         },
       });
@@ -63,6 +66,8 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
   }
 
   beforeAll(async () => {
+    // Assert that the target database is an approved test database before any writes
+    assertApprovedTestDatabase();
     // Ensure tenant is provisioned in PostgreSQL
     await TenantService.ensureTenant('CABINET_MICHELLE');
     await cleanupTestData();
@@ -244,5 +249,73 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
     expect(res2.success).toBe(false);
     expect(res2.status).toBe(409);
     expect((res2 as any).error).toBe('IDEMPOTENCY_CONFLICT');
+  });
+
+  it('rejects replays using the same callId with different dates', async () => {
+    const originalPayload = {
+      requestType: 'appointment' as const,
+      patientName: 'Alice DiffDate',
+      postalCode: '75008',
+      serviceType: 'Pansement',
+      requestedDate: TEST_DATE,
+      requestedTime: '10:00',
+      caller: '+33611111111',
+      callId: 'call_diff_date_001',
+    };
+
+    const res1 = await PatientIntakeService.handleDirectSubmission(originalPayload);
+    expect(res1.success).toBe(true);
+
+    // Replay with different date
+    const diffDatePayload = {
+      ...originalPayload,
+      requestedDate: '2026-11-19',
+    };
+
+    const res2 = await PatientIntakeService.handleDirectSubmission(diffDatePayload);
+    expect(res2.success).toBe(false);
+    expect(res2.status).toBe(409);
+    expect((res2 as any).error).toBe('IDEMPOTENCY_CONFLICT');
+  });
+
+  it('preserves unrelated appointments on the same date when cleaning up test data', async () => {
+    const biz = await TenantService.ensureTenant('CABINET_MICHELLE');
+    // Create an unrelated contact and appointment not belonging to any test call IDs or test phones
+    const unrelatedContact = await db.contact.create({
+      data: {
+        businessId: biz.id,
+        phoneNumber: '+33677777777', // Not in TEST_PHONES
+        name: 'Genuine Unrelated Patient',
+      },
+    });
+
+    const unrelatedAppt = await db.appointment.create({
+      data: {
+        businessId: biz.id,
+        contactId: unrelatedContact.id,
+        serviceType: 'Urgence Genuine',
+        date: TEST_DATE,
+        time: '17h00',
+        startTime: new Date(`${TEST_DATE}T17:00:00.000Z`),
+        endTime: new Date(`${TEST_DATE}T18:00:00.000Z`),
+        status: AppointmentStatus.CONFIRMED,
+      },
+    });
+
+    try {
+      // Execute the test cleanup function
+      await cleanupTestData();
+
+      // Assert that the unrelated appointment was NOT deleted
+      const stillExists = await db.appointment.findUnique({
+        where: { id: unrelatedAppt.id },
+      });
+      expect(stillExists).not.toBeNull();
+      expect(stillExists?.id).toBe(unrelatedAppt.id);
+    } finally {
+      // Safely delete only the specific record created for this assertion
+      await db.appointment.delete({ where: { id: unrelatedAppt.id } }).catch(() => {});
+      await db.contact.delete({ where: { id: unrelatedContact.id } }).catch(() => {});
+    }
   });
 });

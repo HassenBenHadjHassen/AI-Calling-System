@@ -354,12 +354,16 @@ model NotificationJob {
   attemptCount      Int                 @default(0)
   maxAttempts       Int                 @default(5)
   nextRetryAt       DateTime?
+  lockedAt          DateTime?
+  leaseExpiresAt    DateTime?
+  lockedBy          String?
   providerMessageId String?
   lastError         String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
   @@index([status, nextRetryAt])
+  @@index([status, leaseExpiresAt])
   @@index([businessId])
   @@map("notification_jobs")
 }

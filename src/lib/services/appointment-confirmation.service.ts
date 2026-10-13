@@ -1,13 +1,12 @@
 import { db } from '../db';
-import { normalizePhoneNumber } from '../validation/phone';
 import { openAiClient } from '../integrations/openai';
 import { googleCalendar } from '../integrations/google-calendar';
 import { NotificationService } from './notifications.service';
 import { AppointmentStatus } from '@prisma/client';
 import { env } from '../env';
 import { TenantService } from './tenant.service';
-
 import { InternalCalendarService } from './internal-calendar.service';
+import { logger } from '../logger';
 
 export interface InboundSmsConfirmationParams {
   from: string;
@@ -21,8 +20,10 @@ export class AppointmentConfirmationService {
    * Reproduces confirmation_de_rdv.json.
    */
   static async processInboundSms(params: InboundSmsConfirmationParams) {
-    const fromNumber = normalizePhoneNumber(params.from);
-    console.log(`[AppointmentConfirmation] Received SMS from: ${fromNumber}`);
+    logger.info('Received inbound confirmation SMS', {
+      module: 'APPOINTMENT_CONFIRMATION',
+      messageSid: params.messageSid,
+    });
 
     // 1. Resolve Business Tenant (auto-bootstraps if not seeded)
     const business = await TenantService.ensureTenant('CABINET_MICHELLE');
@@ -38,7 +39,10 @@ export class AppointmentConfirmationService {
     });
 
     if (!appointment) {
-      console.log('[AppointmentConfirmation] No pending appointment found for incoming SMS');
+      logger.info('No pending appointment found for incoming SMS', {
+        module: 'APPOINTMENT_CONFIRMATION',
+        messageSid: params.messageSid,
+      });
       return { handled: false, reason: 'No pending appointment' };
     }
 
@@ -70,8 +74,11 @@ export class AppointmentConfirmationService {
             calendarEventId = calEvent.eventId;
           }
         } catch (calErr: unknown) {
-          const errMsg = calErr instanceof Error ? calErr.message : String(calErr);
-          console.error('[AppointmentConfirmation] Failed to create calendar event:', errMsg);
+          logger.error('Failed to create calendar event for confirmed appointment', {
+            module: 'APPOINTMENT_CONFIRMATION',
+            appointmentId: appointment.id,
+            error: calErr,
+          });
         }
 
         // Module 16: Confirmation SMS to patient
@@ -149,7 +156,10 @@ export class AppointmentConfirmationService {
 
       case 'NONE':
       default:
-        console.log(`[AppointmentConfirmation] Irrelevant SMS ignored: "${params.body}"`);
+        logger.info('Irrelevant SMS ignored', {
+          module: 'APPOINTMENT_CONFIRMATION',
+          messageSid: params.messageSid,
+        });
         return { outcome: 'NONE', appointmentId: appointment.id };
     }
   }

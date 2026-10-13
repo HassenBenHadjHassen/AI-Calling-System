@@ -74,12 +74,12 @@ export function sanitizeLogString(str: string): string {
   let sanitized = str;
 
   // 1. Redact Authorization Bearer tokens & JWTs
-  sanitized = sanitized.replace(/Bearer\s+[A-Za-z0-9_\-\.]+/gi, 'Bearer [REDACTED_TOKEN]');
+  sanitized = sanitized.replace(/Bearer[\s:=]+[A-Za-z0-9_\-\.]+/gi, 'Bearer: [REDACTED_TOKEN]');
   sanitized = sanitized.replace(/\beyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\b/g, '[REDACTED_JWT]');
 
-  // 2. Redact passwords, secrets, api keys, auth tokens, credentials
+  // 2. Redact passwords, secrets, api keys, auth tokens, credentials, bearer tokens
   sanitized = sanitized.replace(
-    /(?:api[_-]?key|secret|token|password|auth|credential|vapi_secret)\s*[:=]\s*['"]?[^\s,'";&]+['"]?/gi,
+    /(?:api[_-]?key|secret|token|bearer|password|auth|credential|vapi_secret)\s*[:=]\s*['"]?[^\s,'";&]+['"]?/gi,
     (match) => {
       const parts = match.split(/[:=]/);
       return `${parts[0]}: [REDACTED_CREDENTIAL]`;
@@ -324,7 +324,7 @@ export class Logger {
       });
       return result.count;
     } catch (err) {
-      console.error('[Logger pruneDatabaseLogs Fallback]', err);
+      console.error('[Logger pruneDatabaseLogs Fallback]', err instanceof Error ? sanitizeLogString(err.message) : '[unknown error]');
       return 0;
     }
   }

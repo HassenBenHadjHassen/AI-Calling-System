@@ -1,6 +1,7 @@
 import { google, calendar_v3 } from 'googleapis';
 import { DateTime } from 'luxon';
 import { env } from '../env';
+import { logger, sanitizeLogString } from '../logger';
 
 export interface CalendarEventPayload {
   calendarId?: string;
@@ -53,7 +54,10 @@ class GoogleCalendarIntegration {
         });
         this.calendar = google.calendar({ version: 'v3', auth });
       } catch (err) {
-        console.warn('[Google Calendar Auth Warning]: Failed to initialize Google Auth', err);
+        logger.warn('Failed to initialize Google Auth', {
+          module: 'GOOGLE_CALENDAR',
+          error: err,
+        });
       }
     }
   }
@@ -159,7 +163,10 @@ class GoogleCalendarIntegration {
       };
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[Google Calendar FreeBusy Error]:', errMsg);
+      logger.error('Google Calendar FreeBusy Error', {
+        module: 'GOOGLE_CALENDAR',
+        error: sanitizeLogString(errMsg),
+      });
       throw new Error(`Google Calendar availability check failed: ${errMsg}`);
     }
   }
@@ -180,7 +187,12 @@ class GoogleCalendarIntegration {
         end: payload.end,
       };
       this.mockEvents.push(mock);
-      console.log(`[DRY_RUN Calendar Event Created] "${payload.summary}" on ${calendarId} at ${payload.start.toISOString()}`);
+      logger.info('Dry-run Calendar Event Created', {
+        module: 'GOOGLE_CALENDAR',
+        eventId: mockId,
+        calendarId,
+        start: payload.start.toISOString(),
+      });
       return {
         eventId: mockId,
         summary: payload.summary,
@@ -216,7 +228,10 @@ class GoogleCalendarIntegration {
       };
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[Google Calendar Insert Event Error]:', errMsg);
+      logger.error('Google Calendar Insert Event Error', {
+        module: 'GOOGLE_CALENDAR',
+        error: sanitizeLogString(errMsg),
+      });
       throw new Error(`Failed to create calendar event: ${errMsg}`);
     }
   }
@@ -227,7 +242,10 @@ class GoogleCalendarIntegration {
   async deleteEvent(eventId: string, calendarId = env.CABINET_CALENDAR_ID): Promise<boolean> {
     if (env.DRY_RUN || !this.calendar) {
       this.mockEvents = this.mockEvents.filter((e) => e.id !== eventId);
-      console.log(`[DRY_RUN Calendar Event Deleted] eventId: ${eventId}`);
+      logger.info('Dry-run Calendar Event Deleted', {
+        module: 'GOOGLE_CALENDAR',
+        eventId,
+      });
       return true;
     }
 
@@ -239,7 +257,11 @@ class GoogleCalendarIntegration {
       return true;
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn(`[Google Calendar Delete Event Warning for ${eventId}]:`, errMsg);
+      logger.warn('Google Calendar Delete Event Warning', {
+        module: 'GOOGLE_CALENDAR',
+        eventId,
+        error: sanitizeLogString(errMsg),
+      });
       return false;
     }
   }

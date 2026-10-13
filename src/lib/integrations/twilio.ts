@@ -1,6 +1,7 @@
 import twilio from 'twilio';
 import { env } from '../env';
 import { normalizePhoneNumber } from '../validation/phone';
+import { logger, sanitizeLogString } from '../logger';
 
 export interface SendSmsParams {
   to: string;
@@ -46,7 +47,10 @@ class TwilioIntegration {
 
     if (env.DRY_RUN || !this.client) {
       const mockId = `dry_run_msg_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      console.log(`[DRY_RUN Twilio SMS] From: ${from} -> To: ${to}\nMessage: "${params.body}"`);
+      logger.info('Dry-run Twilio SMS simulated', {
+        module: 'TWILIO',
+        messageId: mockId,
+      });
       return {
         success: true,
         messageId: mockId,
@@ -70,13 +74,16 @@ class TwilioIntegration {
       };
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[Twilio SMS Error]:', errMsg);
+      logger.error('Twilio SMS error', {
+        module: 'TWILIO',
+        error: sanitizeLogString(errMsg),
+      });
       return {
         success: false,
         messageId: '',
         status: 'failed',
         isDryRun: false,
-        error: errMsg,
+        error: sanitizeLogString(errMsg),
       };
     }
   }
@@ -124,7 +131,10 @@ class TwilioIntegration {
       };
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn(`[Twilio Lookup Warning for ${phoneNumber}]:`, errMsg);
+      logger.warn('Twilio lookup warning', {
+        module: 'TWILIO',
+        error: sanitizeLogString(errMsg),
+      });
       // Fallback to pattern recognition if API fails
       const isMobile = phoneNumber.startsWith('+336') || phoneNumber.startsWith('+337');
       return {
@@ -149,7 +159,10 @@ class TwilioIntegration {
     try {
       return twilio.validateRequest(env.TWILIO_AUTH_TOKEN, signature, url, params);
     } catch (err) {
-      console.error('[Twilio Signature Validation Error]:', err);
+      logger.error('Twilio signature validation error', {
+        module: 'TWILIO',
+        error: err,
+      });
       return false;
     }
   }

@@ -14,6 +14,7 @@ vi.mock('@/lib/db', () => {
     db: {
       business: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
       },
       assistantConfig: {
@@ -56,6 +57,7 @@ vi.mock('@/lib/db', () => {
         findUnique: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     },
   };
@@ -67,6 +69,15 @@ describe('Workflow Services Integration Tests (Scenarios A through F)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     googleCalendar.clearMockEvents();
+    const mockBiz = {
+      id: 'biz_michelle',
+      slug: 'CABINET_MICHELLE',
+      name: 'Cabinet Michelle',
+      alertPhoneNumber: '+33612857915',
+      calendarId: 'monaldi2b@gmail.com',
+    };
+    (db.business.findUnique as any).mockResolvedValue(mockBiz);
+    (db.business.findFirst as any).mockResolvedValue(mockBiz);
     (db.notificationJob.findUnique as any).mockResolvedValue({
       id: 'notif_job_mock',
       status: 'PENDING',

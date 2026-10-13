@@ -7,6 +7,7 @@ vi.mock('@/lib/db', () => {
     db: {
       business: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
       },
       assistantConfig: {
@@ -71,6 +72,15 @@ import fixtures from '../fixtures/make_scenarios.json';
 describe('Next.js API Route Handlers Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const mockBiz = {
+      id: 'biz_michelle',
+      slug: 'CABINET_MICHELLE',
+      name: 'Cabinet Michelle',
+      alertPhoneNumber: '+33612857915',
+      calendarId: 'monaldi2b@gmail.com',
+    };
+    (db.business.findUnique as any).mockResolvedValue(mockBiz);
+    (db.business.findFirst as any).mockResolvedValue(mockBiz);
     (db.notificationJob.findUnique as any).mockResolvedValue({
       id: 'job_01',
       status: 'PENDING',

@@ -3,6 +3,7 @@ import { NotificationService } from './notifications.service';
 import { DevisSubmissionPayload } from '../validation/schemas';
 import { ServiceRequestStatus, Prisma } from '@prisma/client';
 import { env } from '../env';
+import { logger } from '../logger';
 
 export class DevisIntakeService {
   /**
@@ -13,7 +14,7 @@ export class DevisIntakeService {
   static async processSubmission(payload: DevisSubmissionPayload) {
     const callId = payload.callId?.trim();
     if (!callId) {
-      console.warn('[DevisIntake] Submission missing callId');
+      logger.warn('Devis submission missing callId', { module: 'DEVIS_INTAKE' });
       return { handled: false, reason: 'Missing callId' };
     }
 
@@ -25,7 +26,10 @@ export class DevisIntakeService {
     });
 
     if (!serviceRequest) {
-      console.warn(`[DevisIntake] No ServiceRequest found for callId: ${callId}`);
+      logger.warn('No ServiceRequest found for callId', {
+        module: 'DEVIS_INTAKE',
+        callId,
+      });
       return { handled: false, reason: 'ServiceRequest not found' };
     }
 

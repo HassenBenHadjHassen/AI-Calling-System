@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Parse request JSON body
-  let rawBody: any;
+  let rawBody: unknown;
   try {
     rawBody = await req.json();
   } catch {
@@ -40,13 +40,13 @@ export async function POST(req: NextRequest) {
   // Format B: Vapi post-call server webhook (contains message object)
   // Format A: Direct patient submission from Vapi API Request tool (contains requestType)
   const isPostCallWebhook =
-    rawBody && typeof rawBody === 'object' && 'message' in rawBody && Boolean(rawBody.message);
+    rawBody && typeof rawBody === 'object' && 'message' in rawBody && Boolean((rawBody as Record<string, unknown>).message);
 
   if (isPostCallWebhook) {
-    return handlePostCallWebhook(req, rawBody, startTime, rawCorrId);
+    return handlePostCallWebhook(req, rawBody as Record<string, unknown>, startTime, rawCorrId);
   }
 
-  return handleDirectSubmission(req, rawBody, startTime, rawCorrId);
+  return handleDirectSubmission(req, rawBody as Record<string, unknown>, startTime, rawCorrId);
 }
 
 /**
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
  */
 async function handleDirectSubmission(
   req: NextRequest,
-  rawBody: any,
+  rawBody: Record<string, unknown> | null | undefined,
   startTime: number,
   rawCorrId: string | null
 ) {
@@ -187,11 +187,14 @@ async function handleDirectSubmission(
  */
 async function handlePostCallWebhook(
   req: NextRequest,
-  rawBody: any,
+  rawBody: Record<string, unknown> | null | undefined,
   startTime: number,
   rawCorrId: string | null
 ) {
-  const callId = rawBody?.message?.call?.id || `anon_${Date.now()}`;
+  const callId = (rawBody?.message as Record<string, unknown> | undefined)?.call &&
+    typeof (rawBody?.message as Record<string, unknown> | undefined)?.call === 'object'
+    ? ((rawBody?.message as Record<string, unknown>).call as Record<string, unknown>).id as string || `anon_${Date.now()}`
+    : `anon_${Date.now()}`;
   const correlationId = rawCorrId || `vapi_${callId}`;
 
   const log = logger.child({

@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { db } from '../db';
 import { env } from '../env';
+import { logger } from '../logger';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { googleCalendar } from '../integrations/google-calendar';
 
@@ -205,7 +206,60 @@ export class InternalCalendarService {
       };
     }
 
-    // 2. Check in-memory mock events (used by tests / dry run)
+    // 2. Authoritative resolution of tenant business for isolation - FAIL CLOSED if missing or unknown
+    if (!calendarIdOrBusinessSlug || !calendarIdOrBusinessSlug.trim()) {
+      return {
+        isAvailable: false,
+        start,
+        end,
+        conflictingEventsCount: 0,
+        reason: 'verification_failed',
+        error: 'Missing tenant or calendar identifier for availability check',
+        isDryRun: false,
+      };
+    }
+
+    let targetBusinessId: string | undefined = undefined;
+    let targetCalendarId: string | undefined = undefined;
+    if (db.business?.findFirst) {
+      const biz = await db.business.findFirst({
+        where: {
+          OR: [
+            { id: calendarIdOrBusinessSlug },
+            { slug: calendarIdOrBusinessSlug },
+            { calendarId: calendarIdOrBusinessSlug },
+          ],
+        },
+        select: { id: true, calendarId: true },
+      });
+
+      if (!biz) {
+        // FAIL CLOSED: Never interpret an unresolvable business/assistant as zero conflicts
+        return {
+          isAvailable: false,
+          start,
+          end,
+          conflictingEventsCount: 0,
+          reason: 'verification_failed',
+          error: `Tenant business could not be resolved for identifier "${calendarIdOrBusinessSlug}"`,
+          isDryRun: false,
+        };
+      }
+      targetBusinessId = biz.id;
+      targetCalendarId = biz.calendarId || undefined;
+    } else {
+      return {
+        isAvailable: false,
+        start,
+        end,
+        conflictingEventsCount: 0,
+        reason: 'verification_failed',
+        error: 'Database unavailable for authoritative tenant verification',
+        isDryRun: false,
+      };
+    }
+
+    // 3. Check in-memory mock events (used by tests / dry run)
     const allMockEvents = [
       ...this.mockEvents,
       ...(googleCalendar?.getMockEvents ? googleCalendar.getMockEvents() : []),
@@ -213,7 +267,9 @@ export class InternalCalendarService {
 
     const mockConflicts = allMockEvents.filter(
       (ev) =>
-        ev.calendarId === calendarIdOrBusinessSlug &&
+        (ev.calendarId === calendarIdOrBusinessSlug ||
+          (targetCalendarId && ev.calendarId === targetCalendarId) ||
+          (targetBusinessId && ev.calendarId === targetBusinessId)) &&
         ev.start.getTime() < end.getTime() &&
         ev.end.getTime() > start.getTime() &&
         (!('status' in ev) || (ev as { status?: unknown }).status !== 'CANCELLED')
@@ -230,53 +286,9 @@ export class InternalCalendarService {
       };
     }
 
-    // 3. Query PostgreSQL appointments with tenant isolation
+    // 4. Query PostgreSQL appointments with tenant isolation
     try {
       if (db.appointment?.findMany) {
-        // Resolve businessId for tenant isolation - FAIL CLOSED if tenant is missing or unknown
-        if (!calendarIdOrBusinessSlug || !calendarIdOrBusinessSlug.trim()) {
-          return {
-            isAvailable: false,
-            start,
-            end,
-            conflictingEventsCount: 0,
-            reason: 'verification_failed',
-            error: 'Missing tenant or calendar identifier for availability check',
-            isDryRun: false,
-          };
-        }
-
-        let targetBusinessId: string | undefined = undefined;
-        if (calendarIdOrBusinessSlug.startsWith('biz_')) {
-          targetBusinessId = calendarIdOrBusinessSlug;
-        } else if (db.business?.findFirst) {
-          const biz = await db.business.findFirst({
-            where: {
-              OR: [
-                { id: calendarIdOrBusinessSlug },
-                { slug: calendarIdOrBusinessSlug },
-                { calendarId: calendarIdOrBusinessSlug },
-              ],
-            },
-            select: { id: true },
-          });
-
-          if (!biz) {
-            // FAIL CLOSED: Never interpret an unresolvable business/assistant as zero conflicts
-            return {
-              isAvailable: false,
-              start,
-              end,
-              conflictingEventsCount: 0,
-              reason: 'verification_failed',
-              error: `Tenant business could not be resolved for identifier "${calendarIdOrBusinessSlug}"`,
-              isDryRun: false,
-            };
-          }
-          targetBusinessId = biz.id;
-        } else {
-          targetBusinessId = calendarIdOrBusinessSlug;
-        }
 
         const dbConflicts = await db.appointment.findMany({
           where: {
@@ -301,7 +313,10 @@ export class InternalCalendarService {
         }
       }
     } catch (err: unknown) {
-      console.error('[InternalCalendar checkAvailability DB query failed]:', err);
+      logger.error('InternalCalendar checkAvailability DB query failed', {
+        module: 'INTERNAL_CALENDAR',
+        error: err,
+      });
       // Fail closed: a technical error must never return isAvailable: true
       return {
         isAvailable: false,
@@ -341,9 +356,12 @@ export class InternalCalendarService {
       status: 'CONFIRMED',
     });
 
-    console.log(
-      `[Internal Calendar Event Created] "${payload.summary}" on ${calendarId} at ${payload.start.toISOString()}`
-    );
+    logger.info('Internal Calendar Event Created', {
+      module: 'INTERNAL_CALENDAR',
+      eventId,
+      calendarId,
+      start: payload.start.toISOString(),
+    });
 
     return {
       eventId,
@@ -368,7 +386,10 @@ export class InternalCalendarService {
         });
       }
     } catch (err: unknown) {
-      console.warn('[InternalCalendar deleteEvent DB update]:', err);
+      logger.warn('InternalCalendar deleteEvent DB update failed', {
+        module: 'INTERNAL_CALENDAR',
+        error: err,
+      });
     }
 
     return true;
@@ -393,9 +414,9 @@ export class InternalCalendarService {
 
     const appt = await txRunner(async (tx) => {
       // Concurrency protection: Acquire PostgreSQL advisory transaction lock
-      if (typeof tx.$executeRaw === 'function') {
+      if (typeof tx.$queryRaw === 'function') {
         const lockKey = `calendar_booking_${params.businessId}_${startStr}`;
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))::text AS locked`;
       }
 
       // Ensure staff contact exists

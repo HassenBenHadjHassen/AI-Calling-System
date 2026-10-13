@@ -10,6 +10,7 @@ import { NotificationService } from '@/lib/services/notifications.service';
 import { InternalCalendarService } from '@/lib/services/internal-calendar.service';
 import { CalendarAvailabilityService } from '@/lib/services/calendar-availability.service';
 import { CallerLookupService } from '@/lib/services/caller-lookup.service';
+import { isMateriallyIdenticalRequest } from '@/lib/services/patient-intake.service';
 import { db } from '@/lib/db';
 import { NotificationStatus } from '@prisma/client';
 
@@ -334,32 +335,141 @@ describe('Production Hardening Regression Suite', () => {
       expect(job.id).toBe('job_tx_001');
     });
 
-    it('claims jobs atomically in processJob to prevent duplicate processing', async () => {
+    it('claims jobs atomically in processJob with durable lease semantics', async () => {
       const updateManySpy = vi.spyOn(db.notificationJob, 'updateMany').mockResolvedValueOnce({
         count: 0, // Simulates another worker already claimed this job
       });
 
-      const findUniqueSpy = vi.spyOn(db.notificationJob, 'findUnique').mockResolvedValueOnce({
-        id: 'job_already_processing',
-        status: NotificationStatus.PROCESSING,
-      } as any);
-
       // Should return without attempting Twilio delivery
-      await NotificationService.processJob('job_already_processing');
+      const result = await NotificationService.processJob('job_already_processing', undefined, 'test-worker-1');
+      expect(result).toBe(false);
 
-      expect(updateManySpy).toHaveBeenCalledWith({
-        where: {
-          id: 'job_already_processing',
-          status: { in: [NotificationStatus.PENDING, NotificationStatus.PROCESSING] },
-        },
-        data: {
-          status: NotificationStatus.PROCESSING,
-          attemptCount: { increment: 1 },
-        },
-      });
+      expect(updateManySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'job_already_processing',
+            OR: expect.any(Array),
+          }),
+          data: expect.objectContaining({
+            status: NotificationStatus.PROCESSING,
+            lockedBy: 'test-worker-1',
+            attemptCount: { increment: 1 },
+          }),
+        })
+      );
 
       updateManySpy.mockRestore();
-      findUniqueSpy.mockRestore();
+    });
+  });
+
+  // =========================================================================
+  // 6. IDEMPOTENCY RECOVERY & COMPARISON (patient-intake.service.ts)
+  // =========================================================================
+  describe('Idempotency Comparison (isMateriallyIdenticalRequest)', () => {
+    const existing = {
+      requestType: 'APPOINTMENT',
+      patientName: 'Alice Dupont',
+      requestedDate: '2026-11-18',
+      requestedTime: '10:00',
+      serviceType: 'Pansement',
+      postalCode: '75008',
+      urgency: false,
+    };
+
+    it('returns identical: true for exactly matching requests', () => {
+      const incoming = {
+        vapiCallId: 'call_123',
+        callerNumber: '+33612345678',
+        requestType: 'appointment' as const,
+        patientName: 'Alice Dupont',
+        requestedDate: '2026-11-18',
+        requestedTime: '10:00',
+        serviceType: 'Pansement',
+        postalCode: '75008',
+        urgency: false,
+      };
+
+      const res = isMateriallyIdenticalRequest(existing, incoming);
+      expect(res.identical).toBe(true);
+      expect(res.differences).toHaveLength(0);
+    });
+
+    it('normalizes whitespace and case differences', () => {
+      const incoming = {
+        vapiCallId: 'call_123',
+        callerNumber: '+33612345678',
+        requestType: 'appointment' as const,
+        patientName: '  alice dupont  ',
+        requestedDate: ' 2026-11-18 ',
+        requestedTime: ' 10:00 ',
+        serviceType: ' pansement ',
+        postalCode: ' 75008 ',
+      };
+
+      const res = isMateriallyIdenticalRequest(existing, incoming);
+      expect(res.identical).toBe(true);
+    });
+
+    it('detects materially different dates as conflict', () => {
+      const incoming = {
+        vapiCallId: 'call_123',
+        callerNumber: '+33612345678',
+        requestType: 'appointment' as const,
+        patientName: 'Alice Dupont',
+        requestedDate: '2026-11-19', // Different date!
+        requestedTime: '10:00',
+        serviceType: 'Pansement',
+      };
+
+      const res = isMateriallyIdenticalRequest(existing, incoming);
+      expect(res.identical).toBe(false);
+      expect(res.differences.some((d) => d.includes('requestedDate'))).toBe(true);
+    });
+
+    it('detects materially different times as conflict', () => {
+      const incoming = {
+        vapiCallId: 'call_123',
+        callerNumber: '+33612345678',
+        requestType: 'appointment' as const,
+        patientName: 'Alice Dupont',
+        requestedDate: '2026-11-18',
+        requestedTime: '14:30', // Different time!
+        serviceType: 'Pansement',
+      };
+
+      const res = isMateriallyIdenticalRequest(existing, incoming);
+      expect(res.identical).toBe(false);
+      expect(res.differences.some((d) => d.includes('requestedTime'))).toBe(true);
+    });
+
+    it('detects materially different patient names as conflict', () => {
+      const incoming = {
+        vapiCallId: 'call_123',
+        callerNumber: '+33612345678',
+        requestType: 'appointment' as const,
+        patientName: 'Bob Martin', // Different patient!
+        requestedDate: '2026-11-18',
+        requestedTime: '10:00',
+        serviceType: 'Pansement',
+      };
+
+      const res = isMateriallyIdenticalRequest(existing, incoming);
+      expect(res.identical).toBe(false);
+      expect(res.differences.some((d) => d.includes('patientName'))).toBe(true);
+    });
+
+    it('detects materially different request types as conflict', () => {
+      const incoming = {
+        vapiCallId: 'call_123',
+        callerNumber: '+33612345678',
+        requestType: 'cancellation' as const, // Different request type!
+        patientName: 'Alice Dupont',
+      };
+
+      const res = isMateriallyIdenticalRequest(existing, incoming);
+      expect(res.identical).toBe(false);
+      expect(res.differences.some((d) => d.includes('requestType'))).toBe(true);
     });
   });
 });
+

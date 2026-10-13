@@ -15,6 +15,7 @@ vi.mock('@/lib/db', () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   },
 }));
@@ -50,7 +51,16 @@ describe('DevisIntakeService (Native Form Intake)', () => {
     });
     (db.contact.update as any).mockResolvedValue({});
     (db.notificationJob.findFirst as any).mockResolvedValue(null);
-    (db.notificationJob.create as any).mockResolvedValue({});
+    (db.notificationJob.create as any).mockResolvedValue({ id: 'job_devis_01' });
+    (db.notificationJob.findUnique as any).mockResolvedValue({
+      id: 'job_devis_01',
+      recipient: '+33612857915',
+      message: 'Devis alert',
+      status: 'PENDING',
+      attemptCount: 0,
+      maxAttempts: 5,
+    });
+    (db.notificationJob.updateMany as any).mockResolvedValue({ count: 1 });
 
     const result = await DevisIntakeService.processSubmission({
       callId: 'call_test_123',
