@@ -45,6 +45,12 @@ vi.mock('@/lib/db', () => {
         create: vi.fn(),
         update: vi.fn(),
       },
+      patientRequest: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
       notificationJob: {
         findFirst: vi.fn(),
         findUnique: vi.fn(),
@@ -251,7 +257,7 @@ describe('Workflow Services Integration Tests (Scenarios A through F)', () => {
       expect(res.outcome).toBe('SCAM');
     });
 
-    it('handles appointment cancellation branch and alerts nurse', async () => {
+    it('handles appointment cancellation as pending review without immediately cancelling the appointment', async () => {
       (db.business.findUnique as any).mockResolvedValue({
         id: 'biz_michelle',
         slug: 'CABINET_MICHELLE',
@@ -260,21 +266,122 @@ describe('Workflow Services Integration Tests (Scenarios A through F)', () => {
       (db.contact.upsert as any).mockResolvedValue({ id: 'contact_03', name: 'Jean Dupont' });
       (db.patient.upsert as any).mockResolvedValue({ id: 'patient_03' });
       (db.callRecord.upsert as any).mockResolvedValue({ id: 'call_03' });
-      (db.appointment.findFirst as any).mockResolvedValue({ id: 'appt_to_cancel' });
+      (db.appointment.findFirst as any).mockResolvedValue({
+        id: 'appt_to_cancel',
+        status: 'CONFIRMED',
+        notes: 'Initial rdv notes',
+      });
       (db.appointment.update as any).mockResolvedValue({ id: 'appt_to_cancel' });
+      (db.serviceRequest.create as any).mockResolvedValue({ id: 'sr_cancel_01' });
       (db.notificationJob.findFirst as any).mockResolvedValue(null);
       (db.notificationJob.create as any).mockResolvedValue({ id: 'notif_cancel' });
 
       const payload = fixtures.patientIntake.cancellation as any;
       const res = await PatientIntakeService.processIntake(payload);
 
-      expect(res.outcome).toBe('CANCELLED');
-      expect(db.appointment.update).toHaveBeenCalledWith(
+      expect(res.outcome).toBe('PENDING_CANCELLATION');
+      // Appointment should NOT be immediately set to CANCELLED
+      expect(db.appointment.update).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'appt_to_cancel' },
-          data: { status: 'CANCELLED' },
+          data: expect.objectContaining({ status: 'CANCELLED' }),
         })
       );
+      // Cancellation request is recorded and nurse notified for manual review
+      expect(db.serviceRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: 'ANNULATION',
+            status: 'NOT_COMPLETED',
+          }),
+        })
+      );
+    });
+
+    it('reuses and updates existing appointment from submit_patient_request rather than creating a duplicate', async () => {
+      (db.business.findUnique as any).mockResolvedValue({
+        id: 'biz_michelle',
+        slug: 'CABINET_MICHELLE',
+        alertPhoneNumber: '+33612857915',
+      });
+      (db.contact.upsert as any).mockResolvedValue({ id: 'contact_01', name: 'Claire Martin' });
+      (db.patient.upsert as any).mockResolvedValue({ id: 'patient_01' });
+      (db.callRecord.upsert as any).mockResolvedValue({ id: 'call_01' });
+      (db.contact.update as any).mockResolvedValue({});
+
+      // Existing appointment already recorded during the call
+      (db.appointment.findFirst as any).mockResolvedValue({
+        id: 'appt_existing_midcall',
+        status: 'CONFIRMED_URGENT',
+        date: '2026-10-10',
+        time: '11h00',
+        urgency: true,
+      });
+      (db.appointment.update as any).mockResolvedValue({
+        id: 'appt_existing_midcall',
+        status: 'CONFIRMED_URGENT',
+      });
+
+      const payload = fixtures.patientIntake.urgentMobile as any;
+      const res = await PatientIntakeService.processIntake(payload);
+
+      expect(res.appointmentId).toBe('appt_existing_midcall');
+      expect(db.appointment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'appt_existing_midcall' },
+        })
+      );
+      // Crucial: create must NOT be called for second appointment
+      expect(db.appointment.create).not.toHaveBeenCalled();
+    });
+
+    it('handles message-only calls by saving message and alerting nurse without creating an appointment', async () => {
+      (db.business.findUnique as any).mockResolvedValue({
+        id: 'biz_michelle',
+        slug: 'CABINET_MICHELLE',
+        alertPhoneNumber: '+33612857915',
+      });
+      (db.contact.upsert as any).mockResolvedValue({ id: 'contact_msg', name: 'Paul Bernard' });
+      (db.patient.upsert as any).mockResolvedValue({ id: 'patient_msg' });
+      (db.callRecord.upsert as any).mockResolvedValue({ id: 'call_msg' });
+      (db.serviceRequest.findFirst as any).mockResolvedValue(null);
+      (db.serviceRequest.create as any).mockResolvedValue({ id: 'sr_msg_01' });
+      (db.notificationJob.findFirst as any).mockResolvedValue(null);
+      (db.notificationJob.create as any).mockResolvedValue({ id: 'notif_msg' });
+
+      const messagePayload = {
+        message: {
+          type: 'end-of-call-report',
+          call: { id: 'call_msg_999', assistantId: '97808c43-384a-4f40-a8dd-9149ba4988f5' },
+          customer: { number: '+33612345678' },
+          artifact: {
+            summary: 'Le patient souhaite savoir si Mme Michel fait des visites à domicile le soir',
+            structuredOutputs: {
+              '389d26dd-40e4-4670-9f2b-5acd1c40e6ee': {
+                result: {
+                  patient_name: 'Paul Bernard',
+                  service_type: 'Message pour Mme Michel',
+                  message: 'Demande de renseignement pour visite à domicile',
+                },
+              },
+              'e9485024-57be-4f6c-a745-4fef80b809a2': { result: 'true' },
+            },
+          },
+        },
+      } as any;
+
+      const res = await PatientIntakeService.processIntake(messagePayload);
+
+      expect(res.outcome).toBe('MESSAGE_SAVED');
+      expect(db.serviceRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            category: 'MESSAGE',
+            status: 'MESSAGE',
+          }),
+        })
+      );
+      // No appointment should be created
+      expect(db.appointment.create).not.toHaveBeenCalled();
     });
   });
 

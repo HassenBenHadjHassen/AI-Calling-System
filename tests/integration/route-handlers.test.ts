@@ -38,6 +38,12 @@ vi.mock('@/lib/db', () => {
         create: vi.fn(),
         update: vi.fn(),
       },
+      patientRequest: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
       webhookEvent: {
         findUnique: vi.fn(),
         create: vi.fn(),
@@ -131,7 +137,10 @@ describe('Next.js API Route Handlers Integration Tests', () => {
 
     const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/patient-intake', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer my_secret_token_123',
+      },
       body: JSON.stringify(fixtures.patientIntake.urgentMobile),
     });
 

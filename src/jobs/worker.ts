@@ -1,15 +1,17 @@
 import { NotificationService } from '../lib/services/notifications.service';
 import { db } from '../lib/db';
+import { logger } from '../lib/logger';
 
 const POLL_INTERVAL_MS = 5000;
 let isRunning = true;
 
 async function startWorker() {
-  console.log('🚀 AI Calling System - Background Notification Worker started');
-  console.log(`⏱️ Polling database every ${POLL_INTERVAL_MS}ms for pending/retryable jobs...`);
+  const log = logger.child({ module: 'WORKER:Notifications' });
+  log.info('🚀 AI Calling System - Background Notification Worker started');
+  log.info(`⏱️ Polling database every ${POLL_INTERVAL_MS}ms for pending/retryable jobs...`);
 
   const shutdown = async (signal: string) => {
-    console.log(`\n🛑 Received ${signal}. Shutting down worker gracefully...`);
+    log.info(`🛑 Received ${signal}. Shutting down worker gracefully...`);
     isRunning = false;
     await db.$disconnect();
     process.exit(0);
@@ -22,11 +24,10 @@ async function startWorker() {
     try {
       const processedCount = await NotificationService.processPendingJobs(20);
       if (processedCount > 0) {
-        console.log(`[Worker] Processed ${processedCount} notification job(s)`);
+        log.info(`[Worker Cycle] Processed ${processedCount} notification job(s)`);
       }
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[Worker Error]:', errMsg);
+      log.error('[Worker Cycle Error]', { error: err });
     }
 
     // Wait before next poll
@@ -36,7 +37,7 @@ async function startWorker() {
 
 if (require.main === module || process.argv[1]?.includes('worker')) {
   startWorker().catch((err) => {
-    console.error('Fatal worker error:', err);
+    logger.error('Fatal worker process error', { module: 'WORKER', error: err });
     process.exit(1);
   });
 }

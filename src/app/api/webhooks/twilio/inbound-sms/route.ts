@@ -4,8 +4,12 @@ import { twilioClient } from '@/lib/integrations/twilio';
 import { AppointmentConfirmationService } from '@/lib/services/appointment-confirmation.service';
 import { WebhookProcessingService } from '@/lib/services/webhook-processing.service';
 import { WebhookProvider } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  const rawCorrId = req.headers.get('x-correlation-id');
+
   try {
     const contentType = req.headers.get('content-type') || '';
     let bodyData: Record<string, string> = {};
@@ -29,11 +33,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const correlationId =
+      rawCorrId || `twilio_${bodyData.MessageSid || Date.now().toString(36)}`;
+    const log = logger.child({ module: 'WEBHOOK_TWILIO', correlationId });
+
+    log.info('[Twilio Inbound SMS] Inbound request received', {
+      from: bodyData.From,
+      to: bodyData.To,
+      messageSid: bodyData.MessageSid,
+    });
+
     const parsed = TwilioInboundSmsSchema.safeParse(bodyData);
     if (!parsed.success) {
-      console.warn('[Twilio Inbound SMS] Validation failed:', parsed.error.issues);
+      log.warn('[Twilio Inbound SMS] Validation failed:', {
+        issues: parsed.error.issues,
+        bodyData,
+      });
       return new NextResponse(twilioClient.buildEmptyTwimlResponse(), {
-        headers: { 'Content-Type': 'text/xml' },
+        headers: {
+          'Content-Type': 'text/xml',
+          'X-Correlation-Id': correlationId,
+        },
         status: 200,
       });
     }
@@ -50,8 +70,14 @@ export async function POST(req: NextRequest) {
     );
 
     if (!isValidSignature) {
-      console.warn('[Twilio Inbound SMS] Invalid webhook signature');
-      return new NextResponse('Unauthorized', { status: 401 });
+      log.warn('[Twilio Inbound SMS] Invalid webhook signature detected', {
+        signature,
+        requestUrl,
+      });
+      return new NextResponse('Unauthorized', {
+        headers: { 'X-Correlation-Id': correlationId },
+        status: 401,
+      });
     }
 
     const eventKey = `twilio_sms_${payload.MessageSid}`;
@@ -61,13 +87,17 @@ export async function POST(req: NextRequest) {
       provider: WebhookProvider.TWILIO,
       eventKey,
       eventType: 'inbound_sms',
+      correlationId,
       payload: bodyData,
     });
 
     if (isDuplicate) {
-      console.log(`[Twilio Inbound SMS] Duplicate MessageSid ignored: ${payload.MessageSid}`);
+      log.info(`[Twilio Inbound SMS] Duplicate MessageSid ignored: ${payload.MessageSid}`);
       return new NextResponse(twilioClient.buildEmptyTwimlResponse(), {
-        headers: { 'Content-Type': 'text/xml' },
+        headers: {
+          'Content-Type': 'text/xml',
+          'X-Correlation-Id': correlationId,
+        },
         status: 200,
       });
     }
@@ -79,23 +109,41 @@ export async function POST(req: NextRequest) {
         messageSid: payload.MessageSid,
       });
 
-      await WebhookProcessingService.markProcessed(event.id);
+      await WebhookProcessingService.markProcessed(event.id, correlationId);
+      log.info('[Twilio Inbound SMS] Successfully processed incoming SMS', {
+        durationMs: Date.now() - startTime,
+        from: payload.From,
+      });
     } catch (processError: unknown) {
       const errMsg = processError instanceof Error ? processError.message : String(processError);
-      await WebhookProcessingService.markFailed(event.id, errMsg);
-      console.error('[Twilio Inbound SMS Processing Error]:', errMsg);
+      await WebhookProcessingService.markFailed(event.id, errMsg, correlationId);
+      log.error('[Twilio Inbound SMS Processing Error]', {
+        error: processError,
+        durationMs: Date.now() - startTime,
+      });
     }
 
     // Always respond with valid TwiML
     return new NextResponse(twilioClient.buildEmptyTwimlResponse(), {
-      headers: { 'Content-Type': 'text/xml' },
+      headers: {
+        'Content-Type': 'text/xml',
+        'X-Correlation-Id': correlationId,
+      },
       status: 200,
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
-    console.error('[Twilio Inbound SMS Exception]:', errMsg);
+    const correlationId = rawCorrId || `twilio_err_${Date.now().toString(36)}`;
+    logger.error('[Twilio Inbound SMS Exception]', {
+      module: 'WEBHOOK_TWILIO',
+      correlationId,
+      error: err,
+      durationMs: Date.now() - startTime,
+    });
     return new NextResponse(twilioClient.buildEmptyTwimlResponse(), {
-      headers: { 'Content-Type': 'text/xml' },
+      headers: {
+        'Content-Type': 'text/xml',
+        'X-Correlation-Id': correlationId,
+      },
       status: 200,
     });
   }

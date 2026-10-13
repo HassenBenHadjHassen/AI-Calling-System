@@ -31,18 +31,32 @@ export interface InternalCreatedEvent {
   isDryRun: boolean;
 }
 
+export interface ShiftHours {
+  startHour: number; // e.g. 9
+  endHour: number;   // e.g. 13
+}
+
 export interface BusinessHoursConfig {
-  startHour: number; // e.g. 8 (08:00)
-  endHour: number; // e.g. 19 (19:00)
-  workingDays: number[]; // 1 = Monday ... 6 = Saturday (7 = Sunday closed)
+  startHour: number; // e.g. 9 (09:00)
+  endHour: number; // e.g. 18 (18:00)
+  workingDays: number[]; // 1 = Monday ... 5 = Friday (6 = Saturday closed, 7 = Sunday closed)
+  lunchBreakStart?: number; // 13 (13:00)
+  lunchBreakEnd?: number;   // 14 (14:00)
+  shifts?: ShiftHours[];    // Specific shifts: 9-13 and 14-18
 }
 
 export class InternalCalendarService {
-  // Default working hours: Monday (1) through Saturday (6), 08:00 to 19:00 Europe/Paris
+  // Actual clinic hours: Monday to Friday, 9:00–13:00 and 14:00–18:00 Europe/Paris. Closed on weekends.
   private static defaultHours: BusinessHoursConfig = {
-    startHour: 8,
-    endHour: 19,
-    workingDays: [1, 2, 3, 4, 5, 6],
+    startHour: 9,
+    endHour: 18,
+    workingDays: [1, 2, 3, 4, 5],
+    lunchBreakStart: 13,
+    lunchBreakEnd: 14,
+    shifts: [
+      { startHour: 9, endHour: 13 },
+      { startHour: 14, endHour: 18 },
+    ],
   };
 
   // In-memory mock events for isolated unit test runs
@@ -108,7 +122,10 @@ export class InternalCalendarService {
   }
 
   /**
-   * Validates whether a time interval falls within business working hours.
+   * Validates whether a time interval falls within actual clinic opening hours:
+   * Monday to Friday: 9:00–13:00 and 14:00–18:00.
+   * Closed on weekends (Saturday & Sunday).
+   * Lunch break: 13:00–14:00 (closed).
    */
   static isWithinBusinessHours(
     start: Date,
@@ -119,8 +136,9 @@ export class InternalCalendarService {
     const startDt = DateTime.fromJSDate(start, { zone });
     const endDt = DateTime.fromJSDate(end, { zone });
 
-    // Verify day of the week
-    if (!hours.workingDays.includes(startDt.weekday)) {
+    // Verify day of the week (1 = Monday ... 5 = Friday). Closed on weekends (6 = Sat, 7 = Sun)
+    const workingDays = hours.workingDays || [1, 2, 3, 4, 5];
+    if (!workingDays.includes(startDt.weekday)) {
       return false;
     }
 
@@ -129,11 +147,27 @@ export class InternalCalendarService {
       return false;
     }
 
-    // Verify time boundary
+    // Verify time boundary in decimal hours
     const startHour = startDt.hour + startDt.minute / 60;
     const endHour = endDt.hour + endDt.minute / 60;
 
-    return startHour >= hours.startHour && endHour <= hours.endHour;
+    // If explicit shifts defined, verify the interval falls completely within one of the shifts
+    if (hours.shifts && hours.shifts.length > 0) {
+      return hours.shifts.some(
+        (shift) => startHour >= shift.startHour && endHour <= shift.endHour
+      );
+    }
+
+    // Default morning/afternoon shifts with lunch break
+    const startLimit = hours.startHour ?? 9;
+    const endLimit = hours.endHour ?? 18;
+    const lunchStart = hours.lunchBreakStart ?? 13;
+    const lunchEnd = hours.lunchBreakEnd ?? 14;
+
+    const inMorning = startHour >= startLimit && endHour <= lunchStart;
+    const inAfternoon = startHour >= lunchEnd && endHour <= endLimit;
+
+    return inMorning || inAfternoon;
   }
 
   /**

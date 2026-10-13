@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import DashboardCalendarTab from './calendar-tab';
 import DashboardUsersTab, { UserAccount } from './users-tab';
+import DashboardLogsTab, { SystemLogEntry, LogStats } from './logs-tab';
 import UserNav from './user-nav';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
@@ -56,7 +57,7 @@ export default async function DashboardPage({
   const userAllowedSectionsRaw = dbUser?.allowedSections || 'ALL';
   const allowedSectionsList =
     userAllowedSectionsRaw === 'ALL'
-      ? ['overview', 'calendar', 'appointments', 'requests', 'calls', 'users']
+      ? ['overview', 'calendar', 'appointments', 'requests', 'calls', 'users', 'logs']
       : userAllowedSectionsRaw.split(',').map((s) => s.trim());
 
   // 2. Fetch business tenant references
@@ -69,6 +70,8 @@ export default async function DashboardPage({
   let serviceRequests: ServiceRequestWithContact[] = [];
   let callRecords: CallRecordWithContact[] = [];
   let allUsers: UserAccount[] = [];
+  let initialLogs: SystemLogEntry[] = [];
+  let initialLogStats: LogStats = { total24h: 0, errors24h: 0, warnings24h: 0, webhooks24h: 0 };
 
   try {
     const fetchPromises: Promise<unknown>[] = [];
@@ -143,6 +146,42 @@ export default async function DashboardPage({
       );
     }
 
+    // If Admin or authorized, fetch initial logs data
+    if (isAdmin || allowedSectionsList.includes('logs')) {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      fetchPromises.push(
+        Promise.all([
+          db.systemLog.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+            include: { business: { select: { id: true, name: true, slug: true } } },
+          }),
+          db.systemLog.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
+          db.systemLog.count({ where: { level: 'ERROR', createdAt: { gte: twentyFourHoursAgo } } }),
+          db.systemLog.count({ where: { level: 'WARN', createdAt: { gte: twentyFourHoursAgo } } }),
+          db.systemLog.count({
+            where: {
+              module: { contains: 'WEBHOOK', mode: 'insensitive' },
+              createdAt: { gte: twentyFourHoursAgo },
+            },
+          }),
+        ]).then(([logsData, total24h, errors24h, warnings24h, webhooks24h]) => {
+          initialLogs = logsData.map((l) => ({
+            id: l.id,
+            level: l.level as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR',
+            module: l.module,
+            message: l.message,
+            correlationId: l.correlationId,
+            businessId: l.businessId,
+            business: l.business,
+            metadata: l.metadata as Record<string, unknown> | null,
+            createdAt: l.createdAt.toISOString(),
+          }));
+          initialLogStats = { total24h, errors24h, warnings24h, webhooks24h };
+        })
+      );
+    }
+
     await Promise.all(fetchPromises);
   } catch (err: unknown) {
     console.error('Database query error on dashboard:', err);
@@ -185,6 +224,12 @@ export default async function DashboardPage({
       label: 'Gestion des Accès & Comptes',
       icon: '👥',
       visible: isAdmin && allowedSectionsList.includes('users'),
+    },
+    {
+      id: 'logs',
+      label: 'Journal & Logs Système',
+      icon: '📜',
+      visible: isAdmin || allowedSectionsList.includes('logs'),
     },
   ];
 
@@ -854,6 +899,11 @@ export default async function DashboardPage({
         {/* TAB: USERS & PERMISSIONS MANAGEMENT (ADMIN ONLY) */}
         {currentTab === 'users' && isAdmin && (
           <DashboardUsersTab initialUsers={allUsers} currentUserId={session.user.id} />
+        )}
+
+        {/* TAB: SYSTEM LOGS & AUDIT TRAIL */}
+        {currentTab === 'logs' && (isAdmin || allowedSectionsList.includes('logs')) && (
+          <DashboardLogsTab initialLogs={initialLogs} initialStats={initialLogStats} />
         )}
       </main>
     </div>

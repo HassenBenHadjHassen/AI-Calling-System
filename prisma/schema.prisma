@@ -37,6 +37,20 @@ enum AppointmentStatus {
   SCAM
 }
 
+enum PatientRequestType {
+  APPOINTMENT
+  CANCELLATION
+  MESSAGE
+}
+
+enum PatientRequestStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REJECTED
+  COMPLETED
+}
+
 enum ServiceRequestCategory {
   DEVIS
   ANNULATION
@@ -81,6 +95,13 @@ enum NotificationStatus {
   CANCELLED
 }
 
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
 model Business {
   id                  String             @id @default(uuid())
   slug                String             @unique
@@ -105,6 +126,8 @@ model Business {
   callRecords         CallRecord[]
   webhookEvents       WebhookEvent[]
   notificationJobs    NotificationJob[]
+  systemLogs          SystemLog[]
+  patientRequests     PatientRequest[]
 
   @@map("businesses")
 }
@@ -140,6 +163,7 @@ model Contact {
   appointments Appointment[]
   requests     ServiceRequest[]
   callRecords  CallRecord[]
+  patientRequests PatientRequest[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -183,6 +207,7 @@ model CallRecord {
   endedAt         DateTime?
   appointments    Appointment[]
   serviceRequests ServiceRequest[]
+  patientRequests PatientRequest[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -213,6 +238,7 @@ model Appointment {
   googleCalendarEventId String?
   proposedNewTime      String?
   notes                String?
+  patientRequests      PatientRequest[]
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
@@ -238,12 +264,49 @@ model ServiceRequest {
   postalCode         String?
   email              String?
   formSubmissionData Json?
+  patientRequests    PatientRequest[]
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
   @@index([vapiCallId])
   @@index([businessId, status])
   @@map("service_requests")
+}
+
+model PatientRequest {
+  id               String               @id @default(uuid())
+  businessId       String
+  business         Business             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  vapiCallId       String
+  callerNumber     String
+  patientName      String?
+  requestType      PatientRequestType
+  postalCode       String?
+  serviceType      String?
+  requestedDate    String?
+  requestedTime    String?
+  summary          String?
+  urgency          Boolean              @default(false)
+  status           PatientRequestStatus @default(PENDING)
+  metadata         Json?
+
+  contactId        String?
+  contact          Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  callRecordId     String?
+  callRecord       CallRecord?          @relation(fields: [callRecordId], references: [id], onDelete: SetNull)
+  appointmentId    String?
+  appointment      Appointment?         @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  serviceRequestId String?
+  serviceRequest   ServiceRequest?      @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@unique([vapiCallId, requestType])
+  @@index([vapiCallId])
+  @@index([businessId, status])
+  @@index([callerNumber])
+  @@map("patient_requests")
 }
 
 model CallerAllowlist {
@@ -299,6 +362,24 @@ model NotificationJob {
   @@index([status, nextRetryAt])
   @@index([businessId])
   @@map("notification_jobs")
+}
+
+model SystemLog {
+  id            String    @id @default(uuid())
+  level         LogLevel  @default(INFO)
+  module        String
+  message       String
+  correlationId String?
+  businessId    String?
+  business      Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([level])
+  @@index([module])
+  @@index([correlationId])
+  @@index([createdAt])
+  @@map("system_logs")
 }
 
 // ==============================================================================

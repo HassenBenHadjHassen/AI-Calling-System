@@ -27,14 +27,30 @@ describe('Internal Calendar & Timezone Handling (Native Engine)', () => {
     expect(end.toISOString()).toBe('2026-10-20T13:30:00.000Z');
   });
 
-  it('enforces business operating hours (08:00 - 19:00 Europe/Paris)', () => {
-    // 14:00 Paris on a Wednesday (2026-10-21) is within hours
-    const valid = InternalCalendarService.parseAppointmentDateTime('2026-10-21T14:00:00');
-    expect(InternalCalendarService.isWithinBusinessHours(valid.start, valid.end)).toBe(true);
+  it('enforces clinic operating hours (Mon-Fri 09:00-13:00, 14:00-18:00, closed weekends & lunch)', () => {
+    // 10:00 Paris on a Wednesday (2026-10-21) is within morning shift (09:00 - 13:00)
+    const morningSlot = InternalCalendarService.parseAppointmentDateTime('2026-10-21T10:00:00');
+    expect(InternalCalendarService.isWithinBusinessHours(morningSlot.start, morningSlot.end)).toBe(true);
 
-    // 03:00 Paris is outside operating hours
-    const nightSlot = InternalCalendarService.parseAppointmentDateTime('2026-10-21T03:00:00');
-    expect(InternalCalendarService.isWithinBusinessHours(nightSlot.start, nightSlot.end)).toBe(false);
+    // 14:00 Paris on a Wednesday (2026-10-21) is within afternoon shift (14:00 - 18:00)
+    const afternoonSlot = InternalCalendarService.parseAppointmentDateTime('2026-10-21T14:00:00');
+    expect(InternalCalendarService.isWithinBusinessHours(afternoonSlot.start, afternoonSlot.end)).toBe(true);
+
+    // 13:00 Paris (13:00 - 14:00) is closed during lunch break
+    const lunchSlot = InternalCalendarService.parseAppointmentDateTime('2026-10-21T13:00:00');
+    expect(InternalCalendarService.isWithinBusinessHours(lunchSlot.start, lunchSlot.end)).toBe(false);
+
+    // 08:00 Paris is outside operating hours (opens at 09:00)
+    const earlySlot = InternalCalendarService.parseAppointmentDateTime('2026-10-21T08:00:00');
+    expect(InternalCalendarService.isWithinBusinessHours(earlySlot.start, earlySlot.end)).toBe(false);
+
+    // 18:00 Paris is outside operating hours (closes at 18:00)
+    const lateSlot = InternalCalendarService.parseAppointmentDateTime('2026-10-21T18:00:00');
+    expect(InternalCalendarService.isWithinBusinessHours(lateSlot.start, lateSlot.end)).toBe(false);
+
+    // Saturday (2026-10-24) is closed
+    const saturdaySlot = InternalCalendarService.parseAppointmentDateTime('2026-10-24T14:00:00');
+    expect(InternalCalendarService.isWithinBusinessHours(saturdaySlot.start, saturdaySlot.end)).toBe(false);
 
     // Sunday (2026-10-25) is closed
     const sundaySlot = InternalCalendarService.parseAppointmentDateTime('2026-10-25T14:00:00');

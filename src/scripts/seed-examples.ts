@@ -670,6 +670,81 @@ async function seedExamples() {
   console.log('  -> Planning URL: /dashboard?tab=calendar');
   console.log('  -> iCal Feed:    /api/calendar/michelle.ics');
   console.log('  -> Login URL:    /login');
+
+  // ==============================================================================
+  // 6. SEED REALISTIC SYSTEM AUDIT LOGS
+  // ==============================================================================
+  const existingLogCount = await db.systemLog.count();
+  if (existingLogCount === 0) {
+    await db.systemLog.createMany({
+      data: [
+        {
+          level: 'INFO',
+          module: 'WEBHOOK_VAPI:DaniBatiment',
+          message: 'Received Vapi end-of-call payload for Dani Bâtiment',
+          correlationId: 'vapi_call_demo_devis_001',
+          businessId: batiment.id,
+          metadata: {
+            callId: 'call_demo_devis_001',
+            callerNumber: '+33642189073',
+            client: 'Jean-Luc Moreau',
+            category: 'DEVIS',
+            durationMs: 142,
+          },
+        },
+        {
+          level: 'INFO',
+          module: 'WEBHOOK_TWILIO',
+          message: 'Patient SMS inbound received: "OUI pour le rdv de jeudi 14h"',
+          correlationId: 'twilio_SM89182390123',
+          businessId: michelle.id,
+          metadata: {
+            from: '+33612850303',
+            intent: 'CONFIRM',
+            appointmentId: 'appt_demo_01',
+            durationMs: 98,
+          },
+        },
+        {
+          level: 'INFO',
+          module: 'WEBHOOK_VAPI:ToolCalendarAvailability',
+          message: 'Live slot availability check for 2026-10-15T14:00',
+          correlationId: 'tool_cal_9812401',
+          businessId: michelle.id,
+          metadata: {
+            assistantId: process.env.CABINET_ASSISTANT_ID,
+            requestedSlot: '2026-10-15T14:00',
+            available: true,
+            durationMs: 38,
+          },
+        },
+        {
+          level: 'WARN',
+          module: 'WEBHOOK_TWILIO',
+          message: 'Duplicate inbound SMS ignored via idempotency lock',
+          correlationId: 'twilio_SM89182390123',
+          businessId: michelle.id,
+          metadata: {
+            messageSid: 'SM89182390123',
+            reason: 'Already processed within 5m window',
+          },
+        },
+        {
+          level: 'INFO',
+          module: 'WORKER:Notifications',
+          message: 'Background notification worker processed 2 queued SMS jobs',
+          correlationId: 'worker_cycle_910',
+          metadata: {
+            jobsCount: 2,
+            channel: 'SMS',
+            retryQueueEmpty: true,
+          },
+        },
+      ],
+    });
+    console.log('✓ Initial system audit logs seeded (visible at /dashboard?tab=logs)');
+  }
+
   console.log('🎉 Seed completed successfully!');
 }
 
