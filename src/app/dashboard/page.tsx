@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import DashboardCalendarTab from './calendar-tab';
+import DashboardUsersTab, { UserAccount } from './users-tab';
 import UserNav from './user-nav';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
@@ -33,39 +34,171 @@ export default async function DashboardPage({
     redirect('/login?callbackUrl=/dashboard');
   }
 
-  const params = await searchParams;
-  const currentTab = params.tab || 'overview';
-  const currentFilter = params.filter || 'all';
+  // 1. Retrieve full user record to inspect role, assigned business, and allowed sections
+  const dbUser = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      assignedBusiness: true,
+      allowedSections: true,
+    },
+  });
+
+  const assignedBusiness = dbUser?.assignedBusiness || 'ALL';
+  const isMichelleOnly = assignedBusiness === 'CABINET_MICHELLE';
+  const isDaniOnly = assignedBusiness === 'DANI_BATIMENT';
+  const isAdmin = dbUser?.role === 'ADMIN';
+
+  // Parse allowed sections
+  const userAllowedSectionsRaw = dbUser?.allowedSections || 'ALL';
+  const allowedSectionsList =
+    userAllowedSectionsRaw === 'ALL'
+      ? ['overview', 'calendar', 'appointments', 'requests', 'calls', 'users']
+      : userAllowedSectionsRaw.split(',').map((s) => s.trim());
+
+  // 2. Fetch business tenant references
+  const [michelleBiz, daniBiz] = await Promise.all([
+    db.business.findUnique({ where: { slug: 'CABINET_MICHELLE' } }),
+    db.business.findUnique({ where: { slug: 'DANI_BATIMENT' } }),
+  ]);
 
   let appointments: AppointmentWithRelations[] = [];
   let serviceRequests: ServiceRequestWithContact[] = [];
   let callRecords: CallRecordWithContact[] = [];
+  let allUsers: UserAccount[] = [];
 
   try {
-    const results = await Promise.all([
-      db.appointment.findMany({
-        include: { contact: true, patient: true },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      }),
-      db.serviceRequest.findMany({
-        include: { contact: true },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      }),
-      db.callRecord.findMany({
-        include: { contact: true },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      }),
-    ]);
+    const fetchPromises: Promise<unknown>[] = [];
 
-    appointments = results[0];
-    serviceRequests = results[1];
-    callRecords = results[2];
+    // Appointments (only if not restricted to Dani Bâtiment)
+    if (!isDaniOnly) {
+      fetchPromises.push(
+        db.appointment.findMany({
+          where: michelleBiz ? { businessId: michelleBiz.id } : undefined,
+          include: { contact: true, patient: true },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }).then((data) => {
+          appointments = data;
+        })
+      );
+    }
+
+    // Service Requests (only if not restricted to Cabinet Michelle)
+    if (!isMichelleOnly) {
+      fetchPromises.push(
+        db.serviceRequest.findMany({
+          where: daniBiz ? { businessId: daniBiz.id } : undefined,
+          include: { contact: true },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }).then((data) => {
+          serviceRequests = data;
+        })
+      );
+    }
+
+    // Call Records (filtered by assigned business)
+    let callFilter: Prisma.CallRecordWhereInput | undefined;
+    if (isMichelleOnly && michelleBiz) {
+      callFilter = { businessId: michelleBiz.id };
+    } else if (isDaniOnly && daniBiz) {
+      callFilter = { businessId: daniBiz.id };
+    }
+
+    fetchPromises.push(
+      db.callRecord.findMany({
+        where: callFilter,
+        include: { contact: true },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }).then((data) => {
+        callRecords = data;
+      })
+    );
+
+    // If Admin and has access to users tab, fetch all users
+    if (isAdmin && allowedSectionsList.includes('users')) {
+      fetchPromises.push(
+        db.user.findMany({
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            assignedBusiness: true,
+            allowedSections: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        }).then((usersData) => {
+          allUsers = usersData.map((u) => ({
+            ...u,
+            createdAt: u.createdAt.toISOString(),
+          }));
+        })
+      );
+    }
+
+    await Promise.all(fetchPromises);
   } catch (err: unknown) {
     console.error('Database query error on dashboard:', err);
   }
+
+  // 3. Define permitted tabs based on role, business scope, and allowed sections
+  const allTabDefinitions = [
+    {
+      id: 'overview',
+      label: 'Vue d’ensemble',
+      icon: '📊',
+      visible: allowedSectionsList.includes('overview'),
+    },
+    {
+      id: 'calendar',
+      label: 'Planning & Calendrier Interne',
+      icon: '📅',
+      visible: !isDaniOnly && allowedSectionsList.includes('calendar'),
+    },
+    {
+      id: 'appointments',
+      label: `Cabinet Michelle — Rendez-vous (${appointments.length})`,
+      icon: '🩺',
+      visible: !isDaniOnly && allowedSectionsList.includes('appointments'),
+    },
+    {
+      id: 'requests',
+      label: `Dani Bâtiment — Devis (${serviceRequests.length})`,
+      icon: '🏗️',
+      visible: !isMichelleOnly && allowedSectionsList.includes('requests'),
+    },
+    {
+      id: 'calls',
+      label: `Journal d’appels (${callRecords.length})`,
+      icon: '📞',
+      visible: allowedSectionsList.includes('calls'),
+    },
+    {
+      id: 'users',
+      label: 'Gestion des Accès & Comptes',
+      icon: '👥',
+      visible: isAdmin && allowedSectionsList.includes('users'),
+    },
+  ];
+
+  const permittedTabs = allTabDefinitions.filter((t) => t.visible);
+
+  // Validate active tab
+  const params = await searchParams;
+  let currentTab = params.tab || permittedTabs[0]?.id || 'overview';
+  const isTabPermitted = permittedTabs.some((t) => t.id === currentTab);
+  if (!isTabPermitted && permittedTabs.length > 0) {
+    currentTab = permittedTabs[0].id;
+  }
+
+  const currentFilter = params.filter || 'all';
 
   // Filtered lists
   const filteredAppointments = appointments.filter((a) => {
@@ -81,7 +214,7 @@ export default async function DashboardPage({
     return true;
   });
 
-  // Calculate clean, high-level business metrics
+  // Business metrics
   const confirmedCount = appointments.filter(
     (a) => a.status === 'CONFIRMED' || a.status === 'CONFIRMED_URGENT'
   ).length;
@@ -97,117 +230,212 @@ export default async function DashboardPage({
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-              AI
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm ${
+              isMichelleOnly ? 'bg-teal-600' : isDaniOnly ? 'bg-amber-600' : 'bg-blue-600'
+            }`}>
+              {isMichelleOnly ? '🩺' : isDaniOnly ? '🏗️' : 'AI'}
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-tight">
-                Centre de Gestion d&apos;Appels
+                {isMichelleOnly
+                  ? 'Cabinet Michelle — Espace Soins'
+                  : isDaniOnly
+                  ? 'Dani Bâtiment — Espace Devis'
+                  : 'Centre de Gestion d’Appels Multi-Tenants'}
               </h1>
               <p className="text-xs text-slate-500">
-                Cabinet Michelle &bull; Dani Bâtiment
+                {isMichelleOnly
+                  ? 'Soins Infirmiers & Planning Médical'
+                  : isDaniOnly
+                  ? 'Chantiers, Rénovation & Devis Clients'
+                  : 'Cabinet Michelle • Dani Bâtiment'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               Assistants Vocaux Actifs
             </div>
-            <UserNav user={session.user} />
+            <UserNav
+              user={{
+                name: dbUser?.name || session.user.name,
+                email: dbUser?.email || session.user.email,
+                role: dbUser?.role,
+                assignedBusiness: dbUser?.assignedBusiness,
+              }}
+            />
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
-        {/* KPI Cards Row */}
+        {/* KPI Cards Row (Adapts dynamically to the assigned business) */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {/* Card 1: Rendez-vous confirmés */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                RDV Confirmés
-              </span>
-              <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">
-                📅
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-slate-900">{confirmedCount}</span>
-              {urgentCount > 0 && (
-                <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
-                  {urgentCount} urgent{urgentCount > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Cabinet Michelle (Inscrits au planning)</p>
-          </div>
+          {/* Michelle-only KPIs */}
+          {isMichelleOnly ? (
+            <>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV Confirmés</span>
+                  <span className="p-2 rounded-xl bg-teal-50 text-teal-600 text-sm">📅</span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-slate-900">{confirmedCount}</span>
+                  {urgentCount > 0 && (
+                    <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                      {urgentCount} urgent{urgentCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Inscrits au planning de tournée</p>
+              </div>
 
-          {/* Card 2: En attente de confirmation */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                RDV En Attente SMS
-              </span>
-              <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">
-                💬
-              </span>
-            </div>
-            <div className="mt-3">
-              <span className="text-3xl font-extrabold text-slate-900">{pendingAppointmentsCount}</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">En attente de réponse du patient</p>
-          </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV En Attente SMS</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">💬</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{pendingAppointmentsCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Réponse OUI/NON du patient attendue</p>
+              </div>
 
-          {/* Card 3: Devis complétés */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Devis Reçus &bull; Formulaire Interne
-              </span>
-              <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">
-                🏗️
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-slate-900">{devisCompletedCount}</span>
-              {devisPendingCount > 0 && (
-                <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                  {devisPendingCount} en attente
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Dani Bâtiment (Portail web natif)</p>
-          </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Soins Urgents</span>
+                  <span className="p-2 rounded-xl bg-rose-50 text-rose-600 text-sm">🚨</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-rose-700">{urgentCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Alerte SMS transmise à l’infirmière</p>
+              </div>
 
-          {/* Card 4: Total appels traités */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Total Appels Traités
-              </span>
-              <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">
-                📞
-              </span>
-            </div>
-            <div className="mt-3">
-              <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">Flux vocaux gérés par IA</p>
-          </div>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Appels Soins Reçus</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">📞</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Prise en charge par l&apos;assistante Michelle</p>
+              </div>
+            </>
+          ) : isDaniOnly ? (
+            /* Dani-only KPIs */
+            <>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Devis Reçus & Complétés</span>
+                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">🏗️</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{devisCompletedCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Formulaires clients remplis</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Devis En Attente Lien</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">⏳</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{devisPendingCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Lien SMS transmis au client</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Demandes</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">📋</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{serviceRequests.length}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Rénovations, chantiers et suivis</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Appels Chantiers Reçus</span>
+                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">📞</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Prise en charge par l&apos;assistant Dani</p>
+              </div>
+            </>
+          ) : (
+            /* Multi-tenant Combined KPIs */
+            <>
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV Confirmés</span>
+                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">📅</span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-slate-900">{confirmedCount}</span>
+                  {urgentCount > 0 && (
+                    <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
+                      {urgentCount} urgent{urgentCount > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Cabinet Michelle (Inscrits au planning)</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV En Attente SMS</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">💬</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{pendingAppointmentsCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">En attente de réponse du patient</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Devis Reçus &bull; Portail</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">🏗️</span>
+                </div>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-slate-900">{devisCompletedCount}</span>
+                  {devisPendingCount > 0 && (
+                    <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      {devisPendingCount} en attente
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Dani Bâtiment (Portail web natif)</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Appels Traités</span>
+                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">📞</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">Flux vocaux gérés par IA</p>
+              </div>
+            </>
+          )}
         </section>
 
-        {/* Tab Controls */}
+        {/* Tab Controls (Only shows allowed and scoped tabs) */}
         <section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2">
-          <nav className="flex gap-2">
-            {[
-              { id: 'overview', label: 'Vue d’ensemble', icon: '📊' },
-              { id: 'calendar', label: 'Planning & Calendrier Interne', icon: '📅' },
-              { id: 'appointments', label: `Cabinet Michelle — Rendez-vous (${appointments.length})`, icon: '🩺' },
-              { id: 'requests', label: `Dani Bâtiment — Devis (${serviceRequests.length})`, icon: '🏗️' },
-              { id: 'calls', label: `Journal d’appels (${callRecords.length})`, icon: '📞' },
-            ].map((tab) => {
+          <nav className="flex flex-wrap gap-2">
+            {permittedTabs.map((tab) => {
               const active = currentTab === tab.id;
               return (
                 <Link
@@ -227,142 +455,155 @@ export default async function DashboardPage({
           </nav>
         </section>
 
-        {/* TAB 1: OVERVIEW (Clean summary of both businesses) */}
+        {/* TAB: OVERVIEW */}
         {currentTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Michelle Recent Appointments */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
-                    🩺
-                  </span>
-                  <div>
-                    <h2 className="font-bold text-slate-900 text-base">Cabinet Michelle &bull; Rendez-vous récents</h2>
-                    <p className="text-xs text-slate-500">Soins infirmiers à domicile</p>
+          <div className={`grid grid-cols-1 ${!isMichelleOnly && !isDaniOnly ? 'lg:grid-cols-2' : ''} gap-8`}>
+            {/* Michelle Recent Appointments (Shown for Michelle or SuperAdmin) */}
+            {!isDaniOnly && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold text-sm">
+                      🩺
+                    </span>
+                    <div>
+                      <h2 className="font-bold text-slate-900 text-base">Cabinet Michelle &bull; Rendez-vous récents</h2>
+                      <p className="text-xs text-slate-500">Soins infirmiers à domicile</p>
+                    </div>
                   </div>
+                  {allowedSectionsList.includes('appointments') && (
+                    <Link
+                      href="/dashboard?tab=appointments"
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                    >
+                      Voir tout &rarr;
+                    </Link>
+                  )}
                 </div>
-                <Link
-                  href="/dashboard?tab=appointments"
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
-                >
-                  Voir tout &rarr;
-                </Link>
-              </div>
 
-              {appointments.length === 0 ? (
-                <div className="p-10 text-center">
-                  <p className="text-slate-400 text-sm">Aucun rendez-vous pour le moment.</p>
-                  <p className="text-xs text-slate-400 mt-1">Les appels entrants du Cabinet Michelle apparaîtront ici.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {appointments.slice(0, 5).map((appt) => (
-                    <div key={appt.id} className="p-4 hover:bg-slate-50/60 transition-colors flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-slate-900">
-                            {appt.contact?.name || 'Patient'}
-                          </span>
-                          {appt.status === 'CONFIRMED_URGENT' && (
-                            <span className="px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-100 text-rose-800">
-                              Urgent
+                {appointments.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <p className="text-slate-400 text-sm">Aucun rendez-vous pour le moment.</p>
+                    <p className="text-xs text-slate-400 mt-1">Les appels entrants du Cabinet Michelle apparaîtront ici.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {appointments.slice(0, 5).map((appt) => (
+                      <div key={appt.id} className="p-4 hover:bg-slate-50/60 transition-colors flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-slate-900">
+                              {appt.contact?.name || 'Patient'}
                             </span>
-                          )}
+                            {appt.status === 'CONFIRMED_URGENT' && (
+                              <span className="px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-100 text-rose-800">
+                                Urgent
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {appt.serviceType || 'Soins'} &bull; {appt.contact?.phoneNumber}
+                          </p>
                         </div>
-                        <p className="text-xs text-slate-500">
-                          {appt.serviceType || 'Soins'} &bull; {appt.contact?.phoneNumber}
-                        </p>
-                      </div>
 
-                      <div className="text-right">
-                        <span className="text-xs font-medium text-slate-700 block">
-                          {appt.date} {appt.time && `à ${appt.time}`}
-                        </span>
-                        <span
-                          className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        <div className="text-right">
+                          <span className="text-xs font-medium text-slate-700 block">
+                            {appt.date} {appt.time && `à ${appt.time}`}
+                          </span>
+                          <span
+                            className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : appt.status === 'REFUSED'
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                          >
+                            {appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
+                              ? 'Confirmé'
                               : appt.status === 'REFUSED'
-                              ? 'bg-slate-100 text-slate-600'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
-                        >
-                          {appt.status === 'CONFIRMED' || appt.status === 'CONFIRMED_URGENT'
-                            ? 'Confirmé'
-                            : appt.status === 'REFUSED'
-                            ? 'Refusé'
-                            : 'En attente SMS'}
-                        </span>
+                              ? 'Refusé'
+                              : 'En attente SMS'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Dani Batiment Recent Requests */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
-                    🏗️
-                  </span>
-                  <div>
-                    <h2 className="font-bold text-slate-900 text-base">Dani Bâtiment &bull; Devis & Demandes</h2>
-                    <p className="text-xs text-slate-500">Artisan bâtiment & travaux</p>
+                    ))}
                   </div>
-                </div>
-                <Link
-                  href="/dashboard?tab=requests"
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
-                >
-                  Voir tout &rarr;
-                </Link>
+                )}
               </div>
+            )}
 
-              {serviceRequests.length === 0 ? (
-                <div className="p-10 text-center">
-                  <p className="text-slate-400 text-sm">Aucune demande de devis enregistrée.</p>
-                  <p className="text-xs text-slate-400 mt-1">Les prospects appelant Dani Bâtiment s&apos;afficheront ici.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {serviceRequests.slice(0, 5).map((req) => (
-                    <div key={req.id} className="p-4 hover:bg-slate-50/60 transition-colors flex items-center justify-between">
-                      <div className="space-y-1">
-                        <span className="font-semibold text-sm text-slate-900">
-                          {req.contact?.name || 'Client'}
-                        </span>
-                        <p className="text-xs text-slate-500">
-                          {req.serviceType || 'Devis'} &bull; {req.contact?.phoneNumber}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            req.status === 'COMPLETED'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
-                        >
-                          {req.status === 'COMPLETED' ? 'Formulaire Reçu' : 'Lien SMS Envoyé'}
-                        </span>
-                        <span className="text-2xs text-slate-400 block mt-1">
-                          {new Date(req.createdAt).toLocaleDateString('fr-FR')}
-                        </span>
-                      </div>
+            {/* Dani Batiment Recent Requests (Shown for Dani or SuperAdmin) */}
+            {!isMichelleOnly && (
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">
+                      🏗️
+                    </span>
+                    <div>
+                      <h2 className="font-bold text-slate-900 text-base">Dani Bâtiment &bull; Devis & Demandes</h2>
+                      <p className="text-xs text-slate-500">Artisan bâtiment & travaux</p>
                     </div>
-                  ))}
+                  </div>
+                  {allowedSectionsList.includes('requests') && (
+                    <Link
+                      href="/dashboard?tab=requests"
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                    >
+                      Voir tout &rarr;
+                    </Link>
+                  )}
                 </div>
-              )}
-            </div>
+
+                {serviceRequests.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <p className="text-slate-400 text-sm">Aucune demande de devis enregistrée.</p>
+                    <p className="text-xs text-slate-400 mt-1">Les prospects appelant Dani Bâtiment s&apos;afficheront ici.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {serviceRequests.slice(0, 5).map((req) => (
+                      <div key={req.id} className="p-4 hover:bg-slate-50/60 transition-colors flex items-center justify-between">
+                        <div className="space-y-1">
+                          <span className="font-semibold text-sm text-slate-900">
+                            {req.contact?.name || 'Client'}
+                          </span>
+                          <p className="text-xs text-slate-500">
+                            {req.serviceType || 'Devis'} &bull; {req.contact?.phoneNumber}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              req.status === 'COMPLETED'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                          >
+                            {req.status === 'COMPLETED' ? 'Formulaire Reçu' : 'Lien SMS Envoyé'}
+                          </span>
+                          <span className="text-2xs text-slate-400 block mt-1">
+                            {new Date(req.createdAt).toLocaleDateString('fr-FR')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* TAB 2: APPOINTMENTS FULL TABLE */}
-        {currentTab === 'appointments' && (
+        {/* TAB: CALENDAR (Cabinet Michelle only) */}
+        {currentTab === 'calendar' && !isDaniOnly && (
+          <DashboardCalendarTab appointments={appointments} />
+        )}
+
+        {/* TAB: APPOINTMENTS FULL TABLE (Cabinet Michelle) */}
+        {currentTab === 'appointments' && !isDaniOnly && (
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -453,13 +694,13 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* TAB 3: DANI BATIMENT FULL TABLE */}
-        {currentTab === 'requests' && (
+        {/* TAB: REQUESTS FULL TABLE (Dani Bâtiment) */}
+        {currentTab === 'requests' && !isMichelleOnly && (
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="font-bold text-slate-900 text-lg">Demandes de Devis &bull; Dani Bâtiment</h2>
-                <p className="text-xs text-slate-500">Envoi du formulaire JotForm par SMS et enrichissement CRM</p>
+                <p className="text-xs text-slate-500">Gestion des demandes et liens formulaires clients</p>
               </div>
 
               {/* Filters */}
@@ -521,7 +762,7 @@ export default async function DashboardPage({
                           {req.address ? (
                             <span>{req.address} {req.postalCode && `(${req.postalCode})`}</span>
                           ) : (
-                            <span className="text-slate-400 italic">En attente de saisie JotForm</span>
+                            <span className="text-slate-400 italic">En attente de saisie du client</span>
                           )}
                           {req.email && <div className="text-slate-500 mt-0.5">{req.email}</div>}
                         </td>
@@ -555,17 +796,18 @@ export default async function DashboardPage({
           </div>
         )}
 
-        {/* TAB 5: INTERNAL CALENDAR VIEW */}
-        {currentTab === 'calendar' && (
-          <DashboardCalendarTab appointments={appointments} />
-        )}
-
-        {/* TAB 4: CALL LOGS */}
+        {/* TAB: CALL LOGS */}
         {currentTab === 'calls' && (
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div className="p-5 border-b border-slate-200">
               <h2 className="font-bold text-slate-900 text-lg">Journal des Appels Vocaux</h2>
-              <p className="text-xs text-slate-500">Historique des communications enregistrées par les assistants Vapi</p>
+              <p className="text-xs text-slate-500">
+                {isMichelleOnly
+                  ? 'Historique des appels pour le Cabinet Michelle'
+                  : isDaniOnly
+                  ? 'Historique des appels pour Dani Bâtiment'
+                  : 'Historique des communications enregistrées par les assistants Vapi'}
+              </p>
             </div>
 
             <div className="overflow-x-auto">
@@ -607,6 +849,11 @@ export default async function DashboardPage({
               </table>
             </div>
           </div>
+        )}
+
+        {/* TAB: USERS & PERMISSIONS MANAGEMENT (ADMIN ONLY) */}
+        {currentTab === 'users' && isAdmin && (
+          <DashboardUsersTab initialUsers={allUsers} currentUserId={session.user.id} />
         )}
       </main>
     </div>

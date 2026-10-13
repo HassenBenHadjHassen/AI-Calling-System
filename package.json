@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
+    "seed:examples": "tsx src/scripts/seed-examples.ts",
     "postinstall": "prisma generate",
     "worker": "tsx src/jobs/worker.ts",
     "pm2:start": "pm2 start ecosystem.config.cjs --env production",

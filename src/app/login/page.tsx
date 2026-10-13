@@ -59,9 +59,19 @@ function LoginForm() {
     }
   };
 
-  const handleDemoFill = () => {
+  const handleDemoFillAdmin = () => {
     setEmail('admin@moncabinet.fr');
     setPassword('AdminPassword2026!');
+  };
+
+  const handleDemoFillMichelle = () => {
+    setEmail('michelle@moncabinet.fr');
+    setPassword('MichellePassword2026!');
+  };
+
+  const handleDemoFillDani = () => {
+    setEmail('dani@danibatiment.fr');
+    setPassword('DaniPassword2026!');
   };
 
   return (
@@ -89,11 +99,10 @@ function LoginForm() {
                 setMode('signin');
                 setErrorMsg(null);
               }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                mode === 'signin'
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'signin'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
-              }`}
+                }`}
             >
               Connexion
             </button>
@@ -103,11 +112,10 @@ function LoginForm() {
                 setMode('signup');
                 setErrorMsg(null);
               }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                mode === 'signup'
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${mode === 'signup'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
-              }`}
+                }`}
             >
               Créer un accès
             </button>
@@ -201,18 +209,37 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Demo Admin Quick-fill Helper */}
-          <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDemoFill}
-              className="text-2xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer underline decoration-blue-200 hover:decoration-blue-400"
-            >
-              🔑 Pré-remplir avec le compte d&apos;administration de démonstration
-            </button>
-            <p className="text-2xs text-slate-400">
-              Protégé par Better Auth &bull; Sessions chiffrées &bull; PostgreSQL
+          {/* Demo Accounts Quick-fill Helpers */}
+          <div className="pt-4 border-t border-slate-100 space-y-2">
+            <p className="text-3xs uppercase tracking-wider text-slate-400 font-bold text-center">
+              Comptes de test & démonstration
             </p>
+            <div className="grid grid-cols-1 gap-1.5">
+              <button
+                type="button"
+                onClick={handleDemoFillAdmin}
+                className="w-full py-1.5 px-3 rounded-lg text-2xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors flex items-center justify-between cursor-pointer"
+              >
+                <span>👑 Super Admin (Tous les établissements)</span>
+                <span className="font-mono text-3xs text-purple-500">admin@moncabinet.fr</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDemoFillMichelle}
+                className="w-full py-1.5 px-3 rounded-lg text-2xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors flex items-center justify-between cursor-pointer"
+              >
+                <span>🩺 Cabinet Michelle (Soins & RDV seuls)</span>
+                <span className="font-mono text-3xs text-teal-500">michelle@moncabinet.fr</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDemoFillDani}
+                className="w-full py-1.5 px-3 rounded-lg text-2xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors flex items-center justify-between cursor-pointer"
+              >
+                <span>🏗️ Dani Bâtiment (Chantiers & Devis seuls)</span>
+                <span className="font-mono text-3xs text-amber-500">dani@danibatiment.fr</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

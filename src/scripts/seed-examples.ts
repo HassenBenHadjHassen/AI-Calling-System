@@ -369,26 +369,59 @@ async function seedExamples() {
     },
   });
 
-  // 5. Seed Better Auth Admin User if not exists
-  const existingUser = await db.user.findUnique({
-    where: { email: 'admin@moncabinet.fr' },
-  });
+  // 5. Seed Better Auth Users with business & section assignments
+  const usersToSeed = [
+    {
+      name: 'Super Administrateur',
+      email: 'admin@moncabinet.fr',
+      password: 'AdminPassword2026!',
+      role: 'ADMIN',
+      assignedBusiness: 'ALL',
+      allowedSections: 'ALL',
+    },
+    {
+      name: 'Cabinet Michelle',
+      email: 'michelle@moncabinet.fr',
+      password: 'MichellePassword2026!',
+      role: 'USER',
+      assignedBusiness: 'CABINET_MICHELLE',
+      allowedSections: 'overview,calendar,appointments,calls',
+    },
+    {
+      name: 'Dani Bâtiment',
+      email: 'dani@danibatiment.fr',
+      password: 'DaniPassword2026!',
+      role: 'USER',
+      assignedBusiness: 'DANI_BATIMENT',
+      allowedSections: 'overview,requests,calls',
+    },
+  ];
 
-  if (!existingUser) {
-    try {
-      await auth.api.signUpEmail({
-        body: {
-          name: 'Administrateur',
-          email: 'admin@moncabinet.fr',
-          password: 'AdminPassword2026!',
-        },
-      });
-      console.log('✓ Better Auth admin user seeded: admin@moncabinet.fr (Password: AdminPassword2026!)');
-    } catch (err: unknown) {
-      console.warn('⚠️ Admin user seeding notice:', err instanceof Error ? err.message : String(err));
+  for (const u of usersToSeed) {
+    const existing = await db.user.findUnique({ where: { email: u.email } });
+    if (!existing) {
+      try {
+        await auth.api.signUpEmail({
+          body: {
+            name: u.name,
+            email: u.email,
+            password: u.password,
+          },
+        });
+      } catch (err: unknown) {
+        console.warn(`Seed notice for ${u.email}:`, err instanceof Error ? err.message : String(err));
+      }
     }
-  } else {
-    console.log('✓ Better Auth admin user already exists: admin@moncabinet.fr');
+    await db.user.update({
+      where: { email: u.email },
+      data: {
+        name: u.name,
+        role: u.role,
+        assignedBusiness: u.assignedBusiness,
+        allowedSections: u.allowedSections,
+      },
+    });
+    console.log(`✓ Account configured: ${u.email} -> Business: [${u.assignedBusiness}], Sections: [${u.allowedSections}]`);
   }
 
   console.log('✓ Cabinet Michelle calendar planning seeded with 6 appointments & blocks:');
