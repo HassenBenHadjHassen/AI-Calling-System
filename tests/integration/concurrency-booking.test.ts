@@ -27,6 +27,26 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
     'call_diff_date_001',
   ];
 
+  const TEST_CALLER_PHONES = [
+    '+33611111111',
+    '+33622222222',
+    '+33633333333',
+    '+33644444444',
+    '+33655555555',
+    '+33699999999',
+  ];
+
+  const createdNotificationJobIds: string[] = [];
+
+  async function executeDirectSubmission(
+    payload: Parameters<typeof PatientIntakeService.handleDirectSubmission>[0]
+  ) {
+    const res = await PatientIntakeService.handleDirectSubmission(payload);
+    if ((res as any).notificationJobId) {
+      createdNotificationJobIds.push((res as any).notificationJobId);
+    }
+    return res;
+  }
 
   async function cleanupTestData() {
     const existingRequests = await db.patientRequest.findMany({
@@ -45,12 +65,23 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       .filter((id): id is string => Boolean(id));
 
     await db.$transaction(async (tx) => {
-      // 1. Delete notification jobs created for these test calls
-      await tx.notificationJob.deleteMany({
-        where: {
-          message: { contains: 'call_pg_' },
-        },
-      });
+      // 1. Delete notification jobs created for these test calls by captured IDs and test caller numbers
+      const jobWhereClauses: Array<{ id?: { in: string[] }; message?: { contains: string } }> = [];
+      if (createdNotificationJobIds.length > 0) {
+        jobWhereClauses.push({ id: { in: [...createdNotificationJobIds] } });
+      }
+      for (const phone of TEST_CALLER_PHONES) {
+        jobWhereClauses.push({ message: { contains: `numero :${phone}` } });
+      }
+
+      if (jobWhereClauses.length > 0) {
+        await tx.notificationJob.deleteMany({
+          where: {
+            OR: jobWhereClauses,
+          },
+        });
+      }
+      createdNotificationJobIds.length = 0;
 
       // 2. Delete patient requests explicitly created by test call IDs
       await tx.patientRequest.deleteMany({
@@ -130,8 +161,8 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
 
     // Execute concurrently using Promise.all against real PostgreSQL database
     const [res1, res2] = await Promise.all([
-      PatientIntakeService.handleDirectSubmission(caller1Payload),
-      PatientIntakeService.handleDirectSubmission(caller2Payload),
+      executeDirectSubmission(caller1Payload),
+      executeDirectSubmission(caller2Payload),
     ]);
 
     const successful = [res1, res2].filter((r) => r.success);
@@ -174,11 +205,11 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
     };
 
     // First booking succeeds
-    const res1 = await PatientIntakeService.handleDirectSubmission(slot1Payload);
+    const res1 = await executeDirectSubmission(slot1Payload);
     expect(res1.success).toBe(true);
 
     // Overlapping booking must fail with 409 SLOT_CONFLICT
-    const res2 = await PatientIntakeService.handleDirectSubmission(slot2Payload);
+    const res2 = await executeDirectSubmission(slot2Payload);
     expect(res2.success).toBe(false);
     expect(res2.status).toBe(409);
     expect((res2 as any).conflict).toBe(true);
@@ -197,7 +228,7 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       callId: 'call_pg_nonconflict_1',
     };
 
-    const res = await PatientIntakeService.handleDirectSubmission(nonConflictingPayload);
+    const res = await executeDirectSubmission(nonConflictingPayload);
     expect(res.success).toBe(true);
     expect(res.status).toBe('PENDING');
 
@@ -222,8 +253,8 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
 
     // Two identical requests fired concurrently with Promise.all
     const [res1, res2] = await Promise.all([
-      PatientIntakeService.handleDirectSubmission(duplicatePayload),
-      PatientIntakeService.handleDirectSubmission(duplicatePayload),
+      executeDirectSubmission(duplicatePayload),
+      executeDirectSubmission(duplicatePayload),
     ]);
 
     expect(res1.success).toBe(true);
@@ -260,7 +291,7 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       callId: 'call_tampered_001',
     };
 
-    const res1 = await PatientIntakeService.handleDirectSubmission(originalPayload);
+    const res1 = await executeDirectSubmission(originalPayload);
     expect(res1.success).toBe(true);
 
     // Retry with different requested time for the same callId
@@ -269,7 +300,7 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       requestedTime: '14:00',
     };
 
-    const res2 = await PatientIntakeService.handleDirectSubmission(tamperedPayload);
+    const res2 = await executeDirectSubmission(tamperedPayload);
     expect(res2.success).toBe(false);
     expect(res2.status).toBe(409);
     expect((res2 as any).error).toBe('IDEMPOTENCY_CONFLICT');
@@ -287,7 +318,7 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       callId: 'call_diff_date_001',
     };
 
-    const res1 = await PatientIntakeService.handleDirectSubmission(originalPayload);
+    const res1 = await executeDirectSubmission(originalPayload);
     expect(res1.success).toBe(true);
 
     // Replay with different date
@@ -296,7 +327,7 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
       requestedDate: '2026-11-19',
     };
 
-    const res2 = await PatientIntakeService.handleDirectSubmission(diffDatePayload);
+    const res2 = await executeDirectSubmission(diffDatePayload);
     expect(res2.success).toBe(false);
     expect(res2.status).toBe(409);
     expect((res2 as any).error).toBe('IDEMPOTENCY_CONFLICT');

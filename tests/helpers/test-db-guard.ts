@@ -1,4 +1,4 @@
-import { getActiveDatabaseUrl } from '@/lib/db';
+import { getActiveDatabaseUrl, getActivePoolUrl, sanitizeDbUrlForLogging } from '@/lib/db';
 
 /**
  * Test Database Safety Guard
@@ -90,22 +90,47 @@ export function assertApprovedTestDatabase(explicitUrl?: string): ValidatedDatab
     );
   }
 
-  // Determine authoritative database URL
-  const targetUrl = explicitUrl || getActiveDatabaseUrl();
-  if (!targetUrl || !targetUrl.trim()) {
+  // Determine active Prisma database target
+  const activeUrl = getActiveDatabaseUrl();
+  if (!activeUrl || !activeUrl.trim()) {
     throw new Error('[TestDatabaseGuard] No database URL configured in environment.');
   }
 
-  // Verify Prisma client alignment when TEST_DATABASE_URL is set in test environment
+  // 1. If an explicit URL is provided, it MUST match the active connection target Prisma will use.
+  // An explicit URL cannot be validated independently of the actual active connection target.
+  if (explicitUrl && explicitUrl.trim() !== activeUrl) {
+    throw new Error(
+      `[TestDatabaseGuard] Configuration mismatch: Explicitly supplied URL ("${sanitizeDbUrlForLogging(
+        explicitUrl
+      )}") diverges from active Prisma database URL ("${sanitizeDbUrlForLogging(activeUrl)}")!`
+    );
+  }
+
+  // 2. In test mode, verify that activeUrl matches TEST_DATABASE_URL if set
   if (process.env.NODE_ENV === 'test' && process.env.TEST_DATABASE_URL) {
-    const activeUrl = getActiveDatabaseUrl();
-    if (activeUrl !== process.env.TEST_DATABASE_URL.trim()) {
+    const testDbUrl = process.env.TEST_DATABASE_URL.trim();
+    if (activeUrl !== testDbUrl) {
       throw new Error(
-        '[TestDatabaseGuard] Configuration mismatch: Active Prisma database URL differs from TEST_DATABASE_URL!'
+        `[TestDatabaseGuard] Configuration mismatch: Active Prisma database URL ("${sanitizeDbUrlForLogging(
+          activeUrl
+        )}") differs from TEST_DATABASE_URL ("${sanitizeDbUrlForLogging(testDbUrl)}")!`
       );
     }
   }
 
+  // 3. Track and verify the globally reused connection pool target (if one has been initialized)
+  const activePoolUrl = getActivePoolUrl();
+  if (activePoolUrl && activePoolUrl !== activeUrl) {
+    throw new Error(
+      `[TestDatabaseGuard] Pool mismatch: Reused connection pool was initialized with target "${sanitizeDbUrlForLogging(
+        activePoolUrl
+      )}" but active Prisma configuration is "${sanitizeDbUrlForLogging(
+        activeUrl
+      )}"! Cannot run tests with divergent pool target.`
+    );
+  }
+
+  const targetUrl = activeUrl;
   const { parsed, databaseName, sanitizedUrl } = parseAndSanitizeDbUrl(targetUrl);
 
   // 1. Verify PostgreSQL protocol

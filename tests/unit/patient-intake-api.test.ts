@@ -471,6 +471,13 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
       id: 'existing_req_123',
       requestType: PatientRequestType.APPOINTMENT,
       status: PatientRequestStatus.PENDING,
+      callerNumber: '+33612345678',
+      patientName: 'Jean Dupont',
+      requestedDate: '2026-10-15',
+      requestedTime: '10:00',
+      serviceType: 'Pansement',
+      postalCode: '75008',
+      urgency: false,
     });
 
     const body = {
@@ -858,6 +865,13 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
       id: 'req_concurrent_winner',
       requestType: PatientRequestType.APPOINTMENT,
       status: PatientRequestStatus.PENDING,
+      callerNumber: '+33612345678',
+      patientName: 'Jean Dupont',
+      requestedDate: '2026-10-15',
+      requestedTime: '10:00',
+      serviceType: 'Pansement',
+      postalCode: '75008',
+      urgency: false,
     });
 
     const body = {

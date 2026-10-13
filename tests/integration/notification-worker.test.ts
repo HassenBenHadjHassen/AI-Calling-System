@@ -21,35 +21,58 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
   const TEST_RECIPIENT = '+33688888888';
   let businessId: string;
   const createdJobIds: string[] = [];
+  const TEST_CORRELATION_TAG = `[worker-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}]`;
+
+  async function createTestJob(data: {
+    message?: string;
+    recipient?: string;
+    status?: NotificationStatus;
+    attemptCount?: number;
+    maxAttempts?: number;
+    lockedAt?: Date | null;
+    lockedBy?: string | null;
+    leaseExpiresAt?: Date | null;
+    nextRetryAt?: Date | null;
+  } = {}) {
+    const job = await db.notificationJob.create({
+      data: {
+        businessId,
+        recipient: data.recipient || TEST_RECIPIENT,
+        message: `${TEST_CORRELATION_TAG} ${data.message || 'Worker test notification'}`,
+        status: data.status ?? NotificationStatus.PENDING,
+        attemptCount: data.attemptCount ?? 0,
+        maxAttempts: data.maxAttempts ?? 5,
+        lockedAt: data.lockedAt,
+        lockedBy: data.lockedBy,
+        leaseExpiresAt: data.leaseExpiresAt,
+        nextRetryAt: data.nextRetryAt,
+      },
+    });
+    createdJobIds.push(job.id);
+    return job;
+  }
 
   async function cleanupTestJobs() {
     await db.$transaction(async (tx) => {
+      // 1. Delete notification jobs created in this test run by their captured database IDs
       if (createdJobIds.length > 0) {
         await tx.notificationJob.deleteMany({
-          where: { id: { in: createdJobIds } },
+          where: { id: { in: [...createdJobIds] } },
         });
         createdJobIds.length = 0;
       }
-      // Also clean up lingering test jobs from prior runs using exact scoped test messages
+      // 2. Clean up any jobs matching the unique test correlation tag
       await tx.notificationJob.deleteMany({
         where: {
           businessId,
-          message: {
-            in: [
-              'Notification concurrency test',
-              'Active lease test',
-              'Crashed worker recovery test',
-              'Unexpired active lease test',
-              'Retry scheduling test',
-              'Max attempts test',
-            ],
-          },
+          message: { contains: TEST_CORRELATION_TAG },
         },
       });
+      // 3. Clean up by dedicated test recipient
       await tx.notificationJob.deleteMany({
         where: {
           businessId,
-          message: { startsWith: 'Batch job ' },
+          recipient: TEST_RECIPIENT,
         },
       });
     });
@@ -71,16 +94,7 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
   });
 
   it('prevents two concurrent workers from claiming the same pending job (atomic mutual exclusion)', async () => {
-    const job = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Notification concurrency test',
-        status: NotificationStatus.PENDING,
-        attemptCount: 0,
-        maxAttempts: 5,
-      },
-    });
+    const job = await createTestJob({ message: 'Concurrency claim test' });
 
     // Worker 1 and Worker 2 race to claim the job concurrently
     const [claimedBy1, claimedBy2] = await Promise.all([
@@ -103,18 +117,14 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
 
   it('rejects a worker trying to claim an active job owned by another worker', async () => {
     const now = new Date();
-    const job = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Active lease test',
-        status: NotificationStatus.PROCESSING,
-        lockedAt: now,
-        lockedBy: 'worker-primary',
-        leaseExpiresAt: new Date(now.getTime() + NOTIFICATION_LEASE_DURATION_MS),
-        attemptCount: 1,
-        maxAttempts: 5,
-      },
+    const job = await createTestJob({
+      message: 'Active lease test',
+      status: NotificationStatus.PROCESSING,
+      lockedAt: now,
+      lockedBy: 'worker-primary',
+      leaseExpiresAt: new Date(now.getTime() + NOTIFICATION_LEASE_DURATION_MS),
+      attemptCount: 1,
+      maxAttempts: 5,
     });
 
     // Secondary worker attempts to claim active job
@@ -131,18 +141,14 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    const job = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Crashed worker recovery test',
-        status: NotificationStatus.PROCESSING,
-        lockedAt: tenMinutesAgo,
-        lockedBy: 'crashed-worker-pid-999',
-        leaseExpiresAt: fiveMinutesAgo, // Lease expired 5 minutes ago
-        attemptCount: 1,
-        maxAttempts: 5,
-      },
+    const job = await createTestJob({
+      message: 'Crashed worker recovery test',
+      status: NotificationStatus.PROCESSING,
+      lockedAt: tenMinutesAgo,
+      lockedBy: 'crashed-worker-pid-999',
+      leaseExpiresAt: fiveMinutesAgo,
+      attemptCount: 1,
+      maxAttempts: 5,
     });
 
     // A healthy worker picks up pending/stale jobs
@@ -158,18 +164,14 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
 
   it('does NOT reclaim an active job whose lease has not yet expired', async () => {
     const now = new Date();
-    const job = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Active unexpired test',
-        status: NotificationStatus.PROCESSING,
-        lockedAt: now,
-        lockedBy: 'active-worker-alive',
-        leaseExpiresAt: new Date(now.getTime() + 45 * 1000), // 45 seconds remaining
-        attemptCount: 1,
-        maxAttempts: 5,
-      },
+    const job = await createTestJob({
+      message: 'Active unexpired test',
+      status: NotificationStatus.PROCESSING,
+      lockedAt: now,
+      lockedBy: 'active-worker-alive',
+      leaseExpiresAt: new Date(now.getTime() + 45 * 1000),
+      attemptCount: 1,
+      maxAttempts: 5,
     });
 
     const processed = await NotificationService.processPendingJobs(10, 'sweeper-worker');
@@ -180,26 +182,18 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
   });
 
   it('never reclaims or resends terminal jobs (SENT, FAILED, CANCELLED)', async () => {
-    const sentJob = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Terminal sent',
-        status: NotificationStatus.SENT,
-        attemptCount: 1,
-        maxAttempts: 5,
-      },
+    const sentJob = await createTestJob({
+      message: 'Terminal sent',
+      status: NotificationStatus.SENT,
+      attemptCount: 1,
+      maxAttempts: 5,
     });
 
-    const failedJob = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Terminal failed',
-        status: NotificationStatus.FAILED,
-        attemptCount: 5,
-        maxAttempts: 5,
-      },
+    const failedJob = await createTestJob({
+      message: 'Terminal failed',
+      status: NotificationStatus.FAILED,
+      attemptCount: 5,
+      maxAttempts: 5,
     });
 
     const claimSent = await NotificationService.claimJob(sentJob.id, 'worker-test');
@@ -211,16 +205,12 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
 
   it('respects nextRetryAt scheduling and exponential backoff bounds', async () => {
     const futureDate = new Date(Date.now() + 60 * 1000); // 1 minute in the future
-    const job = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'Backoff test',
-        status: NotificationStatus.PENDING,
-        attemptCount: 2,
-        nextRetryAt: futureDate,
-        maxAttempts: 5,
-      },
+    const job = await createTestJob({
+      message: 'Backoff test',
+      status: NotificationStatus.PENDING,
+      attemptCount: 2,
+      nextRetryAt: futureDate,
+      maxAttempts: 5,
     });
 
     // Should NOT be claimed because retry is not yet due
@@ -238,15 +228,11 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
   });
 
   it('transitions to FAILED with actionable reason when max attempts are exhausted', async () => {
-    const job = await db.notificationJob.create({
-      data: {
-        businessId,
-        recipient: TEST_RECIPIENT,
-        message: 'FAIL_DELIVERY', // Triggers simulated failure in mock
-        status: NotificationStatus.PENDING,
-        attemptCount: 4, // Next attempt will be attempt 5 (maxAttempts)
-        maxAttempts: 5,
-      },
+    const job = await createTestJob({
+      message: 'FAIL_DELIVERY', // Triggers simulated failure in mock
+      status: NotificationStatus.PENDING,
+      attemptCount: 4, // Next attempt will be attempt 5 (maxAttempts)
+      maxAttempts: 5,
     });
 
     const handled = await NotificationService.processJob(job.id, undefined, 'worker-exhaustion-test');
@@ -261,22 +247,12 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
   });
 
   it('handles batch processing with multiple concurrent workers without double-claiming', async () => {
-    // Create 10 pending jobs
+    // Create 10 pending jobs using createTestJob to track IDs and tag
     const jobs = await Promise.all(
       Array.from({ length: 10 }).map((_, idx) =>
-        db.notificationJob.create({
-          data: {
-            businessId,
-            recipient: TEST_RECIPIENT,
-            message: `Batch job ${idx}`,
-            status: NotificationStatus.PENDING,
-            attemptCount: 0,
-            maxAttempts: 5,
-          },
-        })
+        createTestJob({ message: `Batch job ${idx}` })
       )
     );
-    createdJobIds.push(...jobs.map((j) => j.id));
 
     // 3 concurrent workers process pending jobs simultaneously
     const [count1, count2, count3] = await Promise.all([

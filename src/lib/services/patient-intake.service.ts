@@ -115,13 +115,11 @@ function normPhone(val?: string | null): string {
   }
 }
 
-function normUrgency(val?: boolean | string | null): boolean | undefined {
-  if (val === undefined || val === null || val === '') return undefined;
+export function normalizeUrgency(val?: boolean | string | null): boolean {
+  if (val === undefined || val === null || val === '') return false;
   if (typeof val === 'boolean') return val;
   const s = String(val).trim().toLowerCase();
-  if (s === 'true' || s === '1' || s === 'urgent') return true;
-  if (s === 'false' || s === '0') return false;
-  return Boolean(val);
+  return s === 'true' || s === '1' || s === 'urgent';
 }
 
 export function isMateriallyIdenticalRequest(
@@ -156,21 +154,42 @@ export function isMateriallyIdenticalRequest(
     differences.push('callerNumber');
   }
 
+  // Determine if this is an appointment request
+  const isAppointment = incType === 'APPOINTMENT' || exType === 'APPOINTMENT';
+
   // 3. Requested appointment date
   const incDate = normDate(incoming.requestedDate);
   const exDate = normDate(existing.requestedDate);
-  if (incDate && exDate && incDate !== exDate) {
-    differences.push('requestedDate');
+  if (isAppointment) {
+    // For appointment requests, date is a required field.
+    // Missing-versus-present (incomplete retry) or differing values are material differences.
+    if (Boolean(incDate) !== Boolean(exDate) || (incDate && exDate && incDate !== exDate)) {
+      differences.push('requestedDate');
+    }
+  } else {
+    // For non-appointment requests (cancellation, message), date is optional
+    if (incDate && exDate && incDate !== exDate) {
+      differences.push('requestedDate');
+    }
   }
 
   // 4. Requested appointment time
   const incTime = normTime(incoming.requestedTime);
   const exTime = normTime(existing.requestedTime);
-  if (incTime && exTime && incTime !== exTime) {
-    differences.push('requestedTime');
+  if (isAppointment) {
+    // For appointment requests, time is a required field.
+    // Missing-versus-present (incomplete retry) or differing values are material differences.
+    if (Boolean(incTime) !== Boolean(exTime) || (incTime && exTime && incTime !== exTime)) {
+      differences.push('requestedTime');
+    }
+  } else {
+    // For non-appointment requests, time is optional
+    if (incTime && exTime && incTime !== exTime) {
+      differences.push('requestedTime');
+    }
   }
 
-  // 5. Patient name, when both identities are known
+  // 5. Patient name, when both identities are known (omitted/inconnu optional name is tolerated)
   const incName = normString(incoming.patientName);
   const exName = normString(existing.patientName);
   const isIncKnown = incName && incName !== 'inconnu' && incName !== 'unknown';
@@ -179,32 +198,34 @@ export function isMateriallyIdenticalRequest(
     differences.push('patientName');
   }
 
-  // 6. Service type
+  // 6. Service type (optional field: tolerated if omitted on retry, flagged if both provided and differ)
   const incService = normString(incoming.serviceType);
   const exService = normString(existing.serviceType);
   if (incService && exService && incService !== exService) {
     differences.push('serviceType');
   }
 
-  // 7. Postal code
+  // 7. Postal code (optional field: tolerated if omitted on retry, flagged if both provided and differ)
   const incPostal = (incoming.postalCode || '').trim();
   const exPostal = (existing.postalCode || '').trim();
   if (incPostal && exPostal && incPostal !== exPostal) {
     differences.push('postalCode');
   }
 
-  // 8. Request summary or message content
+  // 8. Request summary or message content (optional field: tolerated if omitted, flagged if both provided and differ)
   const incSummary = normString(incoming.summary || incoming.message || incoming.notes);
   const exSummary = normString(existing.summary);
   if (incSummary && exSummary && incSummary !== exSummary) {
     differences.push('summary');
   }
 
-  // 9. Urgency
-  const incUrgent = normUrgency(incoming.urgency);
-  const exUrgent = normUrgency(existing.urgency);
-  if (incUrgent !== undefined && exUrgent !== undefined && incUrgent !== exUrgent) {
-    differences.push('urgency');
+  // 9. Urgency (normalized consistently with persistence logic)
+  if (incoming.urgency !== undefined && incoming.urgency !== null && incoming.urgency !== '') {
+    const incUrgent = normalizeUrgency(incoming.urgency);
+    const exUrgent = normalizeUrgency(existing.urgency);
+    if (incUrgent !== exUrgent) {
+      differences.push('urgency');
+    }
   }
 
   return {
@@ -410,7 +431,7 @@ export class PatientIntakeService {
       data: { lineType },
     });
 
-    const isUrgent = params.urgency === true || params.urgency === 'true';
+    const isUrgent = normalizeUrgency(params.urgency);
     let initialStatus: AppointmentStatus = AppointmentStatus.PENDING;
     if (lineType === LineType.LANDLINE) {
       initialStatus = AppointmentStatus.PENDING_LANDLINE;
@@ -833,7 +854,7 @@ export class PatientIntakeService {
 
         // E. Branch: APPOINTMENT
         if (payload.requestType === 'appointment' && start && end) {
-          const isUrgent = payload.urgency === true || payload.urgency === 'true';
+          const isUrgent = normalizeUrgency(payload.urgency);
           const initialStatus: AppointmentStatus =
             lineType === LineType.LANDLINE
               ? AppointmentStatus.PENDING_LANDLINE
@@ -1022,6 +1043,7 @@ export class PatientIntakeService {
             patientName: payload.patientName || contact.name,
             requestType: PatientRequestType.MESSAGE,
             summary: payload.summary,
+            urgency: normalizeUrgency(payload.urgency),
             status: PatientRequestStatus.PENDING,
             contactId: contact.id,
             callRecordId: callRecord.id,
@@ -1191,7 +1213,7 @@ export class PatientIntakeService {
     const heureStr = intakeData.HEURE || intakeData.heure || '';
     const postalCode = intakeData.code_postal || '';
     const serviceType = intakeData.service_type || 'Soins infirmiers';
-    const isUrgent = intakeData.urgency === true || intakeData.urgency === 'true';
+    const isUrgent = normalizeUrgency(intakeData.urgency);
     const scamScore = scamScoreRaw !== undefined ? parseFloat(String(scamScoreRaw)) : 8;
 
     // Determine if message-only (no appointment date, or explicit message outcome)

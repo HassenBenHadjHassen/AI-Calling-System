@@ -233,6 +233,125 @@ describe('Idempotency Comparison & Conflict Detection Unit Tests', () => {
     }
   });
 
+  it('detects conflict when appointment date is missing in incoming retry (missing-vs-present)', () => {
+    const incoming = {
+      requestType: 'appointment',
+      caller: '+33612345678',
+      patientName: 'Jean Dupont',
+      // requestedDate omitted!
+      requestedTime: '14:30',
+      serviceType: 'Pansement',
+      postalCode: '75008',
+      summary: 'Changement de pansement post-opératoire',
+    };
+
+    const result = isMateriallyIdenticalRequest(baseExisting, incoming);
+    expect(result.identical).toBe(false);
+    expect(result.differences).toContain('requestedDate');
+  });
+
+  it('detects conflict when appointment time is missing in incoming retry (missing-vs-present)', () => {
+    const incoming = {
+      requestType: 'appointment',
+      caller: '+33612345678',
+      patientName: 'Jean Dupont',
+      requestedDate: '2026-10-20',
+      // requestedTime omitted!
+      serviceType: 'Pansement',
+      postalCode: '75008',
+      summary: 'Changement de pansement post-opératoire',
+    };
+
+    const result = isMateriallyIdenticalRequest(baseExisting, incoming);
+    expect(result.identical).toBe(false);
+    expect(result.differences).toContain('requestedTime');
+  });
+
+  it('detects conflict when existing record lacked date but incoming provides it', () => {
+    const existingWithoutDate = { ...baseExisting, requestedDate: null };
+    const incoming = {
+      requestType: 'appointment',
+      caller: '+33612345678',
+      patientName: 'Jean Dupont',
+      requestedDate: '2026-10-20',
+      requestedTime: '14:30',
+      serviceType: 'Pansement',
+      postalCode: '75008',
+    };
+
+    const result = isMateriallyIdenticalRequest(existingWithoutDate, incoming);
+    expect(result.identical).toBe(false);
+    expect(result.differences).toContain('requestedDate');
+  });
+
+  it('detects conflict when existing record lacked time but incoming provides it', () => {
+    const existingWithoutTime = { ...baseExisting, requestedTime: null };
+    const incoming = {
+      requestType: 'appointment',
+      caller: '+33612345678',
+      patientName: 'Jean Dupont',
+      requestedDate: '2026-10-20',
+      requestedTime: '14:30',
+      serviceType: 'Pansement',
+      postalCode: '75008',
+    };
+
+    const result = isMateriallyIdenticalRequest(existingWithoutTime, incoming);
+    expect(result.identical).toBe(false);
+    expect(result.differences).toContain('requestedTime');
+  });
+
+  it('detects conflict when caller phones differ', () => {
+    const incoming = {
+      requestType: 'appointment',
+      caller: '+33699990000',
+      patientName: 'Jean Dupont',
+      requestedDate: '2026-10-20',
+      requestedTime: '14:30',
+    };
+
+    const result = isMateriallyIdenticalRequest(baseExisting, incoming);
+    expect(result.identical).toBe(false);
+    expect(result.differences).toContain('callerNumber');
+  });
+
+  it('tolerates omitted optional fields (patientName, serviceType, postalCode, summary, urgency)', () => {
+    const incomingMinimal = {
+      requestType: 'appointment',
+      caller: '+33612345678',
+      requestedDate: '2026-10-20',
+      requestedTime: '14:30',
+      // patientName, serviceType, postalCode, summary, urgency all omitted
+    };
+
+    const result = isMateriallyIdenticalRequest(baseExisting, incomingMinimal);
+    expect(result.identical).toBe(true);
+    expect(result.differences).toHaveLength(0);
+  });
+
+  it('normalizes urgency values consistently between string representations and boolean', () => {
+    const urgentExisting = { ...baseExisting, urgency: true };
+
+    // String "urgent"
+    expect(isMateriallyIdenticalRequest(urgentExisting, { ...baseExisting, urgency: 'urgent' }).identical).toBe(true);
+    // String "true"
+    expect(isMateriallyIdenticalRequest(urgentExisting, { ...baseExisting, urgency: 'true' }).identical).toBe(true);
+    // String "1"
+    expect(isMateriallyIdenticalRequest(urgentExisting, { ...baseExisting, urgency: '1' }).identical).toBe(true);
+    // Boolean true
+    expect(isMateriallyIdenticalRequest(urgentExisting, { ...baseExisting, urgency: true }).identical).toBe(true);
+
+    // Conflict when non-urgent
+    const conflictResult = isMateriallyIdenticalRequest(urgentExisting, { ...baseExisting, urgency: false });
+    expect(conflictResult.identical).toBe(false);
+    expect(conflictResult.differences).toContain('urgency');
+
+    // Conflict when string "false"
+    const conflictStringResult = isMateriallyIdenticalRequest(urgentExisting, { ...baseExisting, urgency: 'false' });
+    expect(conflictStringResult.identical).toBe(false);
+    expect(conflictStringResult.differences).toContain('urgency');
+  });
+
   describe('P2002 Race Condition Recovery Path', () => {
     it('returns existing request on P2002 race when payloads are identical', async () => {
       vi.spyOn(TenantService, 'ensureTenant').mockResolvedValue({
