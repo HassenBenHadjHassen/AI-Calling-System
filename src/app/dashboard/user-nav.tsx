@@ -1,7 +1,7 @@
 'use client';
 
+import { useState } from 'react';
 import { signOut } from '@/lib/auth-client';
-import { useRouter } from 'next/navigation';
 
 export default function UserNav({
   user,
@@ -13,16 +13,18 @@ export default function UserNav({
     assignedBusiness?: string | null;
   };
 }) {
-  const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
     try {
       await signOut();
     } catch {
       // ignore
     }
-    router.push('/login');
-    router.refresh();
+    // Hard navigate to /login to purge client cache and cleanly reset form state
+    window.location.href = '/login';
   };
 
   const getBadge = () => {
@@ -61,10 +63,11 @@ export default function UserNav({
       <button
         type="button"
         onClick={handleSignOut}
+        disabled={isSigningOut}
         title="Se déconnecter"
-        className="cursor-pointer px-2 py-1 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors text-xs font-medium flex items-center gap-1"
+        className="cursor-pointer px-2 py-1 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
       >
-        <span className="hidden md:inline">Déconnexion</span>
+        <span className="hidden md:inline">{isSigningOut ? 'Déconnexion...' : 'Déconnexion'}</span>
       </button>
     </div>
   );

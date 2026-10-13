@@ -33,7 +33,12 @@ export const auth = betterAuth({
     requireEmailVerification: false,
   },
   secret: process.env.BETTER_AUTH_SECRET || 'ai_calling_system_secure_better_auth_secret_2026_xyz987',
-  baseURL: process.env.BETTER_AUTH_URL || process.env.APP_URL || 'http://localhost:4050',
+  baseURL: process.env.BETTER_AUTH_URL || process.env.APP_URL,
+  trustedOrigins: [
+    process.env.APP_URL,
+    process.env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+  ].filter(Boolean) as string[],
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day

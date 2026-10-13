@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, signUp } from '@/lib/auth-client';
 
@@ -15,6 +15,11 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Always ensure loading is false when entering or restoring the login page
+  useEffect(() => {
+    setLoading(false);
+  }, [mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +39,8 @@ function LoginForm() {
           return;
         }
 
-        router.push(callbackUrl);
-        router.refresh();
+        // Hard redirect to dashboard to clear client cache and ensure fresh session cookies
+        window.location.href = callbackUrl;
       } else {
         const res = await signUp.email({
           name: name.trim() || 'Opérateur',
@@ -49,8 +54,7 @@ function LoginForm() {
           return;
         }
 
-        router.push(callbackUrl);
-        router.refresh();
+        window.location.href = callbackUrl;
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -62,16 +66,22 @@ function LoginForm() {
   const handleDemoFillAdmin = () => {
     setEmail('admin@moncabinet.fr');
     setPassword('AdminPassword2026!');
+    setErrorMsg(null);
+    setLoading(false);
   };
 
   const handleDemoFillMichelle = () => {
     setEmail('michelle@moncabinet.fr');
     setPassword('MichellePassword2026!');
+    setErrorMsg(null);
+    setLoading(false);
   };
 
   const handleDemoFillDani = () => {
     setEmail('dani@danibatiment.fr');
     setPassword('DaniPassword2026!');
+    setErrorMsg(null);
+    setLoading(false);
   };
 
   return (
@@ -84,9 +94,6 @@ function LoginForm() {
         <h1 className="text-2xl font-black tracking-tight text-slate-900">
           AI Calling System
         </h1>
-        <p className="mt-1 text-xs text-slate-500">
-          Supervision &bull; Cabinet Michelle &bull; Dani Bâtiment
-        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
