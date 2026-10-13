@@ -54,6 +54,7 @@ vi.mock('@/lib/db', () => {
         create: vi.fn(),
         update: vi.fn(),
       },
+      $transaction: vi.fn(),
     },
   };
 });
@@ -79,6 +80,7 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (db.$transaction as any).mockImplementation((fn: any) => fn(db));
     (db.business.findUnique as any).mockResolvedValue({
       id: 'biz_michelle',
       slug: 'CABINET_MICHELLE',
@@ -718,5 +720,163 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
+  });
+
+  // 15. Urgent appointment submissions remain PENDING and never automatically confirm
+  it('urgent appointment requests create PENDING appointments (not CONFIRMED_URGENT) and do not claim confirmation', async () => {
+    (db.appointment.create as any).mockResolvedValue({
+      id: 'appt_urgent_01',
+      status: AppointmentStatus.PENDING,
+      urgency: true,
+      date: '2026-10-15',
+      time: '10:00',
+    });
+    (db.patientRequest.create as any).mockResolvedValue({
+      id: 'req_urgent_01',
+      requestType: PatientRequestType.APPOINTMENT,
+      status: PatientRequestStatus.PENDING,
+      urgency: true,
+    });
+
+    const body = {
+      requestType: 'appointment',
+      patientName: 'Pierre Curie',
+      postalCode: '75008',
+      serviceType: 'Perfusion urgente',
+      requestedDate: '2026-10-15',
+      requestedTime: '10:00',
+      summary: 'Demande urgente de soins',
+      urgency: true,
+      caller: '+33612345678',
+      callId: 'call_urgent_test_1',
+    };
+
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/patient-intake', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(body),
+    });
+
+    const res = await patientIntakeHandler(req);
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.status).toBe('PENDING');
+    // Ensure response message to Vapi does NOT claim the appointment is confirmed
+    expect(json.message.toLowerCase()).not.toContain('confirmed');
+    expect(json.message.toLowerCase()).toContain('awaiting review');
+
+    // Appointment must be created with PENDING status and urgency: true
+    expect(db.appointment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: AppointmentStatus.PENDING,
+          urgency: true,
+        }),
+      })
+    );
+  });
+
+  // 16. Repeated submission with materially different data returns HTTP 409
+  it('repeated submission with same callId but materially different data returns HTTP 409 conflict', async () => {
+    (db.patientRequest.findUnique as any).mockResolvedValue({
+      id: 'req_orig_101',
+      requestType: PatientRequestType.APPOINTMENT,
+      requestedDate: '2026-10-15',
+      requestedTime: '10:00',
+      patientName: 'Jean Dupont',
+      status: PatientRequestStatus.PENDING,
+    });
+
+    // Caller retries with a different time '11:00'
+    const alteredBody = {
+      requestType: 'appointment',
+      patientName: 'Jean Dupont',
+      postalCode: '75008',
+      serviceType: 'Pansement',
+      requestedDate: '2026-10-15',
+      requestedTime: '11:00', // Materially different
+      summary: 'Modified time',
+      caller: '+33612345678',
+      callId: 'call_repeat_differing',
+    };
+
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/patient-intake', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(alteredBody),
+    });
+
+    const res = await patientIntakeHandler(req);
+    expect(res.status).toBe(409);
+    const json = await res.json();
+    expect(json.error).toBe('IDEMPOTENCY_CONFLICT');
+  });
+
+  // 17. Atomic rollback: if transaction fails, no notification is dispatched
+  it('atomic persistence rolls back and dispatches no notifications if transaction fails', async () => {
+    (db.$transaction as any).mockRejectedValue(new Error('Prisma write transaction conflict'));
+
+    const body = {
+      requestType: 'appointment',
+      patientName: 'Jean Dupont',
+      postalCode: '75008',
+      serviceType: 'Pansement',
+      requestedDate: '2026-10-15',
+      requestedTime: '10:00',
+      summary: 'Appointment under failing tx',
+      caller: '+33612345678',
+      callId: 'call_tx_fail_01',
+    };
+
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/patient-intake', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(body),
+    });
+
+    const res = await patientIntakeHandler(req);
+    expect(res.status).toBe(500);
+
+    // Verify NO notifications were queued
+    expect(db.notificationJob.create).not.toHaveBeenCalled();
+  });
+
+  // 18. Concurrent race condition (P2002) recovers safely and returns existing record
+  it('concurrent submission race condition (P2002) gracefully resolves to existing request', async () => {
+    const p2002Error = new Error('Unique constraint failed on the fields: (`vapiCallId`,`requestType`)');
+    (p2002Error as any).code = 'P2002';
+    (db.$transaction as any).mockRejectedValue(p2002Error);
+
+    (db.patientRequest.findUnique as any).mockResolvedValue({
+      id: 'req_concurrent_winner',
+      requestType: PatientRequestType.APPOINTMENT,
+      status: PatientRequestStatus.PENDING,
+    });
+
+    const body = {
+      requestType: 'appointment',
+      patientName: 'Jean Dupont',
+      postalCode: '75008',
+      serviceType: 'Pansement',
+      requestedDate: '2026-10-15',
+      requestedTime: '10:00',
+      caller: '+33612345678',
+      callId: 'call_concurrent_race',
+    };
+
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/patient-intake', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(body),
+    });
+
+    const res = await patientIntakeHandler(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.requestId).toBe('req_concurrent_winner');
+    expect(json.isDuplicate).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import crypto from 'node:crypto';
 import { env } from '../env';
 
 export interface VapiAuthResult {
@@ -9,7 +10,7 @@ export interface VapiAuthResult {
 
 /**
  * Validates incoming Vapi requests using Bearer token or x-vapi-secret header.
- * Rejects unauthorized requests with 401.
+ * Uses crypto.timingSafeEqual with byte-length verification.
  * Fails closed in production if the webhook secret is missing or insecure.
  */
 export function verifyVapiSecret(req: NextRequest): VapiAuthResult {
@@ -21,7 +22,7 @@ export function verifyVapiSecret(req: NextRequest): VapiAuthResult {
       return {
         authorized: false,
         status: 401,
-        error: 'Vapi webhook secret is not securely configured on the server',
+        error: 'Unauthorized',
       };
     }
   }
@@ -47,16 +48,27 @@ export function verifyVapiSecret(req: NextRequest): VapiAuthResult {
     return {
       authorized: false,
       status: 401,
-      error: 'Missing authentication credentials (expected Authorization: Bearer <token> or x-vapi-secret header)',
+      error: 'Unauthorized',
     };
   }
 
-  // Safe equality check
-  if (token !== expectedSecret) {
+  const tokenBuf = Buffer.from(token, 'utf8');
+  const expectedBuf = Buffer.from(expectedSecret, 'utf8');
+
+  // Verify byte length matches before timingSafeEqual to prevent length mismatch exceptions
+  if (tokenBuf.length !== expectedBuf.length) {
     return {
       authorized: false,
       status: 401,
-      error: 'Invalid authentication credentials',
+      error: 'Unauthorized',
+    };
+  }
+
+  if (!crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
+    return {
+      authorized: false,
+      status: 401,
+      error: 'Unauthorized',
     };
   }
 

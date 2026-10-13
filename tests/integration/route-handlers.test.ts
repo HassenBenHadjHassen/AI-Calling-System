@@ -90,7 +90,10 @@ describe('Next.js API Route Handlers Integration Tests', () => {
 
     const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/tools/client-vip', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer my_secret_token_123',
+      },
       body: JSON.stringify(fixtures.clientVip.whitelistCaller),
     });
 
@@ -103,10 +106,24 @@ describe('Next.js API Route Handlers Integration Tests', () => {
     expect(json.results[0].result).toContain('whitelist');
   });
 
+  it('POST /api/webhooks/vapi/tools/client-vip rejects unauthenticated requests with 401', async () => {
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/tools/client-vip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fixtures.clientVip.whitelistCaller),
+    });
+
+    const res = await clientVipHandler(req);
+    expect(res.status).toBe(401);
+  });
+
   it('POST /api/webhooks/vapi/tools/calendar-availability returns free/busy response', async () => {
     const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/tools/calendar-availability', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer my_secret_token_123',
+      },
       body: JSON.stringify(fixtures.calendarAvailability.summerDstSlot),
     });
 
@@ -116,6 +133,20 @@ describe('Next.js API Route Handlers Integration Tests', () => {
     const json = await res.json();
     expect(json.results[0].toolCallId).toBe('call_cal_summer_001');
     expect(json.results[0].result).toContain('available=True');
+  });
+
+  it('POST /api/webhooks/vapi/tools/calendar-availability rejects invalid token with 401', async () => {
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/tools/calendar-availability', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer invalid_secret_token',
+      },
+      body: JSON.stringify(fixtures.calendarAvailability.summerDstSlot),
+    });
+
+    const res = await calendarHandler(req);
+    expect(res.status).toBe(401);
   });
 
   it('POST /api/webhooks/vapi/patient-intake processes intake and handles deduplication', async () => {
@@ -170,7 +201,10 @@ describe('Next.js API Route Handlers Integration Tests', () => {
 
     const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/dani-batiment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer my_secret_token_123',
+      },
       body: JSON.stringify(fixtures.daniBatiment.devis),
     });
 
@@ -180,6 +214,17 @@ describe('Next.js API Route Handlers Integration Tests', () => {
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.result.outcome).toBe('DEVIS');
+  });
+
+  it('POST /api/webhooks/vapi/dani-batiment rejects missing token with 401', async () => {
+    const req = new NextRequest('http://localhost:3000/api/webhooks/vapi/dani-batiment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fixtures.daniBatiment.devis),
+    });
+
+    const res = await daniBatimentHandler(req);
+    expect(res.status).toBe(401);
   });
 
   it('POST /api/webhooks/twilio/inbound-sms returns valid TwiML XML', async () => {

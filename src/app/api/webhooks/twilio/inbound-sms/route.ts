@@ -38,8 +38,6 @@ export async function POST(req: NextRequest) {
     const log = logger.child({ module: 'WEBHOOK_TWILIO', correlationId });
 
     log.info('[Twilio Inbound SMS] Inbound request received', {
-      from: bodyData.From,
-      to: bodyData.To,
       messageSid: bodyData.MessageSid,
     });
 
@@ -47,7 +45,6 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       log.warn('[Twilio Inbound SMS] Validation failed:', {
         issues: parsed.error.issues,
-        bodyData,
       });
       return new NextResponse(twilioClient.buildEmptyTwimlResponse(), {
         headers: {
@@ -71,7 +68,6 @@ export async function POST(req: NextRequest) {
 
     if (!isValidSignature) {
       log.warn('[Twilio Inbound SMS] Invalid webhook signature detected', {
-        signature,
         requestUrl,
       });
       return new NextResponse('Unauthorized', {
@@ -88,7 +84,7 @@ export async function POST(req: NextRequest) {
       eventKey,
       eventType: 'inbound_sms',
       correlationId,
-      payload: bodyData,
+      payload: { messageSid: payload.MessageSid },
     });
 
     if (isDuplicate) {
@@ -112,7 +108,7 @@ export async function POST(req: NextRequest) {
       await WebhookProcessingService.markProcessed(event.id, correlationId);
       log.info('[Twilio Inbound SMS] Successfully processed incoming SMS', {
         durationMs: Date.now() - startTime,
-        from: payload.From,
+        messageSid: payload.MessageSid,
       });
     } catch (processError: unknown) {
       const errMsg = processError instanceof Error ? processError.message : String(processError);

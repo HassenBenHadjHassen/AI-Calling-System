@@ -53,16 +53,74 @@ describe('Extensive Logging System Unit Tests', () => {
       customAttr: 'verified',
     });
 
-    // Wait a tick for non-blocking file append
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
+    // Wait for async non-blocking file append to flush
     const combinedPath = path.resolve(process.cwd(), 'logs', 'combined.log');
     const webhooksPath = path.resolve(process.cwd(), 'logs', 'webhooks.log');
 
+    let found = false;
+    for (let i = 0; i < 20; i++) {
+      if (fs.existsSync(combinedPath)) {
+        const content = await fs.promises.readFile(combinedPath, 'utf8');
+        if (content.includes(testCorrId)) {
+          found = true;
+          break;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
     expect(fs.existsSync(combinedPath)).toBe(true);
     expect(fs.existsSync(webhooksPath)).toBe(true);
+    expect(found).toBe(true);
+  });
 
-    const combinedContent = await fs.promises.readFile(combinedPath, 'utf8');
-    expect(combinedContent).toContain(testCorrId);
+  it('redacts patient PII, phone numbers, addresses, and medical info', () => {
+    const piiData = {
+      patientName: 'Jean Dupont',
+      contactName: 'Marie Curie',
+      callerNumber: '+33612345678',
+      postalCode: '75015',
+      address: '12 Rue de la Paix, 75002 Paris',
+      symptoms: 'Forte fièvre et toux persistante',
+      careDescription: 'Pansement lourd post-opératoire',
+      clinicalNotes: 'Antécédents diabétiques',
+      transcript: 'Bonjour je voudrais un rendez-vous pour demain...',
+      xTwilioSignature: 'abcdef1234567890signature==',
+      freeText: 'Patient reachable at +33698765432 regarding care',
+    };
+
+    const sanitized = sanitizeLogData(piiData) as Record<string, any>;
+    expect(sanitized.patientName).toBe('***REDACTED***');
+    expect(sanitized.contactName).toBe('***REDACTED***');
+    expect(sanitized.callerNumber).toBe('***REDACTED***');
+    expect(sanitized.postalCode).toBe('***REDACTED***');
+    expect(sanitized.address).toBe('***REDACTED***');
+    expect(sanitized.symptoms).toBe('***REDACTED***');
+    expect(sanitized.careDescription).toBe('***REDACTED***');
+    expect(sanitized.clinicalNotes).toBe('***REDACTED***');
+    expect(sanitized.transcript).toBe('***REDACTED***');
+    expect(sanitized.xTwilioSignature).toBe('***REDACTED***');
+    expect(sanitized.freeText).toContain('+336****78');
+  });
+
+  it('prunes database logs older than retention period safely', async () => {
+    const deletedCount = await Logger.pruneDatabaseLogs(7);
+    expect(typeof deletedCount).toBe('number');
+  });
+
+  it('safely handles logging failures without throwing or interrupting business operations', () => {
+    // Calling logger even with circular or abnormal context never throws
+    const circularObj: any = { note: 'safe' };
+    circularObj.self = circularObj;
+
+    expect(() => {
+      logger.info('Test with circular data', {
+        circular: circularObj,
+      });
+      logger.error('Test error logging', {
+        error: new Error('Simulated test error'),
+      });
+    }).not.toThrow();
   });
 });
+

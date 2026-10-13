@@ -1,8 +1,10 @@
 import { NotificationService } from '../lib/services/notifications.service';
 import { db } from '../lib/db';
-import { logger } from '../lib/logger';
+import { logger, Logger } from '../lib/logger';
 
 const POLL_INTERVAL_MS = 5000;
+const LOG_PRUNE_INTERVAL_MS = 60 * 60 * 1000; // Prune old logs once per hour
+let lastLogPrune = 0;
 let isRunning = true;
 
 async function startWorker() {
@@ -28,6 +30,19 @@ async function startWorker() {
       }
     } catch (err: unknown) {
       log.error('[Worker Cycle Error]', { error: err });
+    }
+
+    // Periodic safe maintenance: Prune historical system logs
+    if (Date.now() - lastLogPrune > LOG_PRUNE_INTERVAL_MS) {
+      try {
+        const pruned = await Logger.pruneDatabaseLogs();
+        if (pruned > 0) {
+          log.info(`[Worker Maintenance] Safely pruned ${pruned} historical system log entries`);
+        }
+        lastLogPrune = Date.now();
+      } catch (pruneErr) {
+        log.error('[Worker Maintenance Error]', { error: pruneErr });
+      }
     }
 
     // Wait before next poll

@@ -80,10 +80,15 @@ function serializeError(err: unknown): { message: string; stack?: string; name?:
   return { message: String(err) };
 }
 
-// Safe payload sanitizer (strips sensitive tokens, large blobs)
+// Safe payload sanitizer (strips sensitive tokens, PII, medical data, large blobs)
 export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
   if (data === null || data === undefined) return data;
-  if (typeof data !== 'object') return data;
+  if (typeof data !== 'object') {
+    if (typeof data === 'string') {
+      return data.replace(/(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}/g, '+336****78');
+    }
+    return data;
+  }
   if (maxDepth <= 0) return '[Truncated Depth]';
 
   if (Array.isArray(data)) {
@@ -92,6 +97,7 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
 
   const sanitized: Record<string, unknown> = {};
   const sensitiveKeys = [
+    // Secrets & Auth
     'password',
     'secret',
     'token',
@@ -101,23 +107,117 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     'authtoken',
     'credential',
     'privatekey',
+    'signature',
+    'xtwiliosignature',
+    'xvapisecret',
+    // PII (Names, Phone Numbers, Addresses)
+    'patientname',
+    'contactname',
+    'name',
+    'nom',
+    'prenom',
+    'caller',
+    'callernumber',
+    'phonenumber',
+    'recipient',
+    'from',
+    'to',
+    'phone',
+    'postalcode',
+    'codepostal',
+    'address',
+    'adresse',
+    // Medical & Symptoms
+    'medicalnotes',
+    'clinicalnotes',
+    'symptom',
+    'symptoms',
+    'prescription',
+    'treatment',
+    'maladie',
+    'pathologie',
+    'caredescription',
+    'soin',
+    'soins',
+    'motif',
+    // Content & Transcripts
+    'transcript',
+    'body',
+    'message',
+    'summary',
+    'artifact',
+    'payload',
+    'bodydata',
+    'structureddata',
+    'formsubmissiondata',
   ];
 
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     const normalizedKey = key.toLowerCase().replace(/[-_]/g, '');
     if (
-      sensitiveKeys.some((s) => key.toLowerCase().includes(s) || normalizedKey.includes(s.replace(/[-_]/g, '')))
+      sensitiveKeys.some(
+        (s) => key.toLowerCase() === s || normalizedKey === s || normalizedKey.includes(s)
+      )
     ) {
       sanitized[key] = '***REDACTED***';
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeLogData(value, maxDepth - 1);
-    } else if (typeof value === 'string' && value.length > 2000) {
-      sanitized[key] = value.substring(0, 2000) + '... [truncated]';
+    } else if (typeof value === 'string') {
+      const masked = value.replace(/(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}/g, '+336****78');
+      if (masked.length > 2000) {
+        sanitized[key] = masked.substring(0, 2000) + '... [truncated]';
+      } else {
+        sanitized[key] = masked;
+      }
     } else {
       sanitized[key] = value;
     }
   }
   return sanitized;
+}
+
+// Configurable log rotation settings
+const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const DEFAULT_MAX_FILES = 5;
+
+export async function rotateLogFile(filePath: string, maxFiles: number): Promise<void> {
+  try {
+    for (let i = maxFiles - 1; i >= 1; i--) {
+      const older = `${filePath}.${i}`;
+      const newer = `${filePath}.${i + 1}`;
+      if (fs.existsSync(/*turbopackIgnore: true*/ older)) {
+        if (i === maxFiles - 1) {
+          await fs.promises.unlink(older).catch(() => {});
+        } else {
+          await fs.promises.rename(older, newer).catch(() => {});
+        }
+      }
+    }
+    if (fs.existsSync(/*turbopackIgnore: true*/ filePath)) {
+      await fs.promises.rename(filePath, `${filePath}.1`).catch(() => {});
+    }
+  } catch (rotErr) {
+    console.error('[LogRotation Error]:', rotErr);
+  }
+}
+
+async function writeWithRotation(filePath: string, logLine: string): Promise<void> {
+  const maxBytes = parseInt(process.env.LOG_MAX_FILE_SIZE_BYTES || String(DEFAULT_MAX_FILE_SIZE), 10);
+  const maxFiles = parseInt(process.env.LOG_MAX_FILES_COUNT || String(DEFAULT_MAX_FILES), 10);
+
+  try {
+    try {
+      const stat = await fs.promises.stat(filePath);
+      if (stat.size >= maxBytes) {
+        await rotateLogFile(filePath, maxFiles);
+      }
+    } catch {
+      // File does not exist yet, continue to write
+    }
+    await fs.promises.appendFile(filePath, logLine, 'utf8');
+  } catch (err) {
+    console.error(`[Logger File Fallback: ${filePath}]`, err);
+  }
 }
 
 export class Logger {
@@ -159,6 +259,27 @@ export class Logger {
     return `${prefix}_${timestamp}_${random}`;
   }
 
+  /**
+   * Safely prunes old system logs from PostgreSQL.
+   * Only deletes records from SystemLog table, strictly preserving business records.
+   */
+  static async pruneDatabaseLogs(retentionDays = 14): Promise<number> {
+    try {
+      if (!db.systemLog?.deleteMany) return 0;
+      const days = parseInt(process.env.LOG_RETENTION_DAYS || String(retentionDays), 10);
+      const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const result = await db.systemLog.deleteMany({
+        where: {
+          createdAt: { lt: cutoffDate },
+        },
+      });
+      return result.count;
+    } catch (err) {
+      console.error('[Logger pruneDatabaseLogs Fallback]', err);
+      return 0;
+    }
+  }
+
   debug(message: string, context?: LogContext): void {
     this.log('DEBUG', message, context);
   }
@@ -195,7 +316,7 @@ export class Logger {
 
     const errObj = serializeError(context.error);
 
-    // Build structured log record
+    // Build structured log record with sanitized metadata
     const record = {
       timestamp,
       level,
@@ -217,7 +338,7 @@ export class Logger {
     // 1. Output to Console (Colorized & PM2 friendly)
     this.writeToConsole(level, moduleName, correlationId, message, context, errObj);
 
-    // 2. Output to Files asynchronously
+    // 2. Output to Files asynchronously with rotation
     this.writeToFile(record, isWebhook);
 
     // 3. Persist to PostgreSQL asynchronously (fire and forget)
@@ -280,20 +401,20 @@ export class Logger {
   ): void {
     const logLine = JSON.stringify(record) + '\n';
 
-    // File appending in background
+    // File appending in background with file size rotation
     Promise.resolve().then(async () => {
       try {
-        await fs.promises.appendFile(COMBINED_LOG_PATH, logLine, 'utf8');
+        await writeWithRotation(COMBINED_LOG_PATH, logLine);
 
         if (isWebhook) {
-          await fs.promises.appendFile(WEBHOOKS_LOG_PATH, logLine, 'utf8');
+          await writeWithRotation(WEBHOOKS_LOG_PATH, logLine);
         }
 
         if (record.level === 'WARN' || record.level === 'ERROR') {
-          await fs.promises.appendFile(ERROR_LOG_PATH, logLine, 'utf8');
+          await writeWithRotation(ERROR_LOG_PATH, logLine);
         }
-      } catch {
-        // Silently catch file writing failures so requests are never interrupted
+      } catch (err) {
+        console.error('[Logger writeToFile Fallback]', err);
       }
     });
   }
@@ -310,9 +431,10 @@ export class Logger {
     // Only persist INFO, WARN, ERROR to avoid bloating DB with raw DEBUG
     if (record.level === 'DEBUG') return;
 
-    // Fire-and-forget save to Postgres SystemLog table
+    // Fire-and-forget save to Postgres SystemLog table with safe fallback
     Promise.resolve().then(async () => {
       try {
+        if (!db.systemLog?.create) return;
         const prismaLevel = record.level as LogLevel;
         await db.systemLog.create({
           data: {
@@ -327,8 +449,8 @@ export class Logger {
             },
           },
         });
-      } catch {
-        // Silently catch DB logging failures to guarantee zero disruption to core operations
+      } catch (dbErr) {
+        console.error('[Logger writeToDatabase Fallback]', dbErr);
       }
     });
   }

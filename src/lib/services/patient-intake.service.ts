@@ -1,7 +1,8 @@
 import { db } from '../db';
 import { normalizePhoneNumber } from '../validation/phone';
 import { twilioClient } from '../integrations/twilio';
-import { InternalCalendarService } from './internal-calendar.service';
+import { InternalCalendarService, BLOCKING_APPOINTMENT_STATUSES } from './internal-calendar.service';
+import { CalendarAvailabilityService } from './calendar-availability.service';
 import { NotificationService } from './notifications.service';
 import { VapiIntegration, VAPI_STRUCTURED_OUTPUT_IDS } from '../integrations/vapi';
 import { VapiServerMessagePayload, DirectPatientSubmissionPayload } from '../validation/schemas';
@@ -31,6 +32,23 @@ export interface SubmitPatientRequestParams {
   message?: string;
   isCancellation?: boolean;
 }
+
+export type DirectSubmissionResult =
+  | {
+      success: true;
+      requestId: string;
+      requestType: 'appointment' | 'cancellation' | 'message';
+      status: string;
+      message: string;
+      isDuplicate?: boolean;
+    }
+  | {
+      success: false;
+      status: number;
+      error: string;
+      message: string;
+      conflict?: boolean;
+    };
 
 export class PatientIntakeService {
   /**
@@ -232,9 +250,7 @@ export class PatientIntakeService {
 
     const isUrgent = params.urgency === true || params.urgency === 'true';
     let initialStatus: AppointmentStatus = AppointmentStatus.PENDING;
-    if (isUrgent && lineType === LineType.MOBILE) {
-      initialStatus = AppointmentStatus.CONFIRMED_URGENT;
-    } else if (lineType === LineType.LANDLINE) {
+    if (lineType === LineType.LANDLINE) {
       initialStatus = AppointmentStatus.PENDING_LANDLINE;
     }
 
@@ -326,9 +342,12 @@ export class PatientIntakeService {
   /**
    * Handles Format A: Direct patient submission from Vapi API Request tool (submit_patient_request).
    * Validates business hours and availability for appointments, enforces idempotency,
-   * records PatientRequest, Contact, CallRecord, and notifies the nurse.
+   * records PatientRequest, Contact, CallRecord within a Prisma transaction,
+   * ensures urgent requests remain PENDING, and queues notifications ONLY after transaction commit.
    */
-  static async handleDirectSubmission(payload: DirectPatientSubmissionPayload) {
+  static async handleDirectSubmission(
+    payload: DirectPatientSubmissionPayload
+  ): Promise<DirectSubmissionResult> {
     const vapiCallId = payload.callId;
     let callerNumber = '';
     try {
@@ -350,8 +369,6 @@ export class PatientIntakeService {
     log.info('[DirectSubmission] Received patient submission', {
       vapiCallId,
       requestType: payload.requestType,
-      callerNumber,
-      patientName: payload.patientName,
       date: payload.requestedDate,
       time: payload.requestedTime,
     });
@@ -368,8 +385,8 @@ export class PatientIntakeService {
         ? PatientRequestType.CANCELLATION
         : PatientRequestType.MESSAGE;
 
-    // 3. Idempotency check: Look up existing PatientRequest for this callId and requestType
-    const existing = await db.patientRequest.findUnique({
+    // 2b. Check if this request was ALREADY submitted for this callId (Idempotency pre-check)
+    const existingPrecheck = await db.patientRequest.findUnique({
       where: {
         vapiCallId_requestType: {
           vapiCallId,
@@ -378,72 +395,44 @@ export class PatientIntakeService {
       },
     });
 
-    if (existing) {
-      log.info('[DirectSubmission] Duplicate request detected, returning existing record', {
-        requestId: existing.id,
+    if (existingPrecheck) {
+      // Check for materially different request data on repeated submission
+      const isMateriallyDifferent =
+        (payload.requestedDate && existingPrecheck.requestedDate && payload.requestedDate !== existingPrecheck.requestedDate) ||
+        (payload.requestedTime && existingPrecheck.requestedTime && payload.requestedTime !== existingPrecheck.requestedTime) ||
+        (payload.patientName && existingPrecheck.patientName && payload.patientName !== existingPrecheck.patientName && existingPrecheck.patientName !== 'Inconnu') ||
+        (payload.summary && existingPrecheck.summary && payload.summary !== existingPrecheck.summary);
+
+      if (isMateriallyDifferent) {
+        return {
+          success: false,
+          status: 409,
+          error: 'IDEMPOTENCY_CONFLICT',
+          message: 'The same call ID was submitted with different request details.',
+        };
+      }
+
+      log.info('[DirectSubmission] Idempotent replay: returning existing request record', {
+        requestId: existingPrecheck.id,
         vapiCallId,
-        requestType: existing.requestType,
+        requestType: existingPrecheck.requestType,
       });
 
       return {
         success: true,
-        requestId: existing.id,
+        requestId: existingPrecheck.id,
         requestType: payload.requestType,
-        status: existing.status,
+        status: existingPrecheck.status,
         message: "The patient's request has already been saved and is awaiting review.",
         isDuplicate: true,
       };
     }
 
-    // 4. Contact & Patient upsert
-    const contact = await db.contact.upsert({
-      where: {
-        businessId_phoneNumber: {
-          businessId: business.id,
-          phoneNumber: callerNumber,
-        },
-      },
-      update: {
-        name: payload.patientName && payload.patientName !== 'Inconnu' ? payload.patientName : undefined,
-        postalCode: payload.postalCode || undefined,
-      },
-      create: {
-        businessId: business.id,
-        phoneNumber: callerNumber,
-        name: payload.patientName || 'Inconnu',
-        postalCode: payload.postalCode || undefined,
-      },
-    });
+    // 3. Pre-transaction validation for appointments
+    let start: Date | undefined;
+    let end: Date | undefined;
 
-    const patient = await db.patient.upsert({
-      where: { contactId: contact.id },
-      update: {},
-      create: {
-        businessId: business.id,
-        contactId: contact.id,
-      },
-    });
-
-    // 5. CallRecord upsert
-    const callRecord = await db.callRecord.upsert({
-      where: { vapiCallId },
-      update: {
-        summary: payload.summary,
-      },
-      create: {
-        businessId: business.id,
-        vapiCallId,
-        assistantId: env.CABINET_ASSISTANT_ID,
-        contactId: contact.id,
-        callerNumber,
-        summary: payload.summary,
-      },
-    });
-
-    // 6. Branch: APPOINTMENT
     if (payload.requestType === 'appointment') {
-      let start: Date;
-      let end: Date;
       try {
         const parsed = InternalCalendarService.parseAppointmentDateTime(
           payload.requestedDate,
@@ -472,13 +461,14 @@ export class PatientIntakeService {
         };
       }
 
-      // Check business hours & calendar availability
-      const availability = await InternalCalendarService.checkAvailability(
+      // Check business hours & availability honoring configured CALENDAR_PROVIDER
+      const availability = await CalendarAvailabilityService.checkDirectAvailability({
         start,
         end,
-        business.calendarId || env.CABINET_CALENDAR_ID,
-        true
-      );
+        businessId: business.id,
+        calendarId: business.calendarId || env.CABINET_CALENDAR_ID,
+        enforceHours: true,
+      });
 
       if (!availability.isAvailable) {
         if (availability.reason === 'outside_business_hours') {
@@ -492,6 +482,15 @@ export class PatientIntakeService {
           };
         }
 
+        if (availability.reason === 'verification_failed') {
+          return {
+            success: false,
+            status: 503,
+            error: 'CALENDAR_VERIFICATION_FAILED',
+            message: 'Unable to verify calendar availability. Please try again later.',
+          };
+        }
+
         return {
           success: false,
           status: 409,
@@ -500,269 +499,462 @@ export class PatientIntakeService {
           message: 'The requested appointment slot is no longer available.',
         };
       }
+    }
 
-      // Check pending PatientRequest slot collisions to prevent race conditions
-      const pendingConflict = await db.patientRequest.findFirst({
-        where: {
-          businessId: business.id,
-          requestType: PatientRequestType.APPOINTMENT,
-          status: { in: [PatientRequestStatus.PENDING, PatientRequestStatus.CONFIRMED] },
-          requestedDate: payload.requestedDate,
-          requestedTime: payload.requestedTime,
-          vapiCallId: { not: vapiCallId },
-        },
+    // 4. Line lookup before database transaction
+    const lineInfo = await twilioClient.lookupLineType(callerNumber);
+    const lineType =
+      lineInfo.type === 'mobile'
+        ? LineType.MOBILE
+        : lineInfo.type === 'landline'
+        ? LineType.LANDLINE
+        : LineType.UNKNOWN;
+
+    // 5. Transactional Execution
+    interface TxNotificationPlan {
+      type: 'appointment' | 'cancellation' | 'message';
+      lineType?: LineType;
+      isUrgent?: boolean;
+      smsBody?: string;
+    }
+
+    interface TxResult {
+      isDuplicate: boolean;
+      requestId: string;
+      requestType: 'appointment' | 'cancellation' | 'message';
+      status: string;
+      message: string;
+      notification?: TxNotificationPlan;
+    }
+
+    let txResult: TxResult;
+
+    try {
+      const txRunner = typeof db.$transaction === 'function'
+        ? (fn: (tx: any) => Promise<any>) => db.$transaction(fn)
+        : (fn: (tx: any) => Promise<any>) => fn(db);
+
+      txResult = await txRunner(async (tx) => {
+        // A. Idempotency Check inside transaction
+        const existing = await tx.patientRequest.findUnique({
+          where: {
+            vapiCallId_requestType: {
+              vapiCallId,
+              requestType: mappedType,
+            },
+          },
+          include: { appointment: true, serviceRequest: true },
+        });
+
+        if (existing) {
+          // Check for materially different request data on repeated submission
+          const isMateriallyDifferent =
+            (payload.requestedDate && existing.requestedDate && payload.requestedDate !== existing.requestedDate) ||
+            (payload.requestedTime && existing.requestedTime && payload.requestedTime !== existing.requestedTime) ||
+            (payload.patientName && existing.patientName && payload.patientName !== existing.patientName && existing.patientName !== 'Inconnu') ||
+            (payload.summary && existing.summary && payload.summary !== existing.summary);
+
+          if (isMateriallyDifferent) {
+            const err = new Error('The same call ID was submitted with different request details.');
+            (err as any).statusCode = 409;
+            (err as any).errorCode = 'IDEMPOTENCY_CONFLICT';
+            throw err;
+          }
+
+          log.info('[DirectSubmission] Idempotent replay: returning existing request record', {
+            requestId: existing.id,
+            vapiCallId,
+            requestType: existing.requestType,
+          });
+
+          return {
+            isDuplicate: true,
+            requestId: existing.id,
+            requestType: payload.requestType,
+            status: existing.status,
+            message: "The patient's request has already been saved and is awaiting review.",
+          };
+        }
+
+        // B. Re-check slot collision inside transaction to prevent concurrent bookings
+        if (payload.requestType === 'appointment' && start && end) {
+          const dbConflict = await tx.appointment.findFirst({
+            where: {
+              businessId: business.id,
+              status: { in: BLOCKING_APPOINTMENT_STATUSES },
+              startTime: { lt: end },
+              endTime: { gt: start },
+            },
+          });
+
+          if (dbConflict) {
+            const err = new Error('The requested appointment slot is already being booked by another caller.');
+            (err as any).statusCode = 409;
+            (err as any).errorCode = 'SLOT_CONFLICT';
+            throw err;
+          }
+
+          const pendingReqConflict = await tx.patientRequest.findFirst({
+            where: {
+              businessId: business.id,
+              requestType: PatientRequestType.APPOINTMENT,
+              status: { in: [PatientRequestStatus.PENDING, PatientRequestStatus.CONFIRMED] },
+              requestedDate: payload.requestedDate,
+              requestedTime: payload.requestedTime,
+              vapiCallId: { not: vapiCallId },
+            },
+          });
+
+          if (pendingReqConflict) {
+            const err = new Error('The requested appointment slot is already being booked by another caller.');
+            (err as any).statusCode = 409;
+            (err as any).errorCode = 'SLOT_CONFLICT';
+            throw err;
+          }
+        }
+
+        // C. Contact & Patient upsert
+        const contact = await tx.contact.upsert({
+          where: {
+            businessId_phoneNumber: {
+              businessId: business.id,
+              phoneNumber: callerNumber,
+            },
+          },
+          update: {
+            name: payload.patientName && payload.patientName !== 'Inconnu' ? payload.patientName : undefined,
+            postalCode: payload.postalCode || undefined,
+            lineType,
+          },
+          create: {
+            businessId: business.id,
+            phoneNumber: callerNumber,
+            name: payload.patientName || 'Inconnu',
+            postalCode: payload.postalCode || undefined,
+            lineType,
+          },
+        });
+
+        const patient = await tx.patient.upsert({
+          where: { contactId: contact.id },
+          update: {},
+          create: {
+            businessId: business.id,
+            contactId: contact.id,
+          },
+        });
+
+        // D. CallRecord upsert
+        const callRecord = await tx.callRecord.upsert({
+          where: { vapiCallId },
+          update: {
+            summary: payload.summary,
+          },
+          create: {
+            businessId: business.id,
+            vapiCallId,
+            assistantId: env.CABINET_ASSISTANT_ID,
+            contactId: contact.id,
+            callerNumber,
+            summary: payload.summary,
+          },
+        });
+
+        // E. Branch: APPOINTMENT
+        if (payload.requestType === 'appointment' && start && end) {
+          const isUrgent = payload.urgency === true || payload.urgency === 'true';
+          // Urgency is represented separately; status is ALWAYS PENDING or PENDING_LANDLINE
+          const initialStatus: AppointmentStatus =
+            lineType === LineType.LANDLINE
+              ? AppointmentStatus.PENDING_LANDLINE
+              : AppointmentStatus.PENDING;
+
+          const appointment = await tx.appointment.create({
+            data: {
+              businessId: business.id,
+              contactId: contact.id,
+              patientId: patient.id,
+              callRecordId: callRecord.id,
+              serviceType: payload.serviceType,
+              date: payload.requestedDate,
+              time: payload.requestedTime,
+              startTime: start,
+              endTime: end,
+              status: initialStatus,
+              urgency: isUrgent,
+              notes: payload.summary || undefined,
+            },
+          });
+
+          const patientRequest = await tx.patientRequest.create({
+            data: {
+              businessId: business.id,
+              vapiCallId,
+              callerNumber,
+              patientName: payload.patientName,
+              requestType: PatientRequestType.APPOINTMENT,
+              postalCode: payload.postalCode,
+              serviceType: payload.serviceType,
+              requestedDate: payload.requestedDate,
+              requestedTime: payload.requestedTime,
+              summary: payload.summary,
+              urgency: isUrgent,
+              status: PatientRequestStatus.PENDING,
+              contactId: contact.id,
+              callRecordId: callRecord.id,
+              appointmentId: appointment.id,
+            },
+          });
+
+          return {
+            isDuplicate: false,
+            requestId: patientRequest.id,
+            requestType: 'appointment' as const,
+            status: 'PENDING',
+            message: "The patient's request has been saved and is awaiting review.",
+            notification: {
+              type: 'appointment',
+              lineType,
+              isUrgent,
+            },
+          };
+        }
+
+        // F. Branch: CANCELLATION
+        if (payload.requestType === 'cancellation') {
+          const existingAppt = await tx.appointment.findFirst({
+            where: {
+              businessId: business.id,
+              contactId: contact.id,
+              status: { in: BLOCKING_APPOINTMENT_STATUSES },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          if (existingAppt) {
+            const existingNotes = existingAppt.notes ? `${existingAppt.notes}\n` : '';
+            await tx.appointment.update({
+              where: { id: existingAppt.id },
+              data: {
+                notes: `${existingNotes}[DEMANDE D'ANNULATION EN ATTENTE] Demandée le ${new Date().toLocaleDateString('fr-FR')}. En attente de confirmation par Mme MICHEL.`,
+              },
+            });
+          }
+
+          const serviceReq = await tx.serviceRequest.create({
+            data: {
+              businessId: business.id,
+              contactId: contact.id,
+              callRecordId: callRecord.id,
+              vapiCallId,
+              category: ServiceRequestCategory.ANNULATION,
+              status: ServiceRequestStatus.NOT_COMPLETED,
+              serviceType: payload.serviceType || 'Demande d\'annulation',
+              message: `Demande d'annulation pour ${payload.patientName || contact.name} (${callerNumber}) - RDV prévu le ${payload.requestedDate || existingAppt?.date || 'N/A'} à ${payload.requestedTime || existingAppt?.time || 'N/A'}. En attente de confirmation par Mme MICHEL.`,
+            },
+          });
+
+          const patientRequest = await tx.patientRequest.create({
+            data: {
+              businessId: business.id,
+              vapiCallId,
+              callerNumber,
+              patientName: payload.patientName || contact.name,
+              requestType: PatientRequestType.CANCELLATION,
+              postalCode: payload.postalCode,
+              serviceType: payload.serviceType,
+              requestedDate: payload.requestedDate || existingAppt?.date,
+              requestedTime: payload.requestedTime || existingAppt?.time,
+              summary: payload.summary || serviceReq.message,
+              status: PatientRequestStatus.PENDING,
+              contactId: contact.id,
+              callRecordId: callRecord.id,
+              appointmentId: existingAppt?.id,
+              serviceRequestId: serviceReq.id,
+            },
+          });
+
+          const smsBody =
+            `DEMANDE D'ANNULATION DE RDV (À CONFIRMER)\n` +
+            `Patient: ${payload.patientName || contact.name}\n` +
+            `Soin: ${payload.serviceType || 'Soins infirmiers'}\n` +
+            `Date: ${payload.requestedDate || existingAppt?.date || 'Non précisée'} à ${payload.requestedTime || existingAppt?.time || 'Non précisée'}\n` +
+            `Numéro: ${callerNumber}\n` +
+            `Action: À confirmer/valider par Mme MICHEL`;
+
+          return {
+            isDuplicate: false,
+            requestId: patientRequest.id,
+            requestType: 'cancellation' as const,
+            status: 'PENDING',
+            message: "The patient's request has been saved and is awaiting review.",
+            notification: {
+              type: 'cancellation',
+              smsBody,
+            },
+          };
+        }
+
+        // G. Branch: MESSAGE
+        const serviceReq = await tx.serviceRequest.create({
+          data: {
+            businessId: business.id,
+            contactId: contact.id,
+            callRecordId: callRecord.id,
+            vapiCallId,
+            category: ServiceRequestCategory.MESSAGE,
+            status: ServiceRequestStatus.MESSAGE,
+            serviceType: payload.serviceType || 'Message pour le cabinet',
+            message: payload.summary || 'Message laissé par le patient',
+          },
+        });
+
+        const patientRequest = await tx.patientRequest.create({
+          data: {
+            businessId: business.id,
+            vapiCallId,
+            callerNumber,
+            patientName: payload.patientName || contact.name,
+            requestType: PatientRequestType.MESSAGE,
+            summary: payload.summary,
+            status: PatientRequestStatus.PENDING,
+            contactId: contact.id,
+            callRecordId: callRecord.id,
+            serviceRequestId: serviceReq.id,
+          },
+        });
+
+        const messageAlert =
+          `NOUVEAU MESSAGE PATIENT\n` +
+          `De: ${payload.patientName || contact.name} (${callerNumber})\n` +
+          `Message:\n${payload.summary}\n`;
+
+        return {
+          isDuplicate: false,
+          requestId: patientRequest.id,
+          requestType: 'message' as const,
+          status: 'PENDING',
+          message: "The patient's request has been saved and is awaiting review.",
+          notification: {
+            type: 'message',
+            smsBody: messageAlert,
+          },
+        };
       });
+    } catch (txErr: any) {
+      if (txErr?.errorCode === 'IDEMPOTENCY_CONFLICT') {
+        return {
+          success: false,
+          status: 409,
+          error: 'IDEMPOTENCY_CONFLICT',
+          message: txErr.message,
+        };
+      }
 
-      if (pendingConflict) {
+      if (txErr?.errorCode === 'SLOT_CONFLICT') {
         return {
           success: false,
           status: 409,
           conflict: true,
           error: 'SLOT_CONFLICT',
-          message: 'The requested appointment slot is already being booked by another caller.',
+          message: txErr.message,
         };
       }
 
-      // Line type lookup
-      const lineInfo = await twilioClient.lookupLineType(callerNumber);
-      const lineType =
-        lineInfo.type === 'mobile'
-          ? LineType.MOBILE
-          : lineInfo.type === 'landline'
-          ? LineType.LANDLINE
-          : LineType.UNKNOWN;
+      // Handle race condition unique constraint collision (P2002 on vapiCallId_requestType)
+      if (txErr?.code === 'P2002') {
+        const existing = await db.patientRequest.findUnique({
+          where: {
+            vapiCallId_requestType: {
+              vapiCallId,
+              requestType: mappedType,
+            },
+          },
+        });
 
-      await db.contact.update({
-        where: { id: contact.id },
-        data: { lineType },
-      });
-
-      const isUrgent = payload.urgency === true || payload.urgency === 'true';
-      let initialStatus: AppointmentStatus = AppointmentStatus.PENDING;
-      if (isUrgent && lineType === LineType.MOBILE) {
-        initialStatus = AppointmentStatus.CONFIRMED_URGENT;
-      } else if (lineType === LineType.LANDLINE) {
-        initialStatus = AppointmentStatus.PENDING_LANDLINE;
+        if (existing) {
+          return {
+            success: true,
+            requestId: existing.id,
+            requestType: payload.requestType,
+            status: existing.status,
+            message: "The patient's request has already been saved and is awaiting review.",
+            isDuplicate: true,
+          };
+        }
       }
 
-      // Create Appointment record
-      const appointment = await db.appointment.create({
-        data: {
-          businessId: business.id,
-          contactId: contact.id,
-          patientId: patient.id,
-          callRecordId: callRecord.id,
-          serviceType: payload.serviceType,
-          date: payload.requestedDate,
-          time: payload.requestedTime,
-          startTime: start,
-          endTime: end,
-          status: initialStatus,
-          urgency: isUrgent,
-          notes: payload.summary || undefined,
-        },
-      });
+      log.error('[DirectSubmission Persistence Failure]', { error: txErr });
+      return {
+        success: false,
+        status: 500,
+        error: 'PERSISTENCE_FAILED',
+        message: 'Failed to safely persist patient request.',
+      };
+    }
 
-      // Persist PatientRequest
-      const patientRequest = await db.patientRequest.create({
-        data: {
-          businessId: business.id,
-          vapiCallId,
-          callerNumber,
-          patientName: payload.patientName,
-          requestType: PatientRequestType.APPOINTMENT,
-          postalCode: payload.postalCode,
-          serviceType: payload.serviceType,
-          requestedDate: payload.requestedDate,
-          requestedTime: payload.requestedTime,
-          summary: payload.summary,
-          urgency: isUrgent,
-          status: PatientRequestStatus.PENDING,
-          contactId: contact.id,
-          callRecordId: callRecord.id,
-          appointmentId: appointment.id,
-        },
-      });
+    // 6. Queue Nurse Notification strictly AFTER transaction commit
+    if (!txResult.isDuplicate && txResult.notification) {
+      try {
+        const notif = txResult.notification;
+        if (notif.type === 'appointment') {
+          if (notif.lineType === LineType.MOBILE) {
+            if (notif.isUrgent) {
+              const urgentMsg = "c'est un urgent condition\nrapeller le patient\n";
+              await NotificationService.queueNotification({
+                businessId: business.id,
+                recipient: alertPhone,
+                message: urgentMsg,
+              });
+            } else {
+              const rdvMsg =
+                `bonjour nouveau patient:\n` +
+                `DATE:${payload.requestedDate}   à${payload.requestedTime}\n` +
+                `NOM:${payload.patientName}\n` +
+                `Service:${payload.serviceType}\n` +
+                `code postale:\n${payload.postalCode || ''}\n` +
+                `numero :${callerNumber}\n\n` +
+                `OPTION:\n1.OUI\n2.NON\n\n`;
 
-      // Queue SMS notification for nurse
-      if (lineType === LineType.MOBILE) {
-        if (isUrgent) {
-          const urgentMsg = "c'est un urgent condition\nrapeller le patient\n";
+              await NotificationService.queueNotification({
+                businessId: business.id,
+                recipient: alertPhone,
+                message: rdvMsg,
+              });
+            }
+          } else if (notif.lineType === LineType.LANDLINE) {
+            const landlineMsg =
+              `Le cleint vient d'appeler d'une nunemro FIXE ces infos:\n` +
+              `tu le rappeleras sur le numero :${callerNumber}\n\n` +
+              `DATE:\n${payload.requestedDate}   à${payload.requestedTime}\n` +
+              `NOM:${payload.patientName}\n` +
+              `Service:${payload.serviceType}\n`;
+
+            await NotificationService.queueNotification({
+              businessId: business.id,
+              recipient: alertPhone,
+              message: landlineMsg,
+            });
+          }
+        } else if (notif.smsBody) {
           await NotificationService.queueNotification({
             businessId: business.id,
             recipient: alertPhone,
-            message: urgentMsg,
-          });
-        } else {
-          const rdvMsg =
-            `bonjour nouveau patient:\n` +
-            `DATE:${payload.requestedDate}   à${payload.requestedTime}\n` +
-            `NOM:${payload.patientName}\n` +
-            `Service:${payload.serviceType}\n` +
-            `code postale:\n${payload.postalCode || ''}\n` +
-            `numero :${callerNumber}\n\n` +
-            `OPTION:\n1.OUI\n2.NON\n\n`;
-
-          await NotificationService.queueNotification({
-            businessId: business.id,
-            recipient: alertPhone,
-            message: rdvMsg,
+            message: notif.smsBody,
           });
         }
-      } else if (lineType === LineType.LANDLINE) {
-        const landlineMsg =
-          `Le cleint vient d'appeler d'une nunemro FIXE ces infos:\n` +
-          `tu le rappeleras sur le numero :${callerNumber}\n\n` +
-          `DATE:\n${payload.requestedDate}   à${payload.requestedTime}\n` +
-          `NOM:${payload.patientName}\n` +
-          `Service:${payload.serviceType}\n`;
-
-        await NotificationService.queueNotification({
-          businessId: business.id,
-          recipient: alertPhone,
-          message: landlineMsg,
-        });
+      } catch (notifErr: unknown) {
+        log.error('[DirectSubmission Notification Enqueue Failure]', { error: notifErr });
       }
-
-      return {
-        success: true,
-        requestId: patientRequest.id,
-        requestType: 'appointment' as const,
-        status: 'PENDING',
-        message: "The patient's request has been saved and is awaiting review.",
-      };
     }
-
-    // 7. Branch: CANCELLATION
-    if (payload.requestType === 'cancellation') {
-      const existingAppt = await db.appointment.findFirst({
-        where: {
-          businessId: business.id,
-          contactId: contact.id,
-          status: {
-            in: [
-              AppointmentStatus.PENDING,
-              AppointmentStatus.PENDING_LANDLINE,
-              AppointmentStatus.CONFIRMED,
-              AppointmentStatus.CONFIRMED_URGENT,
-            ],
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (existingAppt) {
-        const existingNotes = existingAppt.notes ? `${existingAppt.notes}\n` : '';
-        await db.appointment.update({
-          where: { id: existingAppt.id },
-          data: {
-            notes: `${existingNotes}[DEMANDE D'ANNULATION EN ATTENTE] Demandée le ${new Date().toLocaleDateString('fr-FR')}. En attente de confirmation par Mme MICHEL.`,
-          },
-        });
-      }
-
-      const serviceReq = await db.serviceRequest.create({
-        data: {
-          businessId: business.id,
-          contactId: contact.id,
-          callRecordId: callRecord.id,
-          vapiCallId,
-          category: ServiceRequestCategory.ANNULATION,
-          status: ServiceRequestStatus.NOT_COMPLETED,
-          serviceType: payload.serviceType || 'Demande d\'annulation',
-          message: `Demande d'annulation pour ${payload.patientName || contact.name} (${callerNumber}) - RDV prévu le ${payload.requestedDate || existingAppt?.date || 'N/A'} à ${payload.requestedTime || existingAppt?.time || 'N/A'}. En attente de confirmation par Mme MICHEL.`,
-        },
-      });
-
-      const patientRequest = await db.patientRequest.create({
-        data: {
-          businessId: business.id,
-          vapiCallId,
-          callerNumber,
-          patientName: payload.patientName || contact.name,
-          requestType: PatientRequestType.CANCELLATION,
-          postalCode: payload.postalCode,
-          serviceType: payload.serviceType,
-          requestedDate: payload.requestedDate || existingAppt?.date,
-          requestedTime: payload.requestedTime || existingAppt?.time,
-          summary: payload.summary || serviceReq.message,
-          status: PatientRequestStatus.PENDING,
-          contactId: contact.id,
-          callRecordId: callRecord.id,
-          appointmentId: existingAppt?.id,
-          serviceRequestId: serviceReq.id,
-        },
-      });
-
-      const smsBody =
-        `DEMANDE D'ANNULATION DE RDV (À CONFIRMER)\n` +
-        `Patient: ${payload.patientName || contact.name}\n` +
-        `Soin: ${payload.serviceType || 'Soins infirmiers'}\n` +
-        `Date: ${payload.requestedDate || existingAppt?.date || 'Non précisée'} à ${payload.requestedTime || existingAppt?.time || 'Non précisée'}\n` +
-        `Numéro: ${callerNumber}\n` +
-        `Action: À confirmer/valider par Mme MICHEL`;
-
-      await NotificationService.queueNotification({
-        businessId: business.id,
-        recipient: alertPhone,
-        message: smsBody,
-      });
-
-      return {
-        success: true,
-        requestId: patientRequest.id,
-        requestType: 'cancellation' as const,
-        status: 'PENDING',
-        message: "The patient's request has been saved and is awaiting review.",
-      };
-    }
-
-    // 8. Branch: MESSAGE
-    const serviceReq = await db.serviceRequest.create({
-      data: {
-        businessId: business.id,
-        contactId: contact.id,
-        callRecordId: callRecord.id,
-        vapiCallId,
-        category: ServiceRequestCategory.MESSAGE,
-        status: ServiceRequestStatus.MESSAGE,
-        serviceType: payload.serviceType || 'Message pour le cabinet',
-        message: payload.summary || 'Message laissé par le patient',
-      },
-    });
-
-    const patientRequest = await db.patientRequest.create({
-      data: {
-        businessId: business.id,
-        vapiCallId,
-        callerNumber,
-        patientName: payload.patientName || contact.name,
-        requestType: PatientRequestType.MESSAGE,
-        summary: payload.summary,
-        status: PatientRequestStatus.PENDING,
-        contactId: contact.id,
-        callRecordId: callRecord.id,
-        serviceRequestId: serviceReq.id,
-      },
-    });
-
-    const messageAlert =
-      `NOUVEAU MESSAGE PATIENT\n` +
-      `De: ${payload.patientName || contact.name} (${callerNumber})\n` +
-      `Message:\n${payload.summary}\n`;
-
-    await NotificationService.queueNotification({
-      businessId: business.id,
-      recipient: alertPhone,
-      message: messageAlert,
-    });
 
     return {
       success: true,
-      requestId: patientRequest.id,
-      requestType: 'message' as const,
-      status: 'PENDING',
-      message: "The patient's request has been saved and is awaiting review.",
+      requestId: txResult.requestId,
+      requestType: txResult.requestType,
+      status: txResult.status,
+      message: txResult.message,
+      ...(txResult.isDuplicate ? { isDuplicate: true } : {}),
     };
   }
 

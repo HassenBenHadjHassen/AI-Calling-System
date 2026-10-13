@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const rawBody = await req.json();
-    log.info('[Devis Form] Submission received', { callId: rawBody?.callId, name: rawBody?.name });
+    log.info('[Devis Form] Submission received', { callId: rawBody?.callId });
 
     const parseResult = DevisSubmissionSchema.safeParse(rawBody);
 
@@ -55,10 +55,9 @@ export async function POST(req: NextRequest) {
       { headers: { 'X-Correlation-Id': correlationId } }
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
     log.error('[POST /api/forms/devis Error]', { error, durationMs: Date.now() - startTime });
     return NextResponse.json(
-      { success: false, error: 'Internal Server Error', details: message },
+      { success: false, error: 'Internal Server Error' },
       { headers: { 'X-Correlation-Id': correlationId }, status: 500 }
     );
   }

@@ -14,12 +14,25 @@ export interface InternalCalendarEventPayload {
   timezone?: string;
 }
 
+export const BLOCKING_APPOINTMENT_STATUSES: AppointmentStatus[] = [
+  AppointmentStatus.PENDING,
+  AppointmentStatus.PENDING_LANDLINE,
+  AppointmentStatus.CONFIRMED,
+  AppointmentStatus.CONFIRMED_URGENT,
+];
+
 export interface InternalCalendarCheckResult {
   isAvailable: boolean;
   start: Date;
   end: Date;
   conflictingEventsCount: number;
-  reason?: 'available' | 'outside_business_hours' | 'conflicting_appointment' | 'blocked_slot';
+  reason?:
+    | 'available'
+    | 'outside_business_hours'
+    | 'conflicting_appointment'
+    | 'blocked_slot'
+    | 'verification_failed';
+  error?: string;
   isDryRun: boolean;
 }
 
@@ -217,17 +230,40 @@ export class InternalCalendarService {
       };
     }
 
-    // 3. Query PostgreSQL appointments
+    // 3. Query PostgreSQL appointments with tenant isolation
     try {
       if (db.appointment?.findMany) {
+        // Resolve businessId for tenant isolation
+        let targetBusinessId: string | undefined = undefined;
+        if (calendarIdOrBusinessSlug) {
+          if (calendarIdOrBusinessSlug.startsWith('biz_')) {
+            targetBusinessId = calendarIdOrBusinessSlug;
+          } else if (db.business?.findFirst) {
+            const biz = await db.business.findFirst({
+              where: {
+                OR: [
+                  { id: calendarIdOrBusinessSlug },
+                  { slug: calendarIdOrBusinessSlug },
+                  { calendarId: calendarIdOrBusinessSlug },
+                ],
+              },
+              select: { id: true },
+            });
+            if (biz) {
+              targetBusinessId = biz.id;
+            } else {
+              targetBusinessId = calendarIdOrBusinessSlug;
+            }
+          } else {
+            targetBusinessId = calendarIdOrBusinessSlug;
+          }
+        }
+
         const dbConflicts = await db.appointment.findMany({
           where: {
+            ...(targetBusinessId ? { businessId: targetBusinessId } : {}),
             status: {
-              in: [
-                AppointmentStatus.CONFIRMED,
-                AppointmentStatus.CONFIRMED_URGENT,
-                AppointmentStatus.PENDING,
-              ],
+              in: BLOCKING_APPOINTMENT_STATUSES,
             },
             startTime: { lt: end },
             endTime: { gt: start },
@@ -246,7 +282,17 @@ export class InternalCalendarService {
         }
       }
     } catch (err: unknown) {
-      console.warn('[InternalCalendar checkAvailability DB query]:', err);
+      console.error('[InternalCalendar checkAvailability DB query failed]:', err);
+      // Fail closed: a technical error must never return isAvailable: true
+      return {
+        isAvailable: false,
+        start,
+        end,
+        conflictingEventsCount: 0,
+        reason: 'verification_failed',
+        error: err instanceof Error ? err.message : String(err),
+        isDryRun: false,
+      };
     }
 
     return {

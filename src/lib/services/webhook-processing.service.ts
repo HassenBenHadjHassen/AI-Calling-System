@@ -28,7 +28,6 @@ export class WebhookProcessingService {
     log.info(`[Webhook Inbound] Received ${params.provider} event: ${params.eventType}`, {
       eventKey: params.eventKey,
       eventType: params.eventType,
-      payload: params.payload,
     });
 
     // Check if event already exists

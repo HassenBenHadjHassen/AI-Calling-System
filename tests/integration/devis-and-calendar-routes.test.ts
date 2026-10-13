@@ -27,10 +27,22 @@ vi.mock('@/lib/db', () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
+  },
+}));
+
+vi.mock('@/lib/auth', () => ({
+  auth: {
+    api: {
+      getSession: vi.fn(),
+    },
   },
 }));
 
 import { db } from '@/lib/db';
+import { auth } from '@/lib/auth';
 import { POST as devisSubmitHandler, GET as devisContextHandler } from '@/app/api/forms/devis/route';
 import { GET as icalFeedHandler } from '@/app/api/calendar/michelle.ics/route';
 import { POST as blockSlotHandler } from '@/app/api/calendar/block/route';
@@ -160,7 +172,62 @@ describe('Native Devis & Calendar Route Handlers', () => {
   });
 
   describe('POST /api/calendar/block', () => {
-    it('creates blocked time slot and appointment', async () => {
+    it('rejects unauthenticated requests with 401', async () => {
+      (auth.api.getSession as any).mockResolvedValue(null);
+
+      const req = new NextRequest('http://localhost:3000/api/calendar/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Formation',
+          start: '2026-10-20T14:00:00Z',
+          end: '2026-10-20T18:00:00Z',
+        }),
+      });
+
+      const res = await blockSlotHandler(req);
+      expect(res.status).toBe(401);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('Unauthorized');
+    });
+
+    it('rejects unauthorized users without calendar permission with 403', async () => {
+      (auth.api.getSession as any).mockResolvedValue({
+        user: { id: 'usr_guest_01', email: 'guest@example.com' },
+      });
+      (db.user.findUnique as any).mockResolvedValue({
+        id: 'usr_guest_01',
+        role: 'USER',
+        allowedSections: 'NONE',
+      });
+
+      const req = new NextRequest('http://localhost:3000/api/calendar/block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Formation',
+          start: '2026-10-20T14:00:00Z',
+          end: '2026-10-20T18:00:00Z',
+        }),
+      });
+
+      const res = await blockSlotHandler(req);
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.success).toBe(false);
+      expect(json.error).toBe('Forbidden');
+    });
+
+    it('creates blocked time slot and appointment for authorized staff', async () => {
+      (auth.api.getSession as any).mockResolvedValue({
+        user: { id: 'usr_staff_01', email: 'staff@cabinetmichelle.fr' },
+      });
+      (db.user.findUnique as any).mockResolvedValue({
+        id: 'usr_staff_01',
+        role: 'STAFF',
+        allowedSections: 'ALL',
+      });
       (db.business.findUnique as any).mockResolvedValue({
         id: 'biz_michelle_01',
         slug: 'CABINET_MICHELLE',

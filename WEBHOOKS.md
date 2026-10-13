@@ -32,6 +32,14 @@ Ce document répertorie l'intégralité des endpoints Webhooks, Tool Calls (fonc
 
 Ces fonctions sont appelées par le modèle vocal Vapi pendant que le client est en ligne pour obtenir des données de décision en temps réel.
 
+#### 🔐 Authentification Vapi requise
+Tous les endpoints Vapi (`/api/webhooks/vapi/*`) sont protégés par le secret d'authentification partagé `VAPI_WEBHOOK_SECRET` :
+* Soit via l'en-tête standard : `Authorization: Bearer <VAPI_WEBHOOK_SECRET>`
+* Soit via l'en-tête Vapi : `x-vapi-secret: <VAPI_WEBHOOK_SECRET>`
+* En cas de jeton manquant ou incorrect : `HTTP 401 Unauthorized`.
+* En production, si le secret n'est pas configuré, le serveur refuse immédiatement les requêtes (fail-closed).
+* Les secrets sont vérifiés en temps constant avec `timingSafeEqual` pour empêcher les attaques temporelles.
+
 ### 🔹 `POST /api/webhooks/vapi/tools/client-vip`
 * **Objectif** : Identifier si l'appelant est un client existant, sur liste blanche VIP, ou s'il a un devis déjà en cours chez Dani Bâtiment.
 * **Quand l'assistant l'appelle** : Dès les premières secondes de l'appel après avoir obtenu le numéro de téléphone.
@@ -78,7 +86,7 @@ Ces fonctions sont appelées par le modèle vocal Vapi pendant que le client est
 ---
 
 ### 🔹 `POST /api/webhooks/vapi/tools/calendar-availability`
-* **Objectif** : Vérifier la disponibilité des créneaux dans le calendrier PostgreSQL du Cabinet Michelle (fuseau `Europe/Paris`, du lundi au samedi, 08h00–19h00).
+* **Objectif** : Vérifier la disponibilité des créneaux dans le calendrier du Cabinet Michelle (fuseau `Europe/Paris`, du lundi au vendredi de 09h00 à 13h00 et de 14h00 à 18h00 ; fermé le week-end et pendant la pause déjeuner de 13h00 à 14h00).
 * **Quand l'assistant l'appelle** : Lorsque le patient propose une date ou une heure pour son soin.
 * **Payload reçu de Vapi (Exemple)** :
 ```json
@@ -294,7 +302,12 @@ Lorsque l'appel prend fin, Vapi envoie l'objet serveur `end-of-call-report` cont
   - **Sur le Dashboard Mission Control** : Téléchargement direct d'un clic via le bouton d'export.
 
 ### 🔹 `POST /api/calendar/block`
-* **Rôle** : Permet aux infirmières de bloquer un créneau directement depuis le tableau de bord (ex: tournée extérieure, pause déjeuner, formation).
+* **Rôle** : Permet aux infirmières ou administrateurs de bloquer un créneau directement depuis le tableau de bord (ex: tournée extérieure, pause déjeuner, formation).
+* **🔐 Sécurité & Autorisation requise** :
+  - Requiert une session utilisateur Better Auth active (cookie de session ou en-tête d'authentification).
+  - Contrôle d'accès basé sur les rôles (RBAC) : seuls les utilisateurs avec rôle `ADMIN`, `STAFF`, ou ayant accès explicite à la section calendrier (`allowedSections: "ALL"` ou incluant `"calendar"`) sont autorisés.
+  - En cas de requête non authentifiée : `HTTP 401 Unauthorized`.
+  - En cas d'utilisateur sans permission suffisante : `HTTP 403 Forbidden`.
 * **Payload (JSON)** :
 ```json
 {
@@ -329,7 +342,10 @@ Le tableau de bord Mission Control est protégé par **Better Auth** adossé à 
 * `GET /api/auth/get-session` — Récupération de l'état de session actif.
 
 > [!IMPORTANT]
-> **Isolation stricte** : Tous les endpoints Webhooks (`/api/webhooks/*`), le portail client de devis (`/devis/*`, `/api/forms/devis`) et le flux de synchronisation iCal (`/api/calendar/michelle.ics`) restent ouverts et publics. L'authentification protège exclusivement le tableau de bord d'administration et les fonctions de configuration interne.
+> **Modèle de sécurité à double niveau** :
+> 1. **Webhooks Vapi** (`/api/webhooks/vapi/*`) : Authentifiés via secret partagé cryptographique (`Authorization: Bearer <secret>` ou `x-vapi-secret: <secret>`) avec comparaison `timingSafeEqual`.
+> 2. **Endpoints Staff & Administration** (`/dashboard`, `/api/calendar/block`, `/api/admin/*`) : Protégés par session Better Auth et permissions RBAC.
+> 3. **Flux Publics** (`/devis/*`, `/api/forms/devis`, `/api/calendar/michelle.ics`) : Ouverts pour la soumission client et la synchronisation d'agenda.
 
 ---
 

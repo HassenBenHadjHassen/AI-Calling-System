@@ -3,11 +3,18 @@ import { VapiServerMessagePayloadSchema } from '@/lib/validation/schemas';
 import { ServiceRequestsService } from '@/lib/services/service-requests.service';
 import { WebhookProcessingService } from '@/lib/services/webhook-processing.service';
 import { WebhookProvider } from '@prisma/client';
+import { verifyVapiSecret } from '@/lib/auth/vapi-auth';
 import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const rawCorrId = req.headers.get('x-correlation-id');
+
+  // Verify Vapi credentials before any processing
+  const auth = verifyVapiSecret(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     const rawBody = await req.json();
@@ -84,7 +91,6 @@ export async function POST(req: NextRequest) {
       throw processError;
     }
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     const correlationId = rawCorrId || `vapi_err_${Date.now()}`;
     logger.error('[Vapi Dani Batiment Exception]', {
       module: 'WEBHOOK_VAPI:DaniBatiment',
@@ -93,7 +99,7 @@ export async function POST(req: NextRequest) {
       durationMs: Date.now() - startTime,
     });
     return NextResponse.json(
-      { error: 'Internal server error', message: errMsg },
+      { error: 'Internal server error', message: 'An unexpected error occurred while processing the request' },
       {
         headers: { 'X-Correlation-Id': correlationId },
         status: 500,

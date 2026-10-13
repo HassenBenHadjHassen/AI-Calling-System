@@ -114,6 +114,19 @@ async function handleDirectSubmission(
         );
       }
 
+      if (result.status === 500) {
+        return NextResponse.json(
+          {
+            error: 'Internal server error',
+            message: 'Failed to safely persist patient request.',
+          },
+          {
+            headers: { 'X-Correlation-Id': correlationId },
+            status: 500,
+          }
+        );
+      }
+
       log.warn('[Direct Submission] Request rejected', {
         error: result.error,
         message: result.message,
@@ -152,7 +165,6 @@ async function handleDirectSubmission(
       }
     );
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     log.error('[Direct Submission Exception]', {
       error: err,
       durationMs: Date.now() - startTime,
@@ -160,7 +172,7 @@ async function handleDirectSubmission(
     return NextResponse.json(
       {
         error: 'Internal server error',
-        message: errMsg,
+        message: 'An unexpected error occurred while processing the request',
       },
       {
         headers: { 'X-Correlation-Id': correlationId },
@@ -251,7 +263,7 @@ async function handlePostCallWebhook(
       durationMs: Date.now() - startTime,
     });
     return NextResponse.json(
-      { error: 'Internal server error', message: errMsg },
+      { error: 'Internal server error', message: 'An unexpected error occurred while processing the intake report' },
       {
         headers: { 'X-Correlation-Id': correlationId },
         status: 500,

@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { VapiToolWebhookPayloadSchema } from '@/lib/validation/schemas';
 import { VapiIntegration } from '@/lib/integrations/vapi';
 import { CalendarAvailabilityService } from '@/lib/services/calendar-availability.service';
+import { verifyVapiSecret } from '@/lib/auth/vapi-auth';
 import { logger } from '@/lib/logger';
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const rawCorrId = req.headers.get('x-correlation-id');
+
+  // Verify Vapi credentials before any processing
+  const auth = verifyVapiSecret(req);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     const rawBody = await req.json();
@@ -72,7 +79,6 @@ export async function POST(req: NextRequest) {
       status: 200,
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     const correlationId = rawCorrId || `tool_cal_err_${Date.now()}`;
     logger.error('[Vapi Tool Calendar Exception]', {
       module: 'WEBHOOK_VAPI:ToolCalendarAvailability',
@@ -85,7 +91,7 @@ export async function POST(req: NextRequest) {
         results: [
           {
             toolCallId: 'fallback_error',
-            result: 'available=False ,Donc Ce créneau est déjà pris ',
+            result: 'available=False, Erreur technique lors de la vérification du calendrier',
           },
         ],
       },
