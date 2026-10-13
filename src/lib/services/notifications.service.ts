@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { twilioClient } from '../integrations/twilio';
-import { NotificationChannel, NotificationStatus } from '@prisma/client';
+import { NotificationChannel, NotificationStatus, Prisma } from '@prisma/client';
 
 export interface QueueNotificationParams {
   businessId: string;
@@ -57,7 +57,36 @@ export class NotificationService {
   }
 
   /**
+   * Transactional Outbox: Durably creates a notification job inside an existing database transaction.
+   * Ensures the notification intent is persisted atomically alongside patient request records.
+   */
+  static async createJobInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      businessId: string;
+      recipient: string;
+      message: string;
+      channel?: NotificationChannel;
+      maxAttempts?: number;
+    }
+  ) {
+    const channel = params.channel || NotificationChannel.SMS;
+    return await tx.notificationJob.create({
+      data: {
+        businessId: params.businessId,
+        channel,
+        recipient: params.recipient,
+        message: params.message,
+        status: NotificationStatus.PENDING,
+        attemptCount: 0,
+        maxAttempts: params.maxAttempts ?? 5,
+      },
+    });
+  }
+
+  /**
    * Processes a single notification job by ID.
+   * Atomically claims the job to prevent duplicate delivery across concurrent workers.
    */
   static async processJob(jobId: string, fromNumber?: string) {
     const job = await db.notificationJob.findUnique({
@@ -68,19 +97,42 @@ export class NotificationService {
       return;
     }
 
-    // Atomically mark processing
-    await db.notificationJob.update({
-      where: { id: jobId },
-      data: {
-        status: NotificationStatus.PROCESSING,
-        attemptCount: { increment: 1 },
-      },
-    });
+    // Atomically claim the job to prevent concurrent duplicate processing
+    if (typeof db.notificationJob?.updateMany === 'function') {
+      const claimed = await db.notificationJob.updateMany({
+        where: {
+          id: jobId,
+          status: { in: [NotificationStatus.PENDING, NotificationStatus.PROCESSING] },
+        },
+        data: {
+          status: NotificationStatus.PROCESSING,
+          attemptCount: { increment: 1 },
+        },
+      });
+
+      if (claimed.count === 0) {
+        return;
+      }
+    } else if (typeof db.notificationJob?.update === 'function') {
+      await db.notificationJob.update({
+        where: { id: jobId },
+        data: {
+          status: NotificationStatus.PROCESSING,
+          attemptCount: { increment: 1 },
+        },
+      });
+    }
+
+    // Refresh job record after claiming
+    const freshJob = typeof db.notificationJob?.findUnique === 'function'
+      ? await db.notificationJob.findUnique({ where: { id: jobId } })
+      : job;
+    if (!freshJob) return;
 
     try {
       const result = await twilioClient.sendSms({
-        to: job.recipient,
-        body: job.message,
+        to: freshJob.recipient,
+        body: freshJob.message,
         from: fromNumber,
       });
 
@@ -94,11 +146,11 @@ export class NotificationService {
           },
         });
       } else {
-        await this.handleJobFailure(job.id, job.attemptCount + 1, job.maxAttempts, result.error || 'Delivery failed');
+        await this.handleJobFailure(jobId, freshJob.attemptCount, freshJob.maxAttempts, result.error || 'Delivery failed');
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      await this.handleJobFailure(job.id, job.attemptCount + 1, job.maxAttempts, errMsg);
+      await this.handleJobFailure(jobId, freshJob.attemptCount, freshJob.maxAttempts, errMsg);
     }
   }
 
@@ -116,6 +168,9 @@ export class NotificationService {
           lastError: `Max attempts (${maxAttempts}) reached. Error: ${errorMsg}`,
         },
       });
+      console.error(
+        `[NOTIFICATION_DELIVERY_EXHAUSTED] Job ${jobId} permanently failed after ${maxAttempts} attempts: ${errorMsg}`
+      );
     } else {
       // Exponential backoff: 10s, 20s, 40s, 80s... max 300s
       const delaySeconds = Math.min(300, Math.pow(2, currentAttempts) * 10);

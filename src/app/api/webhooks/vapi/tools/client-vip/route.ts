@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     log.info('[Vapi Tool VIP] Lookup completed', {
       caller: maskedCaller,
-      lookupResult: result.results[0]?.result,
+      hasMatch: !('error' in (result.results[0] || {})),
       durationMs: Date.now() - startTime,
     });
 
@@ -81,7 +81,6 @@ export async function POST(req: NextRequest) {
       status: 200,
     });
   } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err);
     const correlationId = rawCorrId || `tool_vip_err_${Date.now()}`;
     logger.error('[Vapi Tool VIP Exception]', {
       module: 'WEBHOOK_VAPI:ToolClientVIP',
@@ -94,7 +93,9 @@ export async function POST(req: NextRequest) {
         results: [
           {
             toolCallId: 'fallback_error',
-            result: 'Utilisateur est un nouveau client',
+            result:
+              'Erreur technique lors de la vérification du profil client. Impossible de déterminer le statut du client.',
+            error: 'LOOKUP_FAILED',
           },
         ],
       },

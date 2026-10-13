@@ -407,3 +407,85 @@ tail -n 50 logs/error.log
 # Télécharger le fichier de log complet depuis un navigateur
 curl -H "Cookie: ..." https://ai-calling-system.hassenbenhadjhassen.com/api/admin/logs/download?type=combined
 ```
+
+---
+
+## 8. 🚀 Guide de Déploiement Production, Sécurité & Rotation des Secrets
+
+### 🔹 1. Variables d'Environnement Requises (Backend)
+Pour assurer le fonctionnement complet et sécurisé en production, configurez les variables suivantes dans votre fichier `.env` ou gestionnaire de secrets :
+
+| Variable | Description & Rôle | Obligatoire en Prod |
+| :--- | :--- | :---: |
+| `DATABASE_URL` | Chaîne de connexion PostgreSQL (avec pool de connexions et SSL require) | **Oui** |
+| `VAPI_WEBHOOK_SECRET` | Secret partagé vérifié par timing-safe compare pour authentifier les requêtes Vapi | **Oui** |
+| `TWILIO_ACCOUNT_SID` | Identifiant du compte Twilio pour l'envoi de SMS et la vérification des lignes | **Oui** |
+| `TWILIO_AUTH_TOKEN` | Jeton d'authentification Twilio | **Oui** |
+| `TWILIO_PHONE_NUMBER` | Numéro d'expédition Twilio SMS par défaut | **Oui** |
+| `CABINET_INBOUND_PHONE` | Numéro d'accueil téléphonique du Cabinet Michelle | **Oui** |
+| `NURSE_ALERT_PHONE_NUMBER` | Numéro de mobile de Mme MICHEL pour recevoir les alertes SMS prioritaires | **Oui** |
+| `CABINET_ASSISTANT_ID` | Identifiant d'assistant Vapi pour Cabinet Michelle | **Oui** |
+| `BATIMENT_ASSISTANT_ID` | Identifiant d'assistant Vapi pour Dani Bâtiment | **Oui** |
+| `BATIMENT_ALERT_PHONE_NUMBER`| Numéro d'alerte pour les équipes Dani Bâtiment | **Oui** |
+| `BETTER_AUTH_SECRET` | Clé secrète de chiffrement des sessions utilisateur Better Auth | **Oui** |
+| `NODE_ENV` | `production` (active le fail-closed strict de l'authentification webhook) | **Oui** |
+
+### 🔹 2. Endpoints Protégés & Configuration Vapi
+Tous les endpoints suivants appliquent la politique de vérification stricte en temps constant (`verifyVapiSecret`) :
+1. `POST /api/webhooks/vapi/tools/client-vip` (Vérification client VIP)
+2. `POST /api/webhooks/vapi/tools/calendar-availability` (Vérification disponibilité créneaux)
+3. `POST /api/webhooks/vapi/patient-intake` (Format A direct tool call & Format B post-call)
+4. `POST /api/webhooks/vapi/dani-batiment` (Fin d'appel bâtiment)
+
+**Dans l'interface Vapi Dashboard :**
+- **Pour les Assistant Server URLs** (ex: Dani Bâtiment, Post-Call Report) :  
+  Définir l'en-tête personnalisé :
+  ```http
+  Authorization: Bearer <VAPI_WEBHOOK_SECRET>
+  ```
+  *ou*
+  ```http
+  x-vapi-secret: <VAPI_WEBHOOK_SECRET>
+  ```
+- **Pour les API Request Tools** (ex: `submit_patient_request`, `calendar_availability`, `client_vip`) :  
+  Dans la configuration de chaque Tool Vapi, ajoutez l'en-tête HTTP dans `Headers` :
+  ```json
+  {
+    "Authorization": "Bearer <VAPI_WEBHOOK_SECRET>"
+  }
+  ```
+
+### 🔹 3. Politique Fail-Closed en Production
+En environnement de production (`NODE_ENV=production`) :
+- Si `VAPI_WEBHOOK_SECRET` est absent, vide ou égal au secret de test par défaut (`vapi_test_secret`), toutes les requêtes webhook entrantes sont immédiatement rejetées avec un code HTTP `401 Unauthorized`.
+- Toute tentative d'accès avec un secret erroné ou d'une longueur différente est rejetée en temps constant via `crypto.timingSafeEqual` sans exception ni fuite temporelle.
+
+### 🔹 4. Procédure de Rotation Sécurisée des Secrets
+Pour renouveler le secret webhook sans interruption de service :
+1. Générez une clé cryptographique aléatoire :  
+   `openssl rand -hex 32`
+2. Mettez à jour le secret dans le gestionnaire d'environnement du backend (ou `.env`).
+3. Rechargez le backend sans coupure :  
+   `npm run pm2:reload`
+4. Mettez à jour les en-têtes correspondants dans le tableau de bord Vapi (Tools et Server URLs).
+5. Vérifiez la bonne réception en consultant les logs :  
+   `tail -f logs/webhooks.log`
+
+### 🔹 5. Migrations de Base de Données & Worker d'Arrière-Plan
+1. **Validation & Génération Prisma** :  
+   Avant tout démarrage en production, validez le schéma et générez le client :
+   ```bash
+   npx prisma validate
+   npx prisma generate
+   ```
+2. **Exécution du Worker Transactionnel Outbox** :  
+   Les notifications (SMS, alertes infirmière) sont durcies via une table Transactional Outbox (`notification_jobs`). Le worker doit tourner en continu en arrière-plan :
+   ```bash
+   # Démarrer le worker via PM2
+   npm run pm2:start
+   
+   # Ou exécuter directement
+   npm run worker
+   ```
+   Le worker interroge PostgreSQL toutes les 5 secondes pour traiter les jobs en attente et applique un backoff exponentiel borné (10s, 20s, 40s, 80s... max 300s) avec un maximum de 5 tentatives avant alerte terminale observable.
+

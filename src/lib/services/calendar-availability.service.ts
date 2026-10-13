@@ -1,6 +1,7 @@
 import { googleCalendar } from '../integrations/google-calendar';
 import { InternalCalendarService } from './internal-calendar.service';
 import { VapiIntegration } from '../integrations/vapi';
+import { TenantService } from './tenant.service';
 import { db } from '../db';
 import { env } from '../env';
 
@@ -126,7 +127,7 @@ export class CalendarAvailabilityService {
    */
   static async checkSlot(params: CalendarAvailabilityParams) {
     try {
-      // 1. Resolve calendar ID and business from assistant if configured
+      // 1. Authoritative resolution of Business & Calendar - FAIL CLOSED if unmapped or unknown
       let calendarId = env.CABINET_CALENDAR_ID;
       let businessId = params.businessId;
 
@@ -135,11 +136,50 @@ export class CalendarAvailabilityService {
           where: { assistantId: params.assistantId },
           include: { business: true },
         });
-        if (assistant?.business) {
-          businessId = assistant.business.id;
-          if (assistant.business.calendarId) {
-            calendarId = assistant.business.calendarId;
+
+        if (!assistant?.business) {
+          if (
+            params.assistantId === env.CABINET_ASSISTANT_ID ||
+            params.assistantId === '97808c43-384a-4f40-a8dd-9149ba4988f5'
+          ) {
+            const biz = await TenantService.ensureTenant('CABINET_MICHELLE');
+            businessId = biz.id;
+            calendarId = biz.calendarId || env.CABINET_CALENDAR_ID;
+          } else {
+            // FAIL CLOSED: Unknown assistant ID
+            return VapiIntegration.buildToolResponse(
+              params.toolCallId,
+              'available=False, Erreur technique lors de la vérification du calendrier: assistant non configuré'
+            );
           }
+        } else {
+          businessId = assistant.business.id;
+          calendarId = assistant.business.calendarId || env.CABINET_CALENDAR_ID;
+        }
+      } else if (params.businessId) {
+        const biz = await db.business.findUnique({
+          where: { id: params.businessId },
+        });
+        if (!biz) {
+          return VapiIntegration.buildToolResponse(
+            params.toolCallId,
+            'available=False, Erreur technique lors de la vérification du calendrier: entreprise inconnue'
+          );
+        }
+        businessId = biz.id;
+        calendarId = biz.calendarId || env.CABINET_CALENDAR_ID;
+      } else {
+        // Direct call without explicit tenant parameter: resolve default Cabinet Michelle tenant
+        try {
+          const biz = await db.business.findUnique({
+            where: { slug: 'CABINET_MICHELLE' },
+          });
+          if (biz) {
+            businessId = biz.id;
+            calendarId = biz.calendarId || env.CABINET_CALENDAR_ID;
+          }
+        } catch {
+          // Keep default calendarId
         }
       }
 

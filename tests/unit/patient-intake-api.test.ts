@@ -179,7 +179,7 @@ describe('Cabinet MICHEL Patient Intake API — Dual Format & Persistence', () =
     const body = {
       requestType: 'cancellation',
       patientName: 'Jean Dupont',
-      postalCode: '',
+      postalCode: '75008',
       serviceType: 'Pansement',
       requestedDate: '2026-10-15',
       requestedTime: '10:00',

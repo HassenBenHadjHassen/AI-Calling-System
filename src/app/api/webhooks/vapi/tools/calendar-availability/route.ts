@@ -60,6 +60,19 @@ export async function POST(req: NextRequest) {
       '';
 
     const assistantId = payload.message.assistant?.id;
+    if (!assistantId) {
+      log.warn('[Vapi Tool Calendar] Missing assistant ID in payload');
+      return NextResponse.json(
+        VapiIntegration.buildToolResponse(
+          primaryToolCall.id,
+          'available=False, Erreur technique lors de la vérification du calendrier: assistant non configuré'
+        ),
+        {
+          headers: { 'X-Correlation-Id': correlationId },
+          status: 200,
+        }
+      );
+    }
 
     log.info(`[Vapi Tool Calendar] Checking slot ${rawDateTime} (assistant: ${assistantId})`);
 

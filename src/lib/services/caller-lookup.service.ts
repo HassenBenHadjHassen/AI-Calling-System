@@ -13,107 +13,155 @@ export interface CallerLookupParams {
 export class CallerLookupService {
   /**
    * Reproduces the VIP and caller lookup behavior from Client_VIP.json.
+   * Strictly distinguishes between customer found, genuine new customer, and technical errors.
    */
   static async lookupCaller(params: CallerLookupParams) {
-    const normalizedPhone = normalizePhoneNumber(params.callerNumber);
-
-    // 1. Resolve Assistant & Business Tenant (auto-bootstraps if not seeded)
-    const assistantConfig = await db.assistantConfig.findUnique({
-      where: { assistantId: params.assistantId },
-      include: { business: true },
-    });
-
-    const business =
-      assistantConfig?.business ||
-      (await TenantService.resolveTenantByAssistantId(params.assistantId));
-
-    // 2. Global / Tenant Whitelist / Allowlist Check (Module 31)
-    const allowlistEntry = await db.callerAllowlist.findFirst({
-      where: {
-        businessId: business.id,
-        phoneNumber: normalizedPhone,
-        active: true,
-      },
-    });
-
-    // 3. Cabinet Michelle Branch (Route 1)
-    if (
-      params.assistantId === env.CABINET_ASSISTANT_ID ||
-      params.assistantId === '97808c43-384a-4f40-a8dd-9149ba4988f5' ||
-      business.slug === 'CABINET_MICHELLE'
-    ) {
-      // Whitelist match (Module 22)
-      if (allowlistEntry) {
-        return VapiIntegration.buildToolResponse(
-          params.toolCallId,
-          ' NUMERO EST UN liste blanche / whitelist, DONC TRASNFERT LAPPEL VERS LE LINFIRMIERE '
-        );
+    try {
+      let normalizedPhone = '';
+      try {
+        normalizedPhone = normalizePhoneNumber(params.callerNumber);
+      } catch {
+        return {
+          results: [
+            {
+              toolCallId: params.toolCallId,
+              result: 'Erreur: Numéro de téléphone de l\'appelant invalide ou manquant.',
+              error: 'INVALID_PHONE_NUMBER',
+            },
+          ],
+        };
       }
 
-      // Existing client lookup (Module 4)
-      const contact = await db.contact.findFirst({
+      // 1. Resolve Assistant & Business Tenant
+      const assistantConfig = params.assistantId
+        ? await db.assistantConfig.findUnique({
+            where: { assistantId: params.assistantId },
+            include: { business: true },
+          })
+        : null;
+
+      const business =
+        assistantConfig?.business ||
+        (await TenantService.resolveTenantByAssistantId(params.assistantId));
+
+      if (!business) {
+        return {
+          results: [
+            {
+              toolCallId: params.toolCallId,
+              result:
+                'Erreur technique lors de la vérification du profil client: assistant ou entreprise non reconnu.',
+              error: 'UNKNOWN_ASSISTANT',
+            },
+          ],
+        };
+      }
+
+      // 2. Global / Tenant Whitelist / Allowlist Check (Module 31)
+      const allowlistEntry = await db.callerAllowlist.findFirst({
         where: {
           businessId: business.id,
           phoneNumber: normalizedPhone,
-        },
-        include: {
-          appointments: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-          },
+          active: true,
         },
       });
 
-      if (contact && contact.appointments.length > 0) {
-        const appt = contact.appointments[0];
-        // Module 3 response
-        return VapiIntegration.buildToolResponse(
-          params.toolCallId,
-          `Utilisateur est un client existant, Nom : ${contact.name}, Historique : ${appt.serviceType}, Heure: ${appt.time}, Date: ${appt.date}`
-        );
-      }
+      // 3. Cabinet Michelle Branch (Route 1)
+      if (
+        params.assistantId === env.CABINET_ASSISTANT_ID ||
+        params.assistantId === '97808c43-384a-4f40-a8dd-9149ba4988f5' ||
+        business.slug === 'CABINET_MICHELLE'
+      ) {
+        // Whitelist match (Module 22)
+        if (allowlistEntry) {
+          return VapiIntegration.buildToolResponse(
+            params.toolCallId,
+            ' NUMERO EST UN liste blanche / whitelist, DONC TRASNFERT LAPPEL VERS LE LINFIRMIERE '
+          );
+        }
 
-      // New client (Module 16)
-      return VapiIntegration.buildToolResponse(
-        params.toolCallId,
-        'Utilisateur est un nouveau client'
-      );
-    }
-
-    // 4. Dani Bâtiment Branch (Route 2)
-    if (params.assistantId === '38a56410-a3b6-49d5-96f1-8cd572b3f81c' || business.slug === 'DANI_BATIMENT') {
-      const contact = await db.contact.findFirst({
-        where: {
-          businessId: business.id,
-          phoneNumber: normalizedPhone,
-        },
-        include: {
-          requests: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
+        // Existing client lookup (Module 4)
+        const contact = await db.contact.findFirst({
+          where: {
+            businessId: business.id,
+            phoneNumber: normalizedPhone,
           },
-        },
-      });
+          include: {
+            appointments: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
 
-      if (contact && contact.requests.length > 0) {
-        const req = contact.requests[0];
-        // Module 14 response
+        if (contact && contact.appointments.length > 0) {
+          const appt = contact.appointments[0];
+          // Module 3 response
+          return VapiIntegration.buildToolResponse(
+            params.toolCallId,
+            `Utilisateur est un client existant, Nom : ${contact.name}, Historique : ${appt.serviceType}, Heure: ${appt.time}, Date: ${appt.date}`
+          );
+        }
+
+        // Genuine new client (Module 16) - only after successful database lookup confirming no record
         return VapiIntegration.buildToolResponse(
           params.toolCallId,
-          `NOM: ${contact.name}, service: ${req.serviceType || 'Non specifie'}, Motif: ${req.category}, Message: ${req.message || 'Aucun'}, ADRESSE: ${req.address || 'Non specifie'}`
+          'Utilisateur est un nouveau client'
         );
       }
 
-      return VapiIntegration.buildToolResponse(
-        params.toolCallId,
-        'Utilisateur est un nouveau client pour les travaux de bâtiment'
-      );
-    }
+      // 4. Dani Bâtiment Branch (Route 2)
+      if (params.assistantId === '38a56410-a3b6-49d5-96f1-8cd572b3f81c' || business.slug === 'DANI_BATIMENT') {
+        const contact = await db.contact.findFirst({
+          where: {
+            businessId: business.id,
+            phoneNumber: normalizedPhone,
+          },
+          include: {
+            requests: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
 
-    // Generic fallback
-    return VapiIntegration.buildToolResponse(
-      params.toolCallId,
-      'Utilisateur est un nouveau client'
-    );
+        if (contact && contact.requests.length > 0) {
+          const req = contact.requests[0];
+          // Module 14 response
+          return VapiIntegration.buildToolResponse(
+            params.toolCallId,
+            `NOM: ${contact.name}, service: ${req.serviceType || 'Non specifie'}, Motif: ${req.category}, Message: ${req.message || 'Aucun'}, ADRESSE: ${req.address || 'Non specifie'}`
+          );
+        }
+
+        return VapiIntegration.buildToolResponse(
+          params.toolCallId,
+          'Utilisateur est un nouveau client pour les travaux de bâtiment'
+        );
+      }
+
+      // Unrecognized workflow branch - FAIL CLOSED
+      return {
+        results: [
+          {
+            toolCallId: params.toolCallId,
+            result: 'Erreur de configuration: workflow non configuré pour cet assistant.',
+            error: 'UNCONFIGURED_WORKFLOW',
+          },
+        ],
+      };
+    } catch (err: unknown) {
+      console.error('[CallerLookupService Database Exception]:', err);
+      return {
+        results: [
+          {
+            toolCallId: params.toolCallId,
+            result:
+              'Erreur technique lors de la vérification du profil client. Impossible de déterminer le statut du client.',
+            error: 'DATABASE_ERROR',
+          },
+        ],
+      };
+    }
   }
 }

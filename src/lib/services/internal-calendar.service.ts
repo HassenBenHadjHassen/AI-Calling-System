@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { db } from '../db';
 import { env } from '../env';
-import { AppointmentStatus } from '@prisma/client';
+import { AppointmentStatus, Prisma } from '@prisma/client';
 import { googleCalendar } from '../integrations/google-calendar';
 
 export interface InternalCalendarEventPayload {
@@ -233,35 +233,54 @@ export class InternalCalendarService {
     // 3. Query PostgreSQL appointments with tenant isolation
     try {
       if (db.appointment?.findMany) {
-        // Resolve businessId for tenant isolation
+        // Resolve businessId for tenant isolation - FAIL CLOSED if tenant is missing or unknown
+        if (!calendarIdOrBusinessSlug || !calendarIdOrBusinessSlug.trim()) {
+          return {
+            isAvailable: false,
+            start,
+            end,
+            conflictingEventsCount: 0,
+            reason: 'verification_failed',
+            error: 'Missing tenant or calendar identifier for availability check',
+            isDryRun: false,
+          };
+        }
+
         let targetBusinessId: string | undefined = undefined;
-        if (calendarIdOrBusinessSlug) {
-          if (calendarIdOrBusinessSlug.startsWith('biz_')) {
-            targetBusinessId = calendarIdOrBusinessSlug;
-          } else if (db.business?.findFirst) {
-            const biz = await db.business.findFirst({
-              where: {
-                OR: [
-                  { id: calendarIdOrBusinessSlug },
-                  { slug: calendarIdOrBusinessSlug },
-                  { calendarId: calendarIdOrBusinessSlug },
-                ],
-              },
-              select: { id: true },
-            });
-            if (biz) {
-              targetBusinessId = biz.id;
-            } else {
-              targetBusinessId = calendarIdOrBusinessSlug;
-            }
-          } else {
-            targetBusinessId = calendarIdOrBusinessSlug;
+        if (calendarIdOrBusinessSlug.startsWith('biz_')) {
+          targetBusinessId = calendarIdOrBusinessSlug;
+        } else if (db.business?.findFirst) {
+          const biz = await db.business.findFirst({
+            where: {
+              OR: [
+                { id: calendarIdOrBusinessSlug },
+                { slug: calendarIdOrBusinessSlug },
+                { calendarId: calendarIdOrBusinessSlug },
+              ],
+            },
+            select: { id: true },
+          });
+
+          if (!biz) {
+            // FAIL CLOSED: Never interpret an unresolvable business/assistant as zero conflicts
+            return {
+              isAvailable: false,
+              start,
+              end,
+              conflictingEventsCount: 0,
+              reason: 'verification_failed',
+              error: `Tenant business could not be resolved for identifier "${calendarIdOrBusinessSlug}"`,
+              isDryRun: false,
+            };
           }
+          targetBusinessId = biz.id;
+        } else {
+          targetBusinessId = calendarIdOrBusinessSlug;
         }
 
         const dbConflicts = await db.appointment.findMany({
           where: {
-            ...(targetBusinessId ? { businessId: targetBusinessId } : {}),
+            businessId: targetBusinessId,
             status: {
               in: BLOCKING_APPOINTMENT_STATUSES,
             },
@@ -356,7 +375,7 @@ export class InternalCalendarService {
   }
 
   /**
-   * Blocks a timeslot (e.g. for staff holiday, lunch, training)
+   * Blocks a timeslot (e.g. for staff holiday, lunch, training) using transaction-level advisory locking
    */
   static async blockTimeSlot(params: {
     businessId: string;
@@ -368,40 +387,52 @@ export class InternalCalendarService {
     const startStr = DateTime.fromJSDate(params.start, { zone: env.TIMEZONE }).toFormat('yyyy-MM-dd');
     const timeStr = DateTime.fromJSDate(params.start, { zone: env.TIMEZONE }).toFormat("HH'h'mm");
 
-    // Ensure staff contact exists
-    let staffContact = await db.contact.findFirst({
-      where: { businessId: params.businessId },
-    });
+    const txRunner = typeof db.$transaction === 'function'
+      ? <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => db.$transaction(fn)
+      : <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => fn(db as unknown as Prisma.TransactionClient);
 
-    if (!staffContact) {
-      staffContact = await db.contact.create({
+    const appt = await txRunner(async (tx) => {
+      // Concurrency protection: Acquire PostgreSQL advisory transaction lock
+      if (typeof tx.$executeRaw === 'function') {
+        const lockKey = `calendar_booking_${params.businessId}_${startStr}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+      }
+
+      // Ensure staff contact exists
+      let staffContact = await tx.contact.findFirst({
+        where: { businessId: params.businessId },
+      });
+
+      if (!staffContact) {
+        staffContact = await tx.contact.create({
+          data: {
+            businessId: params.businessId,
+            name: 'Cabinet Michelle (Interne)',
+            phoneNumber: env.CABINET_INBOUND_PHONE,
+          },
+        });
+      }
+
+      const eventId = `block_${Date.now()}`;
+
+      return await tx.appointment.create({
         data: {
           businessId: params.businessId,
-          name: 'Cabinet Michelle (Interne)',
-          phoneNumber: env.CABINET_INBOUND_PHONE,
+          contactId: staffContact.id,
+          serviceType: `INDISPONIBLE: ${params.title}`,
+          date: startStr,
+          time: timeStr,
+          startTime: params.start,
+          endTime: params.end,
+          status: AppointmentStatus.CONFIRMED,
+          googleCalendarEventId: eventId,
+          notes: params.notes || 'Créneau bloqué manuellement',
         },
       });
-    }
-
-    const eventId = `block_${Date.now()}`;
-
-    const appt = await db.appointment.create({
-      data: {
-        businessId: params.businessId,
-        contactId: staffContact.id,
-        serviceType: `INDISPONIBLE: ${params.title}`,
-        date: startStr,
-        time: timeStr,
-        startTime: params.start,
-        endTime: params.end,
-        status: AppointmentStatus.CONFIRMED,
-        googleCalendarEventId: eventId,
-        notes: params.notes || 'Créneau bloqué manuellement',
-      },
     });
 
     this.mockEvents.push({
-      id: eventId,
+      id: appt.googleCalendarEventId || `block_${Date.now()}`,
       calendarId: env.CABINET_CALENDAR_ID,
       summary: `Bloqué: ${params.title}`,
       start: params.start,

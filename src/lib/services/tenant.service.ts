@@ -130,7 +130,8 @@ export class TenantService {
   }
 
   /**
-   * Resolves tenant by incoming assistant ID, auto-provisioning if missing.
+   * Resolves tenant by incoming assistant ID, auto-provisioning known defaults if missing.
+   * Returns null if assistant ID cannot be resolved to any tenant (fails closed).
    */
   static async resolveTenantByAssistantId(assistantId?: string) {
     if (assistantId) {
@@ -140,10 +141,17 @@ export class TenantService {
       });
       if (config) return config.business;
 
-      if (assistantId === env.BATIMENT_ASSISTANT_ID) {
+      if (assistantId === env.BATIMENT_ASSISTANT_ID || assistantId === '38a56410-a3b6-49d5-96f1-8cd572b3f81c') {
         return this.ensureTenant('DANI_BATIMENT');
       }
+
+      if (assistantId === env.CABINET_ASSISTANT_ID || assistantId === '97808c43-384a-4f40-a8dd-9149ba4988f5') {
+        return this.ensureTenant('CABINET_MICHELLE');
+      }
+
+      // Unmapped assistant ID: fail closed
+      return null;
     }
-    return this.ensureTenant('CABINET_MICHELLE');
+    return null;
   }
 }

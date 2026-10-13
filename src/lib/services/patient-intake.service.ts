@@ -5,7 +5,7 @@ import { InternalCalendarService, BLOCKING_APPOINTMENT_STATUSES } from './intern
 import { CalendarAvailabilityService } from './calendar-availability.service';
 import { NotificationService } from './notifications.service';
 import { VapiIntegration, VAPI_STRUCTURED_OUTPUT_IDS } from '../integrations/vapi';
-import { VapiServerMessagePayload, DirectPatientSubmissionPayload } from '../validation/schemas';
+import { VapiServerMessagePayload, DirectPatientSubmissionPayload, DirectPatientSubmissionInput } from '../validation/schemas';
 import {
   AppointmentStatus,
   LineType,
@@ -13,6 +13,7 @@ import {
   ServiceRequestStatus,
   PatientRequestType,
   PatientRequestStatus,
+  Prisma,
 } from '@prisma/client';
 import { env } from '../env';
 import { TenantService } from './tenant.service';
@@ -49,6 +50,16 @@ export type DirectSubmissionResult =
       message: string;
       conflict?: boolean;
     };
+
+export class IntakeConflictError extends Error {
+  statusCode: number;
+  errorCode: string;
+  constructor(message: string, statusCode: number, errorCode: string) {
+    super(message);
+    this.statusCode = statusCode;
+    this.errorCode = errorCode;
+  }
+}
 
 export class PatientIntakeService {
   /**
@@ -346,9 +357,17 @@ export class PatientIntakeService {
    * ensures urgent requests remain PENDING, and queues notifications ONLY after transaction commit.
    */
   static async handleDirectSubmission(
-    payload: DirectPatientSubmissionPayload
+    payload: DirectPatientSubmissionInput | DirectPatientSubmissionPayload
   ): Promise<DirectSubmissionResult> {
-    const vapiCallId = payload.callId;
+    const vapiCallId = payload.callId?.trim() || '';
+    if (!vapiCallId) {
+      return {
+        success: false,
+        status: 400,
+        error: 'INVALID_CALL_ID',
+        message: 'callId is required and cannot be empty',
+      };
+    }
     let callerNumber = '';
     try {
       callerNumber = normalizePhoneNumber(payload.caller);
@@ -435,8 +454,8 @@ export class PatientIntakeService {
     if (payload.requestType === 'appointment') {
       try {
         const parsed = InternalCalendarService.parseAppointmentDateTime(
-          payload.requestedDate,
-          payload.requestedTime
+          payload.requestedDate || '',
+          payload.requestedTime || ''
         );
         start = parsed.start;
         end = parsed.end;
@@ -511,30 +530,33 @@ export class PatientIntakeService {
         : LineType.UNKNOWN;
 
     // 5. Transactional Execution
-    interface TxNotificationPlan {
-      type: 'appointment' | 'cancellation' | 'message';
-      lineType?: LineType;
-      isUrgent?: boolean;
-      smsBody?: string;
-    }
-
     interface TxResult {
       isDuplicate: boolean;
       requestId: string;
       requestType: 'appointment' | 'cancellation' | 'message';
       status: string;
       message: string;
-      notification?: TxNotificationPlan;
+      notificationJobId?: string;
     }
 
     let txResult: TxResult;
 
     try {
       const txRunner = typeof db.$transaction === 'function'
-        ? (fn: (tx: any) => Promise<any>) => db.$transaction(fn)
-        : (fn: (tx: any) => Promise<any>) => fn(db);
+        ? <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => db.$transaction(fn)
+        : <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => fn(db as unknown as Prisma.TransactionClient);
 
       txResult = await txRunner(async (tx) => {
+        // Concurrency Protection: Acquire transaction-level PostgreSQL advisory lock
+        // Serializes concurrent bookings for the same business & date, releasing automatically on commit/rollback
+        if (typeof tx.$executeRaw === 'function') {
+          const lockKey =
+            payload.requestType === 'appointment' && payload.requestedDate
+              ? `calendar_booking_${business.id}_${payload.requestedDate}`
+              : `patient_intake_${business.id}_${vapiCallId}`;
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        }
+
         // A. Idempotency Check inside transaction
         const existing = await tx.patientRequest.findUnique({
           where: {
@@ -555,10 +577,7 @@ export class PatientIntakeService {
             (payload.summary && existing.summary && payload.summary !== existing.summary);
 
           if (isMateriallyDifferent) {
-            const err = new Error('The same call ID was submitted with different request details.');
-            (err as any).statusCode = 409;
-            (err as any).errorCode = 'IDEMPOTENCY_CONFLICT';
-            throw err;
+            throw new IntakeConflictError('The same call ID was submitted with different request details.', 409, 'IDEMPOTENCY_CONFLICT');
           }
 
           log.info('[DirectSubmission] Idempotent replay: returning existing request record', {
@@ -588,10 +607,7 @@ export class PatientIntakeService {
           });
 
           if (dbConflict) {
-            const err = new Error('The requested appointment slot is already being booked by another caller.');
-            (err as any).statusCode = 409;
-            (err as any).errorCode = 'SLOT_CONFLICT';
-            throw err;
+            throw new IntakeConflictError('The requested appointment slot is already being booked by another caller.', 409, 'SLOT_CONFLICT');
           }
 
           const pendingReqConflict = await tx.patientRequest.findFirst({
@@ -606,10 +622,7 @@ export class PatientIntakeService {
           });
 
           if (pendingReqConflict) {
-            const err = new Error('The requested appointment slot is already being booked by another caller.');
-            (err as any).statusCode = 409;
-            (err as any).errorCode = 'SLOT_CONFLICT';
-            throw err;
+            throw new IntakeConflictError('The requested appointment slot is already being booked by another caller.', 409, 'SLOT_CONFLICT');
           }
         }
 
@@ -663,7 +676,6 @@ export class PatientIntakeService {
         // E. Branch: APPOINTMENT
         if (payload.requestType === 'appointment' && start && end) {
           const isUrgent = payload.urgency === true || payload.urgency === 'true';
-          // Urgency is represented separately; status is ALWAYS PENDING or PENDING_LANDLINE
           const initialStatus: AppointmentStatus =
             lineType === LineType.LANDLINE
               ? AppointmentStatus.PENDING_LANDLINE
@@ -675,9 +687,9 @@ export class PatientIntakeService {
               contactId: contact.id,
               patientId: patient.id,
               callRecordId: callRecord.id,
-              serviceType: payload.serviceType,
-              date: payload.requestedDate,
-              time: payload.requestedTime,
+              serviceType: payload.serviceType || 'Soin',
+              date: payload.requestedDate || '',
+              time: payload.requestedTime || '',
               startTime: start,
               endTime: end,
               status: initialStatus,
@@ -691,13 +703,13 @@ export class PatientIntakeService {
               businessId: business.id,
               vapiCallId,
               callerNumber,
-              patientName: payload.patientName,
+              patientName: payload.patientName || 'Inconnu',
               requestType: PatientRequestType.APPOINTMENT,
-              postalCode: payload.postalCode,
-              serviceType: payload.serviceType,
-              requestedDate: payload.requestedDate,
-              requestedTime: payload.requestedTime,
-              summary: payload.summary,
+              postalCode: payload.postalCode || undefined,
+              serviceType: payload.serviceType || undefined,
+              requestedDate: payload.requestedDate || undefined,
+              requestedTime: payload.requestedTime || undefined,
+              summary: payload.summary || undefined,
               urgency: isUrgent,
               status: PatientRequestStatus.PENDING,
               contactId: contact.id,
@@ -706,17 +718,48 @@ export class PatientIntakeService {
             },
           });
 
+          // Compose alert SMS for Madame MICHEL
+          let smsBody = '';
+          if (lineType === LineType.MOBILE) {
+            if (isUrgent) {
+              smsBody = "c'est un urgent condition\nrapeller le patient\n";
+            } else {
+              smsBody =
+                `bonjour nouveau patient:\n` +
+                `DATE:${payload.requestedDate}   à${payload.requestedTime}\n` +
+                `NOM:${payload.patientName}\n` +
+                `Service:${payload.serviceType}\n` +
+                `code postale:\n${payload.postalCode || ''}\n` +
+                `numero :${callerNumber}\n\n` +
+                `OPTION:\n1.OUI\n2.NON\n\n`;
+            }
+          } else if (lineType === LineType.LANDLINE) {
+            smsBody =
+              `Le cleint vient d'appeler d'une nunemro FIXE ces infos:\n` +
+              `tu le rappeleras sur le numero :${callerNumber}\n\n` +
+              `DATE:\n${payload.requestedDate}   à${payload.requestedTime}\n` +
+              `NOM:${payload.patientName}\n` +
+              `Service:${payload.serviceType}\n`;
+          }
+
+          // Transactional Outbox: Persist notification job atomically inside this transaction
+          let notificationJobId: string | undefined;
+          if (smsBody) {
+            const notifJob = await NotificationService.createJobInTx(tx, {
+              businessId: business.id,
+              recipient: alertPhone,
+              message: smsBody,
+            });
+            notificationJobId = notifJob.id;
+          }
+
           return {
             isDuplicate: false,
             requestId: patientRequest.id,
             requestType: 'appointment' as const,
             status: 'PENDING',
             message: "The patient's request has been saved and is awaiting review.",
-            notification: {
-              type: 'appointment',
-              lineType,
-              isUrgent,
-            },
+            notificationJobId,
           };
         }
 
@@ -782,16 +825,20 @@ export class PatientIntakeService {
             `Numéro: ${callerNumber}\n` +
             `Action: À confirmer/valider par Mme MICHEL`;
 
+          // Transactional Outbox: Persist notification job atomically inside this transaction
+          const notifJob = await NotificationService.createJobInTx(tx, {
+            businessId: business.id,
+            recipient: alertPhone,
+            message: smsBody,
+          });
+
           return {
             isDuplicate: false,
             requestId: patientRequest.id,
             requestType: 'cancellation' as const,
             status: 'PENDING',
             message: "The patient's request has been saved and is awaiting review.",
-            notification: {
-              type: 'cancellation',
-              smsBody,
-            },
+            notificationJobId: notifJob.id,
           };
         }
 
@@ -829,40 +876,36 @@ export class PatientIntakeService {
           `De: ${payload.patientName || contact.name} (${callerNumber})\n` +
           `Message:\n${payload.summary}\n`;
 
+        // Transactional Outbox: Persist notification job atomically inside this transaction
+        const notifJob = await NotificationService.createJobInTx(tx, {
+          businessId: business.id,
+          recipient: alertPhone,
+          message: messageAlert,
+        });
+
         return {
           isDuplicate: false,
           requestId: patientRequest.id,
           requestType: 'message' as const,
           status: 'PENDING',
           message: "The patient's request has been saved and is awaiting review.",
-          notification: {
-            type: 'message',
-            smsBody: messageAlert,
-          },
+          notificationJobId: notifJob.id,
         };
       });
-    } catch (txErr: any) {
-      if (txErr?.errorCode === 'IDEMPOTENCY_CONFLICT') {
+    } catch (txErr: unknown) {
+      if (txErr instanceof IntakeConflictError) {
         return {
           success: false,
-          status: 409,
-          error: 'IDEMPOTENCY_CONFLICT',
-          message: txErr.message,
-        };
-      }
-
-      if (txErr?.errorCode === 'SLOT_CONFLICT') {
-        return {
-          success: false,
-          status: 409,
+          status: txErr.statusCode,
           conflict: true,
-          error: 'SLOT_CONFLICT',
+          error: txErr.errorCode,
           message: txErr.message,
         };
       }
 
       // Handle race condition unique constraint collision (P2002 on vapiCallId_requestType)
-      if (txErr?.code === 'P2002') {
+      const prismaErr = txErr as { code?: string };
+      if (prismaErr?.code === 'P2002') {
         const existing = await db.patientRequest.findUnique({
           where: {
             vapiCallId_requestType: {
@@ -893,59 +936,11 @@ export class PatientIntakeService {
       };
     }
 
-    // 6. Queue Nurse Notification strictly AFTER transaction commit
-    if (!txResult.isDuplicate && txResult.notification) {
-      try {
-        const notif = txResult.notification;
-        if (notif.type === 'appointment') {
-          if (notif.lineType === LineType.MOBILE) {
-            if (notif.isUrgent) {
-              const urgentMsg = "c'est un urgent condition\nrapeller le patient\n";
-              await NotificationService.queueNotification({
-                businessId: business.id,
-                recipient: alertPhone,
-                message: urgentMsg,
-              });
-            } else {
-              const rdvMsg =
-                `bonjour nouveau patient:\n` +
-                `DATE:${payload.requestedDate}   à${payload.requestedTime}\n` +
-                `NOM:${payload.patientName}\n` +
-                `Service:${payload.serviceType}\n` +
-                `code postale:\n${payload.postalCode || ''}\n` +
-                `numero :${callerNumber}\n\n` +
-                `OPTION:\n1.OUI\n2.NON\n\n`;
-
-              await NotificationService.queueNotification({
-                businessId: business.id,
-                recipient: alertPhone,
-                message: rdvMsg,
-              });
-            }
-          } else if (notif.lineType === LineType.LANDLINE) {
-            const landlineMsg =
-              `Le cleint vient d'appeler d'une nunemro FIXE ces infos:\n` +
-              `tu le rappeleras sur le numero :${callerNumber}\n\n` +
-              `DATE:\n${payload.requestedDate}   à${payload.requestedTime}\n` +
-              `NOM:${payload.patientName}\n` +
-              `Service:${payload.serviceType}\n`;
-
-            await NotificationService.queueNotification({
-              businessId: business.id,
-              recipient: alertPhone,
-              message: landlineMsg,
-            });
-          }
-        } else if (notif.smsBody) {
-          await NotificationService.queueNotification({
-            businessId: business.id,
-            recipient: alertPhone,
-            message: notif.smsBody,
-          });
-        }
-      } catch (notifErr: unknown) {
-        log.error('[DirectSubmission Notification Enqueue Failure]', { error: notifErr });
-      }
+    // 6. Trigger immediate notification delivery strictly AFTER transaction commit
+    if (!txResult.isDuplicate && txResult.notificationJobId) {
+      NotificationService.processJob(txResult.notificationJobId).catch((notifErr: unknown) => {
+        log.error('[DirectSubmission Notification Immediate Processing Error]', { error: notifErr });
+      });
     }
 
     return {

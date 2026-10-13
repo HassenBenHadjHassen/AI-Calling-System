@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DateTime } from 'luxon';
 
 // ==========================================
 // VAPI SCHEMAS
@@ -151,6 +152,34 @@ export type DevisSubmissionPayload = z.infer<typeof DevisSubmissionSchema>;
 // DIRECT PATIENT SUBMISSION SCHEMA (Format A)
 // ==========================================
 
+export const FRENCH_POSTAL_CODE_REGEX = /^(?:0[1-9]|[1-8]\d|9[0-8])\d{3}$/;
+
+export function isValidFrenchPostalCode(code: string): boolean {
+  return FRENCH_POSTAL_CODE_REGEX.test(code.trim());
+}
+
+export function isValidCalendarDate(dateStr: string): boolean {
+  const trimmed = dateStr.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return false;
+  }
+  const [yearStr, monthStr, dayStr] = trimmed.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+  const dt = DateTime.fromObject({ year, month, day }, { zone: 'Europe/Paris' });
+  return dt.isValid && dt.year === year && dt.month === month && dt.day === day;
+}
+
+export function isValidTimeFormat(timeStr: string): boolean {
+  const trimmed = timeStr.trim().toLowerCase().replace(/h/g, ':');
+  const parts = trimmed.split(':');
+  if (parts.length > 2) return false;
+  const hour = parseInt(parts[0], 10);
+  const minute = parts[1] !== undefined && parts[1] !== '' ? parseInt(parts[1], 10) : 0;
+  return !isNaN(hour) && hour >= 0 && hour <= 23 && !isNaN(minute) && minute >= 0 && minute <= 59;
+}
+
 export const DirectPatientSubmissionSchema = z
   .object({
     requestType: z.enum(['appointment', 'cancellation', 'message']),
@@ -185,19 +214,19 @@ export const DirectPatientSubmissionSchema = z
 
     // 3. Conditional validation by requestType
     if (data.requestType === 'appointment') {
-      if (!data.patientName || !data.patientName.trim()) {
+      if (!data.patientName || !data.patientName.trim() || data.patientName.trim().toLowerCase() === 'inconnu') {
         ctx.addIssue({
           code: "custom",
           path: ['patientName'],
-          message: 'patientName is required for appointment requests',
+          message: 'patientName is required for appointment requests and cannot be empty or "Inconnu"',
         });
       }
 
-      if (!data.postalCode || !data.postalCode.trim() || !/^\d{5}$/.test(data.postalCode.trim())) {
+      if (!data.postalCode || !isValidFrenchPostalCode(data.postalCode)) {
         ctx.addIssue({
           code: "custom",
           path: ['postalCode'],
-          message: 'A valid 5-digit postal code is required for appointment requests',
+          message: 'A valid 5-digit French postal code is required for appointment requests',
         });
       }
 
@@ -209,19 +238,53 @@ export const DirectPatientSubmissionSchema = z
         });
       }
 
-      if (!data.requestedDate || !data.requestedDate.trim()) {
+      if (!data.requestedDate || !isValidCalendarDate(data.requestedDate)) {
         ctx.addIssue({
           code: "custom",
           path: ['requestedDate'],
-          message: 'requestedDate is required for appointment requests',
+          message: 'requestedDate must be a valid calendar date in YYYY-MM-DD format',
         });
       }
 
-      if (!data.requestedTime || !data.requestedTime.trim()) {
+      if (!data.requestedTime || !isValidTimeFormat(data.requestedTime)) {
         ctx.addIssue({
           code: "custom",
           path: ['requestedTime'],
-          message: 'requestedTime is required for appointment requests',
+          message: 'requestedTime must be a valid time (e.g. 14:30 or 09:00)',
+        });
+      }
+    }
+
+    if (data.requestType === 'cancellation') {
+      if (!data.patientName || !data.patientName.trim() || data.patientName.trim().toLowerCase() === 'inconnu') {
+        ctx.addIssue({
+          code: "custom",
+          path: ['patientName'],
+          message: 'patientName is required for cancellation requests and cannot be empty or "Inconnu"',
+        });
+      }
+
+      if (!data.postalCode || !isValidFrenchPostalCode(data.postalCode)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ['postalCode'],
+          message: 'A valid 5-digit French postal code is required for cancellation requests',
+        });
+      }
+
+      if (data.requestedDate && data.requestedDate.trim() && !isValidCalendarDate(data.requestedDate)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ['requestedDate'],
+          message: 'requestedDate must be a valid calendar date in YYYY-MM-DD format',
+        });
+      }
+
+      if (data.requestedTime && data.requestedTime.trim() && !isValidTimeFormat(data.requestedTime)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ['requestedTime'],
+          message: 'requestedTime must be a valid time (e.g. 14:30 or 09:00)',
         });
       }
     }
@@ -234,9 +297,18 @@ export const DirectPatientSubmissionSchema = z
           message: 'summary (message content) is required for message requests',
         });
       }
+
+      if (data.patientName && !data.patientName.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ['patientName'],
+          message: 'patientName cannot be whitespace-only',
+        });
+      }
     }
   });
 
 export type DirectPatientSubmissionPayload = z.infer<typeof DirectPatientSubmissionSchema>;
+export type DirectPatientSubmissionInput = z.input<typeof DirectPatientSubmissionSchema>;
 
 

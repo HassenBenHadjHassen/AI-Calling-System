@@ -67,17 +67,55 @@ const COLORS = {
   purple: '\x1b[35m',// Magenta
 };
 
-// Safe error serializer
-function serializeError(err: unknown): { message: string; stack?: string; name?: string } | undefined {
+// Comprehensive string sanitizer redacting credentials, tokens, PII, and medical details
+export function sanitizeLogString(str: string): string {
+  if (!str || typeof str !== 'string') return str;
+
+  let sanitized = str;
+
+  // 1. Redact Authorization Bearer tokens & JWTs
+  sanitized = sanitized.replace(/Bearer\s+[A-Za-z0-9_\-\.]+/gi, 'Bearer [REDACTED_TOKEN]');
+  sanitized = sanitized.replace(/\beyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\b/g, '[REDACTED_JWT]');
+
+  // 2. Redact passwords, secrets, api keys, auth tokens, credentials
+  sanitized = sanitized.replace(
+    /(?:api[_-]?key|secret|token|password|auth|credential|vapi_secret)\s*[:=]\s*['"]?[^\s,'";&]+['"]?/gi,
+    (match) => {
+      const parts = match.split(/[:=]/);
+      return `${parts[0]}: [REDACTED_CREDENTIAL]`;
+    }
+  );
+
+  // 3. Redact cookies
+  sanitized = sanitized.replace(/(?:cookie|set-cookie)\s*[:=]\s*['"]?[^\r\n;,]+['"]?/gi, 'cookie: [REDACTED_COOKIE]');
+
+  // 4. Redact French and international phone numbers (masks digits)
+  sanitized = sanitized.replace(/(?:\+33|0033|0)[1-9](?:[\s.-]?\d{2}){4}\b/g, '+336****78');
+  sanitized = sanitized.replace(/(?:\+|00)[1-9]\d{6,14}\b/g, '+336****78');
+
+  // 5. Redact French postal codes in addresses/text (e.g. 75008, 13001)
+  sanitized = sanitized.replace(/\b(?:0[1-9]|[1-8]\d|9[0-8])\d{3}\b/g, '[REDACTED_POSTAL_CODE]');
+
+  // 6. Redact explicit patient email fields in text (e.g. email: patient@test.com)
+  sanitized = sanitized.replace(/(?:email|mail)\s*[:=]\s*['"]?[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+['"]?/gi, (match) => {
+    const parts = match.split(/[:=]/);
+    return `${parts[0]}: [REDACTED_EMAIL]`;
+  });
+
+  return sanitized;
+}
+
+// Safe error serializer ensuring message and stack are sanitized across all sinks
+export function serializeError(err: unknown): { message: string; stack?: string; name?: string } | undefined {
   if (!err) return undefined;
   if (err instanceof Error) {
     return {
       name: err.name,
-      message: err.message,
-      stack: err.stack,
+      message: sanitizeLogString(err.message),
+      stack: err.stack ? sanitizeLogString(err.stack) : undefined,
     };
   }
-  return { message: String(err) };
+  return { message: sanitizeLogString(String(err)) };
 }
 
 // Safe payload sanitizer (strips sensitive tokens, PII, medical data, large blobs)
@@ -85,7 +123,7 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
   if (data === null || data === undefined) return data;
   if (typeof data !== 'object') {
     if (typeof data === 'string') {
-      return data.replace(/(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}/g, '+336****78');
+      return sanitizeLogString(data);
     }
     return data;
   }
@@ -110,7 +148,15 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     'signature',
     'xtwiliosignature',
     'xvapisecret',
-    // PII (Names, Phone Numbers, Addresses)
+    'cookie',
+    'cookies',
+    'setcookie',
+    'bearer',
+    'accesstoken',
+    'refreshtoken',
+    'idtoken',
+    'sessiontoken',
+    // PII (Names, Phone Numbers, Addresses, Emails)
     'patientname',
     'contactname',
     'name',
@@ -127,6 +173,8 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     'codepostal',
     'address',
     'adresse',
+    'email',
+    'useremail',
     // Medical & Symptoms
     'medicalnotes',
     'clinicalnotes',
@@ -142,6 +190,7 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     'motif',
     // Content & Transcripts
     'transcript',
+    'transcription',
     'body',
     'message',
     'summary',
@@ -163,7 +212,7 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeLogData(value, maxDepth - 1);
     } else if (typeof value === 'string') {
-      const masked = value.replace(/(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}/g, '+336****78');
+      const masked = sanitizeLogString(value);
       if (masked.length > 2000) {
         sanitized[key] = masked.substring(0, 2000) + '... [truncated]';
       } else {
@@ -197,7 +246,7 @@ export async function rotateLogFile(filePath: string, maxFiles: number): Promise
       await fs.promises.rename(filePath, `${filePath}.1`).catch(() => {});
     }
   } catch (rotErr) {
-    console.error('[LogRotation Error]:', rotErr);
+    console.error('[LogRotation Error]:', rotErr instanceof Error ? sanitizeLogString(rotErr.message) : '[unknown error]');
   }
 }
 
@@ -216,7 +265,7 @@ async function writeWithRotation(filePath: string, logLine: string): Promise<voi
     }
     await fs.promises.appendFile(filePath, logLine, 'utf8');
   } catch (err) {
-    console.error(`[Logger File Fallback: ${filePath}]`, err);
+    console.error(`[Logger File Fallback: ${filePath}]`, err instanceof Error ? sanitizeLogString(err.message) : '[unknown error]');
   }
 }
 
@@ -314,14 +363,15 @@ export class Logger {
       moduleName.toUpperCase().includes('VAPI') ||
       moduleName.toUpperCase().includes('TWILIO');
 
+    const safeMessage = sanitizeLogString(message);
     const errObj = serializeError(context.error);
 
-    // Build structured log record with sanitized metadata
+    // Build structured log record with sanitized message, error, and metadata
     const record = {
       timestamp,
       level,
       module: moduleName,
-      message,
+      message: safeMessage,
       correlationId: correlationId || undefined,
       businessId: businessId || undefined,
       durationMs: context.durationMs,
@@ -336,7 +386,7 @@ export class Logger {
     };
 
     // 1. Output to Console (Colorized & PM2 friendly)
-    this.writeToConsole(level, moduleName, correlationId, message, context, errObj);
+    this.writeToConsole(level, moduleName, correlationId, safeMessage, context, errObj);
 
     // 2. Output to Files asynchronously with rotation
     this.writeToFile(record, isWebhook);
@@ -414,7 +464,7 @@ export class Logger {
           await writeWithRotation(ERROR_LOG_PATH, logLine);
         }
       } catch (err) {
-        console.error('[Logger writeToFile Fallback]', err);
+        console.error('[Logger writeToFile Fallback]', err instanceof Error ? sanitizeLogString(err.message) : '[unknown error]');
       }
     });
   }
@@ -450,7 +500,7 @@ export class Logger {
           },
         });
       } catch (dbErr) {
-        console.error('[Logger writeToDatabase Fallback]', dbErr);
+        console.error('[Logger writeToDatabase Fallback]', dbErr instanceof Error ? sanitizeLogString(dbErr.message) : '[unknown error]');
       }
     });
   }

@@ -1,249 +1,248 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import { PatientIntakeService } from '@/lib/services/patient-intake.service';
-import { AppointmentStatus, PatientRequestType, PatientRequestStatus, LineType } from '@prisma/client';
+import { TenantService } from '@/lib/services/tenant.service';
+import { db } from '@/lib/db';
+import { AppointmentStatus } from '@prisma/client';
 
-// Mock DB with simulated concurrency & transaction state
-let activeAppointments: Array<{
-  id: string;
-  businessId: string;
-  startTime: Date;
-  endTime: Date;
-  status: AppointmentStatus;
-  urgency: boolean;
-}> = [];
-
-let activeRequests: Array<{
-  id: string;
-  businessId: string;
-  vapiCallId: string;
-  requestType: PatientRequestType;
-  requestedDate?: string;
-  requestedTime?: string;
-  patientName: string;
-  status: PatientRequestStatus;
-}> = [];
-
-vi.mock('@/lib/db', () => ({
-  db: {
-    business: {
-      findUnique: vi.fn().mockResolvedValue({
-        id: 'biz_michelle_01',
-        slug: 'CABINET_MICHELLE',
-        alertPhoneNumber: '+33612857915',
-        calendarId: 'monaldi2b@gmail.com',
-      }),
-      findFirst: vi.fn().mockResolvedValue({
-        id: 'biz_michelle_01',
-        slug: 'CABINET_MICHELLE',
-      }),
-    },
-    contact: {
-      upsert: vi.fn().mockResolvedValue({ id: 'contact_c1' }),
-      update: vi.fn().mockResolvedValue({}),
-      findFirst: vi.fn().mockResolvedValue({ id: 'contact_c1' }),
-    },
-    patient: {
-      upsert: vi.fn().mockResolvedValue({ id: 'patient_p1' }),
-    },
-    callRecord: {
-      upsert: vi.fn().mockResolvedValue({ id: 'call_rec_1' }),
-    },
-    appointment: {
-      findFirst: vi.fn().mockImplementation((args: any) => {
-        const found = activeAppointments.find((a) => {
-          if (args?.where?.startTime?.lt && args?.where?.endTime?.gt) {
-            return (
-              a.businessId === args.where.businessId &&
-              a.startTime < args.where.startTime.lt &&
-              a.endTime > args.where.endTime.gt
-            );
-          }
-          return false;
-        });
-        return Promise.resolve(found || null);
-      }),
-      findMany: vi.fn().mockImplementation((args: any) => {
-        const found = activeAppointments.filter((a) => {
-          if (args?.where?.startTime?.lt && args?.where?.endTime?.gt) {
-            return (
-              a.businessId === args.where.businessId &&
-              a.startTime < args.where.startTime.lt &&
-              a.endTime > args.where.endTime.gt
-            );
-          }
-          return true;
-        });
-        return Promise.resolve(found);
-      }),
-      create: vi.fn().mockImplementation((args: any) => {
-        const newAppt = {
-          id: `appt_${Date.now()}_${Math.random()}`,
-          businessId: args.data.businessId,
-          startTime: args.data.startTime,
-          endTime: args.data.endTime,
-          status: args.data.status,
-          urgency: args.data.urgency,
-        };
-        activeAppointments.push(newAppt);
-        return Promise.resolve(newAppt);
-      }),
-    },
-    patientRequest: {
-      findUnique: vi.fn().mockImplementation((args: any) => {
-        const found = activeRequests.find(
-          (r) =>
-            r.vapiCallId === args.where.vapiCallId_requestType?.vapiCallId &&
-            r.requestType === args.where.vapiCallId_requestType?.requestType
-        );
-        return Promise.resolve(found || null);
-      }),
-      findFirst: vi.fn().mockImplementation((args: any) => {
-        const found = activeRequests.find(
-          (r) =>
-            r.businessId === args.where.businessId &&
-            r.requestedDate === args.where.requestedDate &&
-            r.requestedTime === args.where.requestedTime &&
-            r.vapiCallId !== args.where.vapiCallId?.not
-        );
-        return Promise.resolve(found || null);
-      }),
-      create: vi.fn().mockImplementation((args: any) => {
-        // Enforce unique constraint (vapiCallId, requestType)
-        const duplicate = activeRequests.find(
-          (r) => r.vapiCallId === args.data.vapiCallId && r.requestType === args.data.requestType
-        );
-        if (duplicate) {
-          const err: any = new Error('Unique constraint failed on the fields: (`vapiCallId`,`requestType`)');
-          err.code = 'P2002';
-          return Promise.reject(err);
-        }
-        const newReq = {
-          id: `req_${Date.now()}_${Math.random()}`,
-          businessId: args.data.businessId,
-          vapiCallId: args.data.vapiCallId,
-          requestType: args.data.requestType,
-          requestedDate: args.data.requestedDate,
-          requestedTime: args.data.requestedTime,
-          patientName: args.data.patientName,
-          status: args.data.status,
-        };
-        activeRequests.push(newReq);
-        return Promise.resolve(newReq);
-      }),
-    },
-    notificationJob: {
-      create: vi.fn().mockResolvedValue({ id: 'job_01' }),
-      findFirst: vi.fn().mockResolvedValue(null),
-    },
-    $transaction: vi.fn().mockImplementation(async (callback: any) => {
-      const { db } = await import('@/lib/db');
-      return callback(db);
-    }),
-  },
-}));
-
+// Mock only external Twilio SMS network calls, leaving PostgreSQL DB completely unmocked
 vi.mock('@/lib/integrations/twilio', () => ({
   twilioClient: {
     lookupLineType: vi.fn().mockResolvedValue({ type: 'mobile', carrier: 'Orange' }),
-    sendSms: vi.fn().mockResolvedValue({ success: true, messageId: 'SM_conc_123' }),
+    sendSms: vi.fn().mockResolvedValue({ success: true, messageId: 'SM_conc_test_123' }),
   },
 }));
 
-describe('Concurrency Control & Transactional Idempotency Integration Tests', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    activeAppointments = [];
-    activeRequests = [];
+describe('Concurrency Control & Transactional Idempotency Integration Tests (Real PostgreSQL)', () => {
+  const TEST_DATE = '2026-11-18'; // Wednesday (clinic open)
+
+  const TEST_CALL_IDS = [
+    'call_pg_compete_1',
+    'call_pg_compete_2',
+    'call_pg_overlap_1',
+    'call_pg_overlap_2',
+    'call_pg_nonconflict_1',
+    'call_pg_dup_1',
+    'call_tampered_001',
+  ];
+
+  const TEST_PHONES = [
+    '+33611111111',
+    '+33622222222',
+    '+33633333333',
+    '+33644444444',
+    '+33655555555',
+    '+33699999999',
+  ];
+
+  async function cleanupTestData() {
+    try {
+      await db.notificationJob.deleteMany({
+        where: { recipient: { in: TEST_PHONES } },
+      });
+      await db.patientRequest.deleteMany({
+        where: { vapiCallId: { in: TEST_CALL_IDS } },
+      });
+      await db.appointment.deleteMany({
+        where: {
+          OR: [
+            { callRecord: { vapiCallId: { in: TEST_CALL_IDS } } },
+            { contact: { phoneNumber: { in: TEST_PHONES } } },
+            { date: TEST_DATE },
+          ],
+        },
+      });
+      await db.callRecord.deleteMany({
+        where: { vapiCallId: { in: TEST_CALL_IDS } },
+      });
+      await db.contact.deleteMany({
+        where: { phoneNumber: { in: TEST_PHONES } },
+      });
+    } catch (err) {
+      console.warn('[cleanupTestData error]:', err);
+    }
+  }
+
+  beforeAll(async () => {
+    // Ensure tenant is provisioned in PostgreSQL
+    await TenantService.ensureTenant('CABINET_MICHELLE');
+    await cleanupTestData();
   });
 
-  it('prevents two simultaneous callers from booking the same time slot (slot conflict protection)', async () => {
+  afterAll(async () => {
+    await cleanupTestData();
+  });
+
+  beforeEach(async () => {
+    await cleanupTestData();
+  });
+
+  it('prevents two simultaneous callers from booking the same time slot using Promise.all (PostgreSQL advisory lock & conflict check)', async () => {
     const caller1Payload = {
       requestType: 'appointment' as const,
-      patientName: 'Patient Alice',
+      patientName: 'Alice Concurrent',
       postalCode: '75008',
       serviceType: 'Pansement',
-      requestedDate: '2026-10-15',
+      requestedDate: TEST_DATE,
       requestedTime: '10:00',
       caller: '+33611111111',
-      callId: 'call_concurrent_caller_1',
+      callId: 'call_pg_compete_1',
     };
 
     const caller2Payload = {
       requestType: 'appointment' as const,
-      patientName: 'Patient Bob',
+      patientName: 'Bob Concurrent',
       postalCode: '75008',
       serviceType: 'Prise de sang',
-      requestedDate: '2026-10-15',
-      requestedTime: '10:00', // EXACT SAME TIME SLOT
+      requestedDate: TEST_DATE,
+      requestedTime: '10:00', // EXACT SAME SLOT
       caller: '+33622222222',
-      callId: 'call_concurrent_caller_2',
+      callId: 'call_pg_compete_2',
     };
 
-    // Caller 1 submits first and succeeds
-    const res1 = await PatientIntakeService.handleDirectSubmission(caller1Payload);
-    expect(res1.success).toBe(true);
-    expect(res1.status).toBe('PENDING');
+    // Execute concurrently using Promise.all against real PostgreSQL database
+    const [res1, res2] = await Promise.all([
+      PatientIntakeService.handleDirectSubmission(caller1Payload),
+      PatientIntakeService.handleDirectSubmission(caller2Payload),
+    ]);
 
-    // Caller 2 submits for the same slot -> must fail with slot conflict (409)
-    const res2 = await PatientIntakeService.handleDirectSubmission(caller2Payload);
-    expect(res2.success).toBe(false);
-    expect(res2.status).toBe(409);
-    expect(res2.error).toBe('SLOT_CONFLICT');
+    const successful = [res1, res2].filter((r) => r.success);
+    const failed = [res1, res2].filter((r) => !r.success);
+
+    // Exactly one must succeed, and the other must be rejected with 409 SLOT_CONFLICT
+    expect(successful).toHaveLength(1);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].status).toBe(409);
+    expect((failed[0] as any).error).toBe('SLOT_CONFLICT');
+
+    // Confirm in PostgreSQL: exactly 1 appointment and 1 patientRequest created for that slot
+    const appointmentsInDb = await db.appointment.findMany({
+      where: { date: TEST_DATE, time: '10:00' },
+    });
+    expect(appointmentsInDb).toHaveLength(1);
   });
 
-  it('handles identical concurrent replays idempotently without creating duplicate appointments', async () => {
-    const payload = {
+  it('prevents two requests for overlapping time ranges when business rules prohibit the overlap', async () => {
+    const slot1Payload = {
       requestType: 'appointment' as const,
-      patientName: 'Patient Idempotent',
+      patientName: 'Patient Overlap One',
       postalCode: '75008',
       serviceType: 'Pansement',
-      requestedDate: '2026-10-15',
-      requestedTime: '11:00',
-      caller: '+33612345678',
-      callId: 'call_replay_test_999',
+      requestedDate: TEST_DATE,
+      requestedTime: '11:00', // 11:00 - 12:00
+      caller: '+33633333333',
+      callId: 'call_pg_overlap_1',
     };
 
-    // First submission
-    const res1 = await PatientIntakeService.handleDirectSubmission(payload);
+    const slot2Payload = {
+      requestType: 'appointment' as const,
+      patientName: 'Patient Overlap Two',
+      postalCode: '75008',
+      serviceType: 'Prise de sang',
+      requestedDate: TEST_DATE,
+      requestedTime: '11:30', // 11:30 - 12:30 (Overlaps with 11:00 - 12:00)
+      caller: '+33644444444',
+      callId: 'call_pg_overlap_2',
+    };
+
+    // First booking succeeds
+    const res1 = await PatientIntakeService.handleDirectSubmission(slot1Payload);
     expect(res1.success).toBe(true);
-    expect(res1.isDuplicate).toBeFalsy();
-    const initialRequestId = res1.requestId;
 
-    // Identical replay
-    const res2 = await PatientIntakeService.handleDirectSubmission(payload);
+    // Overlapping booking must fail with 409 SLOT_CONFLICT
+    const res2 = await PatientIntakeService.handleDirectSubmission(slot2Payload);
+    expect(res2.success).toBe(false);
+    expect(res2.status).toBe(409);
+    expect((res2 as any).conflict).toBe(true);
+    expect((res2 as any).error).toBe('SLOT_CONFLICT');
+  });
+
+  it('allows a request for a non-conflicting slot to succeed', async () => {
+    const nonConflictingPayload = {
+      requestType: 'appointment' as const,
+      patientName: 'Patient Afternoon',
+      postalCode: '75008',
+      serviceType: 'Injection',
+      requestedDate: TEST_DATE,
+      requestedTime: '15:00', // Distinct non-overlapping afternoon slot
+      caller: '+33655555555',
+      callId: 'call_pg_nonconflict_1',
+    };
+
+    const res = await PatientIntakeService.handleDirectSubmission(nonConflictingPayload);
+    expect(res.success).toBe(true);
+    expect(res.status).toBe('PENDING');
+
+    const appt = await db.appointment.findFirst({
+      where: { date: TEST_DATE, time: '15:00' },
+    });
+    expect(appt).not.toBeNull();
+    expect(appt?.status).toBe(AppointmentStatus.PENDING);
+  });
+
+  it('handles simultaneous duplicate submissions with the same callId idempotently without creating duplicate records', async () => {
+    const duplicatePayload = {
+      requestType: 'appointment' as const,
+      patientName: 'Patient Duplicate',
+      postalCode: '75008',
+      serviceType: 'Pansement',
+      requestedDate: TEST_DATE,
+      requestedTime: '16:00',
+      caller: '+33699999999',
+      callId: 'call_pg_dup_1',
+    };
+
+    // Two identical requests fired concurrently with Promise.all
+    const [res1, res2] = await Promise.all([
+      PatientIntakeService.handleDirectSubmission(duplicatePayload),
+      PatientIntakeService.handleDirectSubmission(duplicatePayload),
+    ]);
+
+    expect(res1.success).toBe(true);
     expect(res2.success).toBe(true);
-    expect(res2.isDuplicate).toBe(true);
-    expect(res2.requestId).toBe(initialRequestId);
 
-    // Verify only ONE appointment was created
-    expect(activeAppointments).toHaveLength(1);
-    expect(activeRequests).toHaveLength(1);
+    // Both return the same request ID
+    expect((res1 as any).requestId).toBe((res2 as any).requestId);
+
+    // One is original and the other is marked duplicate, or both refer to the same record
+    const duplicateFlags = [(res1 as any).isDuplicate, (res2 as any).isDuplicate];
+    expect(duplicateFlags).toContain(true);
+
+    // Verify in PostgreSQL: exactly 1 appointment and 1 patientRequest created
+    const requestsInDb = await db.patientRequest.findMany({
+      where: { vapiCallId: 'call_pg_dup_1' },
+    });
+    expect(requestsInDb).toHaveLength(1);
+
+    const appointmentsInDb = await db.appointment.findMany({
+      where: { date: TEST_DATE, time: '16:00' },
+    });
+    expect(appointmentsInDb).toHaveLength(1);
   });
 
   it('rejects replays using the same callId with materially different request parameters', async () => {
     const originalPayload = {
       requestType: 'appointment' as const,
-      patientName: 'Patient Alice',
+      patientName: 'Alice Replay',
       postalCode: '75008',
       serviceType: 'Pansement',
-      requestedDate: '2026-10-15',
-      requestedTime: '10:00',
-      caller: '+33612345678',
-      callId: 'call_tampered_replay_001',
+      requestedDate: TEST_DATE,
+      requestedTime: '09:00',
+      caller: '+33611111111',
+      callId: 'call_tampered_001',
     };
 
     const res1 = await PatientIntakeService.handleDirectSubmission(originalPayload);
     expect(res1.success).toBe(true);
 
-    // Attacker or malformed retry submits different time for the same callId
+    // Retry with different requested time for the same callId
     const tamperedPayload = {
       ...originalPayload,
-      requestedTime: '15:00', // Altered time!
+      requestedTime: '14:00',
     };
 
     const res2 = await PatientIntakeService.handleDirectSubmission(tamperedPayload);
     expect(res2.success).toBe(false);
     expect(res2.status).toBe(409);
-    expect(res2.error).toBe('IDEMPOTENCY_CONFLICT');
+    expect((res2 as any).error).toBe('IDEMPOTENCY_CONFLICT');
   });
 });
