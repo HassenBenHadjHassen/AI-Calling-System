@@ -8,6 +8,7 @@ import UserNav from './user-nav';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { logger } from '@/lib/logger';
 
 export const instant = false;
 
@@ -188,7 +189,7 @@ export default async function DashboardPage({
 
     await Promise.all(fetchPromises);
   } catch (err: unknown) {
-    console.error('Database query error on dashboard:', err);
+    logger.error('Database query error on dashboard', { module: 'DASHBOARD', error: err });
   }
 
   // 3. Define permitted tabs based on role, business scope, and allowed sections

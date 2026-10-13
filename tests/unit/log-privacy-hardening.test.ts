@@ -46,6 +46,7 @@ describe('Log Privacy & Data Minimization Hardening Unit Tests', () => {
       symptoms: 'Forte fièvre et toux persistante',
       medicalNotes: 'Injections quotidiennes requises',
       summary: 'Demande urgente de soins infirmiers',
+      sms: 'Votre rdv est confirmé',
       nested: {
         token: 'secret_jwt_token',
         address: '12 rue de la Paix, 75002 Paris',
@@ -59,8 +60,36 @@ describe('Log Privacy & Data Minimization Hardening Unit Tests', () => {
     expect(sanitized.symptoms).toBe('***REDACTED***');
     expect(sanitized.medicalNotes).toBe('***REDACTED***');
     expect(sanitized.summary).toBe('***REDACTED***');
+    expect(sanitized.sms).toBe('***REDACTED***');
     expect(sanitized.nested.token).toBe('***REDACTED***');
     expect(sanitized.nested.address).toBe('***REDACTED***');
+  });
+
+  it('handles circular metadata objects without crashing or infinite recursion', () => {
+    const circularObj: Record<string, any> = {
+      name: 'Safe Operation',
+      status: 'OK',
+    };
+    circularObj.self = circularObj;
+
+    const result = sanitizeLogData(circularObj) as Record<string, any>;
+    expect(result).toBeDefined();
+    expect(result.self).toBe('[Circular Reference]');
+    expect(result.name).toBe('***REDACTED***'); // sensitive key 'name' is redacted
+  });
+
+  it('handles complex non-Error objects in serializeError', () => {
+    const errorObj = {
+      code: 'TWILIO_AUTH_FAILED',
+      message: 'Twilio call with token: secret_tok_456 failed for +33612345678',
+    };
+
+    const serialized = serializeError(errorObj);
+    expect(serialized).toBeDefined();
+    expect(serialized!.message).not.toContain('secret_tok_456');
+    expect(serialized!.message).not.toContain('+33612345678');
+    expect(serialized!.message).toContain('[REDACTED_CREDENTIAL]');
+    expect(serialized!.message).toContain('+336****78');
   });
 
   it('serializes errors safely redacting sensitive data from stack and message', () => {
@@ -71,6 +100,18 @@ describe('Log Privacy & Data Minimization Hardening Unit Tests', () => {
     expect(serialized!.message).not.toContain('+33612345678');
     expect(serialized!.message).not.toContain('sk_live_secret123');
     expect(serialized!.message).toContain('[REDACTED_CREDENTIAL]');
+    expect(serialized!.stack).not.toContain('+33612345678');
+    expect(serialized!.stack).not.toContain('sk_live_secret123');
+  });
+
+  it('sanitizes notification provider failure messages before recording in NotificationJob', () => {
+    const rawTwilioError = 'Failed to deliver SMS to recipient +33612345678. Reason: Invalid api_key: twilio_sec_9999';
+    const sanitized = sanitizeLogString(rawTwilioError);
+
+    expect(sanitized).not.toContain('+33612345678');
+    expect(sanitized).not.toContain('twilio_sec_9999');
+    expect(sanitized).toContain('+336****78');
+    expect(sanitized).toContain('[REDACTED_CREDENTIAL]');
   });
 
   it('captures console sink output and verifies sensitive metadata is redacted', () => {
@@ -92,5 +133,22 @@ describe('Log Privacy & Data Minimization Hardening Unit Tests', () => {
     expect(calls).not.toContain('jwt_abc_123');
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('preserves non-sensitive operational metadata during sanitization', () => {
+    const operationalData = {
+      correlationId: 'req_12345_abc',
+      durationMs: 42,
+      statusCode: 200,
+      requestId: 'req_test_uuid',
+      status: 'PENDING',
+    };
+
+    const sanitized = sanitizeLogData(operationalData) as Record<string, any>;
+    expect(sanitized.correlationId).toBe('req_12345_abc');
+    expect(sanitized.durationMs).toBe(42);
+    expect(sanitized.statusCode).toBe(200);
+    expect(sanitized.requestId).toBe('req_test_uuid');
+    expect(sanitized.status).toBe('PENDING');
   });
 });

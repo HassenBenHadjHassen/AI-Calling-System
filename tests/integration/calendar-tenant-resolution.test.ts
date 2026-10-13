@@ -25,12 +25,14 @@ describe('Calendar Tenant Resolution & Fail-Closed Protection (Real PostgreSQL)'
   });
 
   afterAll(async () => {
-    if (createdApptId) {
-      await db.appointment.delete({ where: { id: createdApptId } }).catch(() => {});
-    }
-    if (createdContactId) {
-      await db.contact.delete({ where: { id: createdContactId } }).catch(() => {});
-    }
+    await db.$transaction(async (tx) => {
+      if (createdApptId) {
+        await tx.appointment.deleteMany({ where: { id: createdApptId } });
+      }
+      if (createdContactId) {
+        await tx.contact.deleteMany({ where: { id: createdContactId } });
+      }
+    });
   });
 
   it('fails closed when given an unverified biz_... identifier that does not exist in the database', async () => {

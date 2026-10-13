@@ -75,7 +75,8 @@ async function handleDirectSubmission(
 
   if (!parsed.success) {
     log.warn('[Direct Submission] Validation failed', {
-      issues: parsed.error.issues,
+      fieldPaths: parsed.error.issues.map((i) => i.path.join('.')),
+      errorCodes: parsed.error.issues.map((i) => i.code),
     });
     return NextResponse.json(
       {
@@ -204,17 +205,24 @@ async function handlePostCallWebhook(
 
   log.info('[Vapi Patient Intake] Post-call webhook received', {
     callId,
-    type: rawBody?.message?.type,
+    type: (rawBody?.message as Record<string, unknown> | undefined)?.type,
   });
 
   const parsed = VapiServerMessagePayloadSchema.safeParse(rawBody);
 
   if (!parsed.success) {
     log.warn('[Vapi Patient Intake] Validation failed', {
-      issues: parsed.error.issues,
+      fieldPaths: parsed.error.issues.map((i) => i.path.join('.')),
+      errorCodes: parsed.error.issues.map((i) => i.code),
     });
     return NextResponse.json(
-      { error: 'Invalid payload', details: parsed.error.issues },
+      {
+        error: 'Invalid payload',
+        details: parsed.error.issues.map((i) => ({
+          field: i.path.join('.'),
+          message: i.message,
+        })),
+      },
       {
         headers: { 'X-Correlation-Id': correlationId },
         status: 400,

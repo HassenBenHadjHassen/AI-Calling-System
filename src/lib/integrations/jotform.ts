@@ -1,4 +1,5 @@
 import { JotformSubmissionPayload, JotformSubmissionSchema } from '../validation/schemas';
+import { logger } from '../logger';
 
 export class JotformIntegration {
   /**
@@ -13,7 +14,7 @@ export class JotformIntegration {
       try {
         payload = JSON.parse((body as Record<string, unknown>).rawRequest as string);
       } catch {
-        console.warn('[JotForm parse warning]: Failed to parse body.rawRequest as JSON');
+        logger.warn('Failed to parse body.rawRequest as JSON', { module: 'JOTFORM' });
       }
     }
 

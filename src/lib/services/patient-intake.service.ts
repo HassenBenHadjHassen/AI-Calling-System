@@ -63,19 +63,72 @@ export class IntakeConflictError extends Error {
 
 export interface IdempotencyComparisonTarget {
   requestType?: string | null;
+  caller?: string | null;
+  callerNumber?: string | null;
   patientName?: string | null;
   requestedDate?: string | null;
   requestedTime?: string | null;
   serviceType?: string | null;
   postalCode?: string | null;
   summary?: string | null;
+  message?: string | null;
+  notes?: string | null;
   urgency?: boolean | string | null;
   [key: string]: unknown;
+}
+
+function normString(val?: string | null): string {
+  return val ? val.trim().toLowerCase().replace(/\s+/g, ' ') : '';
+}
+
+function normDate(val?: string | null): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  const frMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (frMatch) {
+    const day = frMatch[1].padStart(2, '0');
+    const month = frMatch[2].padStart(2, '0');
+    const year = frMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  return trimmed;
+}
+
+function normTime(val?: string | null): string {
+  if (!val) return '';
+  const trimmed = val.trim().toLowerCase();
+  const match = trimmed.match(/^(\d{1,2})(?:[h:](\d{1,2}))?(?::\d{1,2})?$/);
+  if (match) {
+    const hours = match[1].padStart(2, '0');
+    const minutes = (match[2] || '00').padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  return trimmed;
+}
+
+function normPhone(val?: string | null): string {
+  if (!val) return '';
+  try {
+    return normalizePhoneNumber(val);
+  } catch {
+    return val.trim().replace(/[\s.-]/g, '');
+  }
+}
+
+function normUrgency(val?: boolean | string | null): boolean | undefined {
+  if (val === undefined || val === null || val === '') return undefined;
+  if (typeof val === 'boolean') return val;
+  const s = String(val).trim().toLowerCase();
+  if (s === 'true' || s === '1' || s === 'urgent') return true;
+  if (s === 'false' || s === '0') return false;
+  return Boolean(val);
 }
 
 export function isMateriallyIdenticalRequest(
   existing: {
     requestType?: string | null;
+    callerNumber?: string | null;
+    caller?: string | null;
     patientName?: string | null;
     requestedDate?: string | null;
     requestedTime?: string | null;
@@ -83,66 +136,75 @@ export function isMateriallyIdenticalRequest(
     postalCode?: string | null;
     summary?: string | null;
     urgency?: boolean | null;
+    [key: string]: unknown;
   },
   incoming: IdempotencyComparisonTarget
 ): { identical: boolean; differences: string[] } {
   const differences: string[] = [];
-  const norm = (val?: string | null) => (val ? val.trim().toLowerCase() : '');
 
   // 1. Request type
-  const incType = (incoming.requestType || '').toUpperCase();
-  const exType = (existing.requestType || '').toUpperCase();
+  const incType = normString(incoming.requestType).toUpperCase();
+  const exType = normString(existing.requestType).toUpperCase();
   if (incType && exType && incType !== exType) {
-    differences.push(`requestType (existing: ${exType}, incoming: ${incType})`);
+    differences.push('requestType');
   }
 
-  // 2. Requested date (critical for appointments and cancellations)
-  const incDate = (incoming.requestedDate || '').trim();
-  const exDate = (existing.requestedDate || '').trim();
-  if (incDate || exDate) {
-    if (incDate !== exDate) {
-      differences.push(`requestedDate (existing: ${exDate || 'none'}, incoming: ${incDate || 'none'})`);
-    }
+  // 2. Caller phone number
+  const incPhone = normPhone(incoming.caller || incoming.callerNumber);
+  const exPhone = normPhone(existing.callerNumber || existing.caller);
+  if (incPhone && exPhone && incPhone !== exPhone) {
+    differences.push('callerNumber');
   }
 
-  // 3. Requested time (critical for appointments)
-  const incTime = (incoming.requestedTime || '').trim();
-  const exTime = (existing.requestedTime || '').trim();
-  if (incTime || exTime) {
-    if (incTime !== exTime) {
-      differences.push(`requestedTime (existing: ${exTime || 'none'}, incoming: ${incTime || 'none'})`);
-    }
+  // 3. Requested appointment date
+  const incDate = normDate(incoming.requestedDate);
+  const exDate = normDate(existing.requestedDate);
+  if (incDate && exDate && incDate !== exDate) {
+    differences.push('requestedDate');
   }
 
-  // 4. Patient name
-  const incName = norm(incoming.patientName);
-  const exName = norm(existing.patientName);
-  const isIncUnknown = !incName || incName === 'inconnu';
-  const isExUnknown = !exName || exName === 'inconnu';
-  if (!isIncUnknown && !isExUnknown && incName !== exName) {
-    differences.push(`patientName (existing: ${existing.patientName}, incoming: ${incoming.patientName})`);
+  // 4. Requested appointment time
+  const incTime = normTime(incoming.requestedTime);
+  const exTime = normTime(existing.requestedTime);
+  if (incTime && exTime && incTime !== exTime) {
+    differences.push('requestedTime');
   }
 
-  // 5. Service type
-  const incService = norm(incoming.serviceType);
-  const exService = norm(existing.serviceType);
+  // 5. Patient name, when both identities are known
+  const incName = normString(incoming.patientName);
+  const exName = normString(existing.patientName);
+  const isIncKnown = incName && incName !== 'inconnu' && incName !== 'unknown';
+  const isExKnown = exName && exName !== 'inconnu' && exName !== 'unknown';
+  if (isIncKnown && isExKnown && incName !== exName) {
+    differences.push('patientName');
+  }
+
+  // 6. Service type
+  const incService = normString(incoming.serviceType);
+  const exService = normString(existing.serviceType);
   if (incService && exService && incService !== exService) {
-    differences.push(`serviceType (existing: ${existing.serviceType}, incoming: ${incoming.serviceType})`);
+    differences.push('serviceType');
   }
 
-  // 6. Postal code
+  // 7. Postal code
   const incPostal = (incoming.postalCode || '').trim();
   const exPostal = (existing.postalCode || '').trim();
   if (incPostal && exPostal && incPostal !== exPostal) {
-    differences.push(`postalCode (existing: ${exPostal}, incoming: ${incPostal})`);
+    differences.push('postalCode');
   }
 
-  // 7. Urgency
-  if (incoming.urgency !== undefined && existing.urgency !== undefined && existing.urgency !== null) {
-    const incUrgent = incoming.urgency === true || incoming.urgency === 'true';
-    if (incUrgent !== existing.urgency) {
-      differences.push(`urgency (existing: ${existing.urgency}, incoming: ${incUrgent})`);
-    }
+  // 8. Request summary or message content
+  const incSummary = normString(incoming.summary || incoming.message || incoming.notes);
+  const exSummary = normString(existing.summary);
+  if (incSummary && exSummary && incSummary !== exSummary) {
+    differences.push('summary');
+  }
+
+  // 9. Urgency
+  const incUrgent = normUrgency(incoming.urgency);
+  const exUrgent = normUrgency(existing.urgency);
+  if (incUrgent !== undefined && exUrgent !== undefined && incUrgent !== exUrgent) {
+    differences.push('urgency');
   }
 
   return {
@@ -165,11 +227,10 @@ export class PatientIntakeService {
     });
 
     log.info('[SubmitPatientRequest] Processing request', {
-      callerNumber,
-      patientName: params.patientName,
-      date: params.date,
-      time: params.time,
-      isCancellation: params.isCancellation,
+      vapiCallId,
+      hasDate: Boolean(params.date),
+      hasTime: Boolean(params.time),
+      isCancellation: Boolean(params.isCancellation),
     });
 
     const business = await TenantService.ensureTenant('CABINET_MICHELLE');
@@ -478,8 +539,8 @@ export class PatientIntakeService {
     log.info('[DirectSubmission] Received patient submission', {
       vapiCallId,
       requestType: payload.requestType,
-      date: payload.requestedDate,
-      time: payload.requestedTime,
+      hasRequestedDate: Boolean(payload.requestedDate),
+      hasRequestedTime: Boolean(payload.requestedTime),
     });
 
     // 1. Resolve Tenant for Cabinet MICHEL
@@ -505,17 +566,18 @@ export class PatientIntakeService {
     });
 
     if (existingPrecheck) {
-      // Check for materially different request data on repeated submission
-      const isMateriallyDifferent =
-        (payload.requestedDate && existingPrecheck.requestedDate && payload.requestedDate !== existingPrecheck.requestedDate) ||
-        (payload.requestedTime && existingPrecheck.requestedTime && payload.requestedTime !== existingPrecheck.requestedTime) ||
-        (payload.patientName && existingPrecheck.patientName && payload.patientName !== existingPrecheck.patientName && existingPrecheck.patientName !== 'Inconnu') ||
-        (payload.summary && existingPrecheck.summary && payload.summary !== existingPrecheck.summary);
+      const comparison = isMateriallyIdenticalRequest(existingPrecheck, payload);
 
-      if (isMateriallyDifferent) {
+      if (!comparison.identical) {
+        log.warn('[DirectSubmission] Idempotency conflict in precheck', {
+          vapiCallId,
+          conflictingFields: comparison.differences,
+          existingRequestId: existingPrecheck.id,
+        });
         return {
           success: false,
           status: 409,
+          conflict: true,
           error: 'IDEMPOTENCY_CONFLICT',
           message: 'The same call ID was submitted with different request details.',
         };
@@ -664,8 +726,13 @@ export class PatientIntakeService {
         if (existing) {
           const comparison = isMateriallyIdenticalRequest(existing, payload);
           if (!comparison.identical) {
+            log.warn('[DirectSubmission] Idempotency conflict inside transaction', {
+              vapiCallId,
+              conflictingFields: comparison.differences,
+              existingRequestId: existing.id,
+            });
             throw new IntakeConflictError(
-              `The same call ID was submitted with materially different request details: ${comparison.differences.join(', ')}`,
+              'The same call ID was submitted with different request details.',
               409,
               'IDEMPOTENCY_CONFLICT'
             );
@@ -1009,12 +1076,17 @@ export class PatientIntakeService {
         if (existing) {
           const comparison = isMateriallyIdenticalRequest(existing, payload);
           if (!comparison.identical) {
+            log.warn('[DirectSubmission] Idempotency conflict in P2002 recovery', {
+              vapiCallId,
+              conflictingFields: comparison.differences,
+              existingRequestId: existing.id,
+            });
             return {
               success: false,
               status: 409,
               conflict: true,
               error: 'IDEMPOTENCY_CONFLICT',
-              message: `The same call ID was submitted with materially different request details: ${comparison.differences.join(', ')}`,
+              message: 'The same call ID was submitted with different request details.',
             };
           }
 
@@ -1071,7 +1143,6 @@ export class PatientIntakeService {
     });
 
     log.info('[PatientIntake] Processing end-of-call report', {
-      callerNumber,
       vapiCallId,
     });
 

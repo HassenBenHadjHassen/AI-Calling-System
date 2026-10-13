@@ -20,16 +20,39 @@ vi.mock('@/lib/integrations/twilio', () => ({
 describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real PostgreSQL)', () => {
   const TEST_RECIPIENT = '+33688888888';
   let businessId: string;
+  const createdJobIds: string[] = [];
 
   async function cleanupTestJobs() {
-    try {
-      await db.notificationJob.deleteMany({
-        where: { recipient: TEST_RECIPIENT },
+    await db.$transaction(async (tx) => {
+      if (createdJobIds.length > 0) {
+        await tx.notificationJob.deleteMany({
+          where: { id: { in: createdJobIds } },
+        });
+        createdJobIds.length = 0;
+      }
+      // Also clean up lingering test jobs from prior runs using exact scoped test messages
+      await tx.notificationJob.deleteMany({
+        where: {
+          businessId,
+          message: {
+            in: [
+              'Notification concurrency test',
+              'Active lease test',
+              'Crashed worker recovery test',
+              'Unexpired active lease test',
+              'Retry scheduling test',
+              'Max attempts test',
+            ],
+          },
+        },
       });
-    } catch (err) {
-      console.error('[NotificationWorkerTest cleanup failure]:', err);
-      throw err;
-    }
+      await tx.notificationJob.deleteMany({
+        where: {
+          businessId,
+          message: { startsWith: 'Batch job ' },
+        },
+      });
+    });
   }
 
   beforeAll(async () => {
@@ -253,6 +276,7 @@ describe('Notification Worker Concurrency, Claiming & Lease Recovery (Real Postg
         })
       )
     );
+    createdJobIds.push(...jobs.map((j) => j.id));
 
     // 3 concurrent workers process pending jobs simultaneously
     const [count1, count2, count3] = await Promise.all([

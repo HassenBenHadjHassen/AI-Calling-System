@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { headers } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 async function checkAdminSession() {
   const reqHeaders = await headers();
@@ -41,7 +42,7 @@ export async function GET() {
 
     return NextResponse.json({ users });
   } catch (error: unknown) {
-    console.error('[API Admin Users GET]', error);
+    logger.error('API Admin Users GET failed', { module: 'ADMIN_USERS', error });
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des utilisateurs' },
       { status: 500 }
@@ -107,9 +108,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, user: updated }, { status: 201 });
   } catch (error: unknown) {
-    console.error('[API Admin Users POST]', error);
+    logger.error('API Admin Users POST failed', { module: 'ADMIN_USERS', error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur lors de la création' },
+      { error: 'Erreur lors de la création du compte' },
       { status: 500 }
     );
   }
@@ -151,9 +152,9 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ success: true, user: updated });
   } catch (error: unknown) {
-    console.error('[API Admin Users PATCH]', error);
+    logger.error('API Admin Users PATCH failed', { module: 'ADMIN_USERS', error });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Erreur lors de la modification' },
+      { error: 'Erreur lors de la modification' },
       { status: 500 }
     );
   }
@@ -187,7 +188,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error('[API Admin Users DELETE]', error);
+    logger.error('API Admin Users DELETE failed', { module: 'ADMIN_USERS', error });
     return NextResponse.json(
       { error: 'Erreur lors de la suppression' },
       { status: 500 }

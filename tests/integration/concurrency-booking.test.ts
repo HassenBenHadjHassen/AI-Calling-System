@@ -27,42 +27,66 @@ describe('Concurrency Control & Transactional Idempotency Integration Tests (Rea
     'call_diff_date_001',
   ];
 
-  const TEST_PHONES = [
-    '+33611111111',
-    '+33622222222',
-    '+33633333333',
-    '+33644444444',
-    '+33655555555',
-    '+33699999999',
-  ];
 
   async function cleanupTestData() {
-    try {
-      await db.notificationJob.deleteMany({
-        where: { recipient: { in: TEST_PHONES } },
+    const existingRequests = await db.patientRequest.findMany({
+      where: { vapiCallId: { in: TEST_CALL_IDS } },
+      select: { id: true, appointmentId: true, contactId: true, callRecordId: true },
+    });
+
+    const apptIds = existingRequests
+      .map((r) => r.appointmentId)
+      .filter((id): id is string => Boolean(id));
+    const callRecordIds = existingRequests
+      .map((r) => r.callRecordId)
+      .filter((id): id is string => Boolean(id));
+    const contactIds = existingRequests
+      .map((r) => r.contactId)
+      .filter((id): id is string => Boolean(id));
+
+    await db.$transaction(async (tx) => {
+      // 1. Delete notification jobs created for these test calls
+      await tx.notificationJob.deleteMany({
+        where: {
+          message: { contains: 'call_pg_' },
+        },
       });
-      await db.patientRequest.deleteMany({
+
+      // 2. Delete patient requests explicitly created by test call IDs
+      await tx.patientRequest.deleteMany({
         where: { vapiCallId: { in: TEST_CALL_IDS } },
       });
-      // SAFE CLEANUP: Only delete appointments linked to explicit test call records or test phone numbers.
-      // NEVER delete by date alone, which could destroy unrelated tenant or genuine user data!
-      await db.appointment.deleteMany({
+
+      // 3. Delete appointments created by test call IDs or linked directly to them
+      await tx.appointment.deleteMany({
         where: {
           OR: [
+            { id: { in: apptIds } },
             { callRecord: { vapiCallId: { in: TEST_CALL_IDS } } },
-            { contact: { phoneNumber: { in: TEST_PHONES } } },
           ],
         },
       });
-      await db.callRecord.deleteMany({
-        where: { vapiCallId: { in: TEST_CALL_IDS } },
+
+      // 4. Delete call records for test calls
+      await tx.callRecord.deleteMany({
+        where: {
+          OR: [
+            { vapiCallId: { in: TEST_CALL_IDS } },
+            { id: { in: callRecordIds } },
+          ],
+        },
       });
-      await db.contact.deleteMany({
-        where: { phoneNumber: { in: TEST_PHONES } },
-      });
-    } catch (err) {
-      console.warn('[cleanupTestData error]:', err);
-    }
+
+      // 5. Delete contacts only if created by these test calls and not referenced elsewhere
+      if (contactIds.length > 0) {
+        await tx.contact.deleteMany({
+          where: {
+            id: { in: contactIds },
+            appointments: { none: { callRecord: { vapiCallId: { notIn: TEST_CALL_IDS } } } },
+          },
+        });
+      }
+    });
   }
 
   beforeAll(async () => {

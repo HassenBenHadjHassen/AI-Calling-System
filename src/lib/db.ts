@@ -10,9 +10,25 @@ const globalForPrisma = globalThis as unknown as {
   pgPool?: pg.Pool;
 };
 
-export function createPrismaClient(): PrismaClient {
-  const rawConnectionString =
-    process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ai_calling_system';
+export function getActiveDatabaseUrl(overrideUrl?: string): string {
+  if (overrideUrl && overrideUrl.trim()) {
+    return overrideUrl.trim();
+  }
+  if (process.env.NODE_ENV === 'test') {
+    if (process.env.TEST_DATABASE_URL && process.env.TEST_DATABASE_URL.trim()) {
+      return process.env.TEST_DATABASE_URL.trim();
+    }
+  }
+  return process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ai_calling_system';
+}
+
+export function createPrismaClient(overrideUrl?: string): PrismaClient {
+  const rawConnectionString = getActiveDatabaseUrl(overrideUrl);
+
+  // In test mode, keep DATABASE_URL aligned with authoritative test connection
+  if (process.env.NODE_ENV === 'test' && !overrideUrl && process.env.TEST_DATABASE_URL) {
+    process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+  }
 
   // Detect SSL need (cloud hosts, sslmode in URL, or remote host)
   const isCloudHost =

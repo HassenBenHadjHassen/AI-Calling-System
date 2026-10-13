@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { env } from '../env';
+import { logger } from '../logger';
 
 export type SmsIntent = 'OUI' | 'NON' | 'AUTRE' | 'NONE';
 
@@ -122,8 +123,7 @@ class OpenAiIntegration {
 
       return { intent: 'NONE', rawText: text, source: 'openai' };
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.warn('[OpenAI SMS Classification Warning]:', errMsg);
+      logger.warn('OpenAI SMS classification warning', { module: 'OPENAI', error: err });
       return {
         intent: 'NONE',
         rawText: text,

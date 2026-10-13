@@ -106,20 +106,33 @@ export function sanitizeLogString(str: string): string {
 }
 
 // Safe error serializer ensuring message and stack are sanitized across all sinks
-export function serializeError(err: unknown): { message: string; stack?: string; name?: string } | undefined {
+export function serializeError(err: unknown): { message: string; stack?: string; name?: string; code?: string } | undefined {
   if (!err) return undefined;
   if (err instanceof Error) {
+    const code = (err as { code?: string }).code;
     return {
       name: err.name,
       message: sanitizeLogString(err.message),
       stack: err.stack ? sanitizeLogString(err.stack) : undefined,
+      ...(code ? { code: String(code) } : {}),
     };
+  }
+  if (typeof err === 'object') {
+    try {
+      const msg = (err as { message?: unknown }).message;
+      if (typeof msg === 'string') {
+        return { message: sanitizeLogString(msg) };
+      }
+      return { message: sanitizeLogString(JSON.stringify(sanitizeLogData(err))) };
+    } catch {
+      return { message: '[Non-serializable Error Object]' };
+    }
   }
   return { message: sanitizeLogString(String(err)) };
 }
 
-// Safe payload sanitizer (strips sensitive tokens, PII, medical data, large blobs)
-export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
+// Safe payload sanitizer (strips sensitive tokens, PII, medical data, large blobs, protects against circular references)
+export function sanitizeLogData(data: unknown, maxDepth = 4, seen = new WeakSet<object>()): unknown {
   if (data === null || data === undefined) return data;
   if (typeof data !== 'object') {
     if (typeof data === 'string') {
@@ -127,10 +140,15 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     }
     return data;
   }
+  if (seen.has(data as object)) {
+    return '[Circular Reference]';
+  }
+  seen.add(data as object);
+
   if (maxDepth <= 0) return '[Truncated Depth]';
 
   if (Array.isArray(data)) {
-    return data.slice(0, 50).map((item) => sanitizeLogData(item, maxDepth - 1));
+    return data.slice(0, 50).map((item) => sanitizeLogData(item, maxDepth - 1, seen));
   }
 
   const sanitized: Record<string, unknown> = {};
@@ -166,6 +184,8 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     'callernumber',
     'phonenumber',
     'recipient',
+    'recipientphone',
+    'patient',
     'from',
     'to',
     'phone',
@@ -199,6 +219,9 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     'bodydata',
     'structureddata',
     'formsubmissiondata',
+    'sms',
+    'smsbody',
+    'content',
   ];
 
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
@@ -210,7 +233,7 @@ export function sanitizeLogData(data: unknown, maxDepth = 4): unknown {
     ) {
       sanitized[key] = '***REDACTED***';
     } else if (typeof value === 'object' && value !== null) {
-      sanitized[key] = sanitizeLogData(value, maxDepth - 1);
+      sanitized[key] = sanitizeLogData(value, maxDepth - 1, seen);
     } else if (typeof value === 'string') {
       const masked = sanitizeLogString(value);
       if (masked.length > 2000) {
