@@ -42,10 +42,12 @@ export async function POST(req: NextRequest) {
 
   // 3. Validate payload schema
   const parsed = VapiInboundRoutingPayloadSchema.safeParse(rawBody);
+
   if (!parsed.success) {
-    logger.warn('[Vapi Inbound Routing] Invalid webhook payload', {
-      issues: parsed.error.issues,
-    });
+    logger.warn(
+      `[Vapi Inbound Routing] Invalid webhook payload: ${JSON.stringify(parsed.error.issues)}`
+    );
+
     return NextResponse.json(
       { error: 'Invalid payload schema', issues: parsed.error.issues },
       { status: 400 }
