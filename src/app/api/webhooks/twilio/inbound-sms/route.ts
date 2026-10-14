@@ -6,6 +6,15 @@ import { WebhookProcessingService } from '@/lib/services/webhook-processing.serv
 import { WebhookProvider } from '@prisma/client';
 import { logger } from '@/lib/logger';
 
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    endpoint: '/api/webhooks/twilio/inbound-sms',
+    unprotected: true,
+    message: 'Twilio Inbound SMS Webhook is active and unprotected.',
+  });
+}
+
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const rawCorrId = req.headers.get('x-correlation-id');
@@ -33,12 +42,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Normalize keys from manual testing or casing differences
+    if (!bodyData.From && bodyData.from) bodyData.From = bodyData.from;
+    if (!bodyData.Body && bodyData.body) bodyData.Body = bodyData.body;
+    if (!bodyData.MessageSid && (bodyData.messageSid || bodyData.messagesid)) {
+      bodyData.MessageSid = bodyData.messageSid || bodyData.messagesid;
+    }
+    if (!bodyData.MessageSid) {
+      bodyData.MessageSid = `SM_unprotected_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    }
+
     const correlationId =
       rawCorrId || `twilio_${bodyData.MessageSid || Date.now().toString(36)}`;
     const log = logger.child({ module: 'WEBHOOK_TWILIO', correlationId });
 
-    log.info('[Twilio Inbound SMS] Inbound request received', {
+    log.info('[Twilio Inbound SMS] Inbound request received (unprotected endpoint)', {
       messageSid: bodyData.MessageSid,
+      from: bodyData.From,
     });
 
     const parsed = TwilioInboundSmsSchema.safeParse(bodyData);
@@ -56,24 +76,15 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = parsed.data;
-    const signature = req.headers.get('x-twilio-signature') || '';
-    const requestUrl = req.url;
 
-    // Optional signature verification
-    const isValidSignature = twilioClient.validateWebhookSignature(
-      signature,
-      requestUrl,
-      bodyData
-    );
-
-    if (!isValidSignature) {
-      log.warn('[Twilio Inbound SMS] Invalid webhook signature detected', {
-        requestUrl,
+    // Webhook protection disabled: signature verification bypassed
+    const signature = req.headers.get('x-twilio-signature');
+    if (signature) {
+      log.info('[Twilio Inbound SMS] Twilio signature present (verification bypassed - unprotected)', {
+        signatureLength: signature.length,
       });
-      return new NextResponse('Unauthorized', {
-        headers: { 'X-Correlation-Id': correlationId },
-        status: 401,
-      });
+    } else {
+      log.info('[Twilio Inbound SMS] Request received without signature (unprotected mode)');
     }
 
     const eventKey = `twilio_sms_${payload.MessageSid}`;

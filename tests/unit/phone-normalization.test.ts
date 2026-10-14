@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizePhoneNumber, isValidE164 } from '@/lib/validation/phone';
+import { normalizePhoneNumber, isValidE164, isRealPhoneNumber, formatDisplayPhoneNumber } from '@/lib/validation/phone';
 
 describe('Phone Number Normalization & Validation', () => {
   it('normalizes French 10-digit mobile numbers with leading 0', () => {
@@ -36,5 +36,23 @@ describe('Phone Number Normalization & Validation', () => {
     expect(isValidE164('+33939033663')).toBe(true);
     expect(isValidE164('0612345678')).toBe(false);
     expect(isValidE164('invalid')).toBe(false);
+  });
+
+  it('rejects unresolved template placeholders and fake strings', () => {
+    expect(normalizePhoneNumber('+{{customernumber}}')).toBe('');
+    expect(normalizePhoneNumber('{{customer.number}}')).toBe('');
+    expect(isRealPhoneNumber('+{{customernumber}}')).toBe(false);
+    expect(isRealPhoneNumber('{{customer.number}}')).toBe(false);
+    expect(isRealPhoneNumber('undefined')).toBe(false);
+    expect(isRealPhoneNumber(null)).toBe(false);
+    expect(isRealPhoneNumber('')).toBe(false);
+    expect(isRealPhoneNumber('+33612345678')).toBe(true);
+  });
+
+  it('formats French phone numbers cleanly for display', () => {
+    expect(formatDisplayPhoneNumber('+33612850101')).toBe('+33 6 12 85 01 01');
+    expect(formatDisplayPhoneNumber('0612850101')).toBe('06 12 85 01 01');
+    expect(formatDisplayPhoneNumber('+{{customernumber}}')).toBeNull();
+    expect(formatDisplayPhoneNumber(null)).toBeNull();
   });
 });
