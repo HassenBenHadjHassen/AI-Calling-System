@@ -327,6 +327,7 @@ export const VapiInboundRoutingPayloadSchema = z.object({
             id: z.string().optional(),
             number: z.string().optional(),
           })
+          .nullable()
           .optional(),
         customer: z
           .object({
@@ -334,7 +335,7 @@ export const VapiInboundRoutingPayloadSchema = z.object({
             name: z.string().optional(),
           })
           .optional(),
-        assistantId: z.string().optional(),
+        assistantId: z.string().nullable().optional(),
       })
       .optional(),
     phoneNumber: z
