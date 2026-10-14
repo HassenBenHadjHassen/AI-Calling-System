@@ -73,10 +73,16 @@ export function createPrismaClient(overrideUrl?: string): PrismaClient {
     .replace(/\?&/, '?')
     .replace(/[?&]$/, '');
 
+  const defaultMax = process.env.NODE_ENV === 'test' ? 3 : 5;
+  const poolMax = process.env.DATABASE_POOL_MAX
+    ? parseInt(process.env.DATABASE_POOL_MAX, 10)
+    : defaultMax;
+
   const poolConfig: pg.PoolConfig = {
     connectionString: cleanConnectionString,
-    max: process.env.NODE_ENV === 'test' ? 3 : 10,
-    idleTimeoutMillis: 30000,
+    max: poolMax,
+    idleTimeoutMillis: 10000, // Drop idle connections after 10s to free Aiven slots
+    connectionTimeoutMillis: 5000,
   };
 
   if (needsSsl) {
@@ -86,10 +92,9 @@ export function createPrismaClient(overrideUrl?: string): PrismaClient {
 
   const pool = new pg.Pool(poolConfig);
 
-  if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.pgPool = pool;
-    globalForPrisma.pgPoolUrl = rawConnectionString;
-  }
+  // Always cache pgPool globally so Next.js SSR chunks and bundle scopes reuse the same connection pool
+  globalForPrisma.pgPool = pool;
+  globalForPrisma.pgPoolUrl = rawConnectionString;
 
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
@@ -113,6 +118,5 @@ export async function resetPrismaClientForTesting(): Promise<void> {
 
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db;
-}
+// Always cache client on globalThis to prevent multiple pool instantiations across server chunks
+globalForPrisma.prisma = db;
