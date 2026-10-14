@@ -36,20 +36,20 @@ export interface SubmitPatientRequestParams {
 
 export type DirectSubmissionResult =
   | {
-      success: true;
-      requestId: string;
-      requestType: 'appointment' | 'cancellation' | 'message';
-      status: string;
-      message: string;
-      isDuplicate?: boolean;
-    }
+    success: true;
+    requestId: string;
+    requestType: 'appointment' | 'cancellation' | 'message';
+    status: string;
+    message: string;
+    isDuplicate?: boolean;
+  }
   | {
-      success: false;
-      status: number;
-      error: string;
-      message: string;
-      conflict?: boolean;
-    };
+    success: false;
+    status: number;
+    error: string;
+    message: string;
+    conflict?: boolean;
+  };
 
 export class IntakeConflictError extends Error {
   statusCode: number;
@@ -342,13 +342,19 @@ export class PatientIntakeService {
         },
       });
 
-      const smsBody =
-        `DEMANDE D'ANNULATION DE RDV (À CONFIRMER)\n` +
-        `Patient: ${params.patientName}\n` +
-        `Soin: ${params.serviceType || 'Soins infirmiers'}\n` +
-        `Date: ${params.date || existingAppt?.date || 'Non précisée'} à ${params.time || existingAppt?.time || 'Non précisée'}\n` +
-        `Numéro: ${callerNumber}\n` +
-        `Action: À confirmer/valider par Mme MICHEL`;
+      const smsBody = [
+        "DEMANDE D'ANNULATION DE RENDEZ-VOUS",
+        "--------------------------------",
+        "",
+        `Patient : ${params.patientName || "Non renseigné"}`,
+        `Service : ${params.serviceType || "Soins infirmiers"}`,
+        `Date : ${params.date || existingAppt?.date || "Non précisée"}`,
+        `Heure : ${params.time || existingAppt?.time || "Non précisée"}`,
+        `Téléphone : ${callerNumber || "Non renseigné"}`,
+        "",
+        "Action requise :",
+        "Annulation à confirmer par Mme MICHEL.",
+      ].join("\n");
 
       await NotificationService.queueNotification({
         businessId: business.id,
@@ -423,8 +429,8 @@ export class PatientIntakeService {
       lineInfo.type === 'mobile'
         ? LineType.MOBILE
         : lineInfo.type === 'landline'
-        ? LineType.LANDLINE
-        : LineType.UNKNOWN;
+          ? LineType.LANDLINE
+          : LineType.UNKNOWN;
 
     await db.contact.update({
       where: { id: contact.id },
@@ -485,14 +491,21 @@ export class PatientIntakeService {
           message: urgentMsg,
         });
       } else {
-        const rdvMsg =
-          `bonjour nouveau patient:\n` +
-          `DATE:${params.date || ''}   à${params.time || ''}\n` +
-          `NOM:${params.patientName}\n` +
-          `Service:${params.serviceType || 'Soins infirmiers'}\n` +
-          `code postale:\n${params.postalCode || ''}\n` +
-          `numero :${callerNumber}\n\n` +
-          `OPTION:\n1.OUI\n2.NON\n\n`;
+        const rdvMsg = [
+          "NOUVELLE DEMANDE DE RENDEZ-VOUS",
+          "--------------------------------",
+          "",
+          `Date : ${params.date || "Non précisée"}`,
+          `Heure : ${params.time || "Non précisée"}`,
+          `Patient : ${params.patientName || "Non renseigné"}`,
+          `Service : ${params.serviceType || "Soins infirmiers"}`,
+          `Code postal : ${params.postalCode || "Non renseigné"}`,
+          `Téléphone : ${callerNumber || "Non renseigné"}`,
+          "",
+          "Souhaitez-vous accepter cette demande ?",
+          "1 - OUI",
+          "2 - NON",
+        ].join("\n");
 
         await NotificationService.queueNotification({
           businessId: business.id,
@@ -573,8 +586,8 @@ export class PatientIntakeService {
       payload.requestType === 'appointment'
         ? PatientRequestType.APPOINTMENT
         : payload.requestType === 'cancellation'
-        ? PatientRequestType.CANCELLATION
-        : PatientRequestType.MESSAGE;
+          ? PatientRequestType.CANCELLATION
+          : PatientRequestType.MESSAGE;
 
     // 2b. Check if this request was ALREADY submitted for this callId (Idempotency pre-check)
     const existingPrecheck = await db.patientRequest.findUnique({
@@ -699,8 +712,8 @@ export class PatientIntakeService {
       lineInfo.type === 'mobile'
         ? LineType.MOBILE
         : lineInfo.type === 'landline'
-        ? LineType.LANDLINE
-        : LineType.UNKNOWN;
+          ? LineType.LANDLINE
+          : LineType.UNKNOWN;
 
     // 5. Transactional Execution
     interface TxResult {
@@ -898,27 +911,47 @@ export class PatientIntakeService {
           });
 
           // Compose alert SMS for Madame MICHEL
-          let smsBody = '';
+          let smsBody = "";
+
           if (lineType === LineType.MOBILE) {
             if (isUrgent) {
-              smsBody = "c'est un urgent condition\nrapeller le patient\n";
+              smsBody = [
+                "APPEL URGENT",
+                "------------------------------",
+                "Un patient nécessite une prise en charge urgente.",
+                "Merci de rappeler le patient dès que possible.",
+                `Téléphone : ${callerNumber || "Non renseigné"}`,
+              ].join("\n");
             } else {
-              smsBody =
-                `bonjour nouveau patient:\n` +
-                `DATE:${payload.requestedDate}   à${payload.requestedTime}\n` +
-                `NOM:${payload.patientName}\n` +
-                `Service:${payload.serviceType}\n` +
-                `code postale:\n${payload.postalCode || ''}\n` +
-                `numero :${callerNumber}\n\n` +
-                `OPTION:\n1.OUI\n2.NON\n\n`;
+              smsBody = [
+                "NOUVELLE DEMANDE DE RENDEZ-VOUS",
+                "--------------------------------",
+                "",
+                `Date : ${payload.requestedDate || "Non précisée"}`,
+                `Heure : ${payload.requestedTime || "Non précisée"}`,
+                `Patient : ${payload.patientName || "Non renseigné"}`,
+                `Service : ${payload.serviceType || "Soins infirmiers"}`,
+                `Code postal : ${payload.postalCode || "Non renseigné"}`,
+                `Téléphone : ${callerNumber || "Non renseigné"}`,
+                "",
+                "Souhaitez-vous accepter cette demande ?",
+                "1 - OUI",
+                "2 - NON",
+              ].join("\n");
             }
           } else if (lineType === LineType.LANDLINE) {
-            smsBody =
-              `Le cleint vient d'appeler d'une nunemro FIXE ces infos:\n` +
-              `tu le rappeleras sur le numero :${callerNumber}\n\n` +
-              `DATE:\n${payload.requestedDate}   à${payload.requestedTime}\n` +
-              `NOM:${payload.patientName}\n` +
-              `Service:${payload.serviceType}\n`;
+            smsBody = [
+              "APPEL DEPUIS UN NUMÉRO FIXE",
+              "--------------------------------",
+              "",
+              "Un patient a appelé depuis un téléphone fixe.",
+              `Téléphone à rappeler : ${callerNumber || "Non renseigné"}`,
+              "",
+              `Date souhaitée : ${payload.requestedDate || "Non précisée"}`,
+              `Heure souhaitée : ${payload.requestedTime || "Non précisée"}`,
+              `Patient : ${payload.patientName || "Non renseigné"}`,
+              `Service : ${payload.serviceType || "Soins infirmiers"}`,
+            ].join("\n");
           }
 
           // Transactional Outbox: Persist notification job atomically inside this transaction
@@ -996,13 +1029,19 @@ export class PatientIntakeService {
             },
           });
 
-          const smsBody =
-            `DEMANDE D'ANNULATION DE RDV (À CONFIRMER)\n` +
-            `Patient: ${payload.patientName || contact.name}\n` +
-            `Soin: ${payload.serviceType || 'Soins infirmiers'}\n` +
-            `Date: ${payload.requestedDate || existingAppt?.date || 'Non précisée'} à ${payload.requestedTime || existingAppt?.time || 'Non précisée'}\n` +
-            `Numéro: ${callerNumber}\n` +
-            `Action: À confirmer/valider par Mme MICHEL`;
+          const smsBody = [
+            "DEMANDE D'ANNULATION DE RENDEZ-VOUS",
+            "--------------------------------",
+            "",
+            `Patient : ${payload.patientName || contact.name || "Non renseigné"}`,
+            `Service : ${payload.serviceType || "Soins infirmiers"}`,
+            `Date : ${payload.requestedDate || existingAppt?.date || "Non précisée"}`,
+            `Heure : ${payload.requestedTime || existingAppt?.time || "Non précisée"}`,
+            `Téléphone : ${callerNumber || "Non renseigné"}`,
+            "",
+            "Action requise :",
+            "Annulation à confirmer par Mme MICHEL.",
+          ].join("\n");
 
           // Transactional Outbox: Persist notification job atomically inside this transaction
           const notifJob = await NotificationService.createJobInTx(tx, {
@@ -1277,9 +1316,9 @@ export class PatientIntakeService {
     // Reconcile with any pre-call PatientRequest saved via direct tool submission
     const existingPatientRequest = db.patientRequest?.findFirst
       ? await db.patientRequest.findFirst({
-          where: { vapiCallId },
-          include: { appointment: true, serviceRequest: true },
-        })
+        where: { vapiCallId },
+        include: { appointment: true, serviceRequest: true },
+      })
       : null;
 
     if (existingPatientRequest) {
@@ -1380,13 +1419,19 @@ export class PatientIntakeService {
       });
 
       // Send SMS alert to nurse for manual review (with deduplication)
-      const smsBody =
-        `DEMANDE D'ANNULATION DE RDV (À CONFIRMER)\n` +
-        `Patient: ${patientName}\n` +
-        `Soin: ${serviceType}\n` +
-        `Date: ${dateStr || existingAppt?.date || 'Non précisée'} à ${heureStr || existingAppt?.time || 'Non précisée'}\n` +
-        `Numéro: ${callerNumber}\n` +
-        `Action: À confirmer/valider par Mme MICHEL`;
+      const smsBody = [
+        "DEMANDE D'ANNULATION DE RENDEZ-VOUS",
+        "--------------------------------",
+        "",
+        `Patient : ${patientName || "Non renseigné"}`,
+        `Service : ${serviceType || "Soins infirmiers"}`,
+        `Date : ${dateStr || existingAppt?.date || "Non précisée"}`,
+        `Heure : ${heureStr || existingAppt?.time || "Non précisée"}`,
+        `Téléphone : ${callerNumber || "Non renseigné"}`,
+        "",
+        "Action requise :",
+        "Annulation à confirmer par Mme MICHEL.",
+      ].join("\n");
 
       await NotificationService.queueNotification({
         businessId: business.id,
@@ -1483,8 +1528,8 @@ export class PatientIntakeService {
       lineInfo.type === 'mobile'
         ? LineType.MOBILE
         : lineInfo.type === 'landline'
-        ? LineType.LANDLINE
-        : LineType.UNKNOWN;
+          ? LineType.LANDLINE
+          : LineType.UNKNOWN;
 
     await db.contact.update({
       where: { id: contact.id },
@@ -1577,14 +1622,21 @@ export class PatientIntakeService {
             message: urgentMsg,
           });
         } else if (scamScore >= 5) {
-          const rdvMsg =
-            `bonjour nouveau patient:\n` +
-            `DATE:${dateStr}   à${heureStr}\n` +
-            `NOM:${patientName}\n` +
-            `Service:${serviceType}\n` +
-            `code postale:\n${postalCode}\n` +
-            `numero :${callerNumber}\n\n` +
-            `OPTION:\n1.OUI\n2.NON\n\n`;
+          const rdvMsg = [
+            "NOUVELLE DEMANDE DE RENDEZ-VOUS",
+            "--------------------------------",
+            "",
+            `Date : ${dateStr || "Non précisée"}`,
+            `Heure : ${heureStr || "Non précisée"}`,
+            `Patient : ${patientName || "Non renseigné"}`,
+            `Service : ${serviceType || "Soins infirmiers"}`,
+            `Code postal : ${postalCode || "Non renseigné"}`,
+            `Téléphone : ${callerNumber || "Non renseigné"}`,
+            "",
+            "Souhaitez-vous accepter cette demande ?",
+            "1 - OUI",
+            "2 - NON",
+          ].join("\n");
 
           await NotificationService.queueNotification({
             businessId: business.id,
