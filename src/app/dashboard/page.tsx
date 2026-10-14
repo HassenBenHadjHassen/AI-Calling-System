@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import DashboardCalendarTab from './calendar-tab';
+import DashboardRoutingTab, { BusinessRoutingOverview } from './routing-tab';
 import DashboardUsersTab, { UserAccount } from './users-tab';
 import DashboardLogsTab, { SystemLogEntry, LogStats } from './logs-tab';
 import UserNav from './user-nav';
@@ -62,7 +63,7 @@ export default async function DashboardPage({
   const userAllowedSectionsRaw = dbUser?.allowedSections || 'ALL';
   const allowedSectionsList =
     userAllowedSectionsRaw === 'ALL'
-      ? ['overview', 'calendar', 'appointments', 'requests', 'calls', 'users', 'logs']
+      ? ['overview', 'routing', 'calendar', 'appointments', 'requests', 'calls', 'users', 'logs']
       : userAllowedSectionsRaw.split(',').map((s) => s.trim());
 
   // 2. Fetch business tenant references
@@ -75,11 +76,30 @@ export default async function DashboardPage({
   let serviceRequests: ServiceRequestWithContact[] = [];
   let callRecords: CallRecordWithContact[] = [];
   let allUsers: UserAccount[] = [];
+  let allBusinesses: BusinessRoutingOverview[] = [];
   let initialLogs: SystemLogEntry[] = [];
   let initialLogStats: LogStats = { total24h: 0, errors24h: 0, warnings24h: 0, webhooks24h: 0 };
 
   try {
     const fetchPromises: Promise<unknown>[] = [];
+
+    // All businesses (for routing configuration)
+    fetchPromises.push(
+      db.business.findMany({
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          inboundPhoneNumber: true,
+          outboundPhoneNumber: true,
+          routingEnabled: true,
+          priorityTransferNumber: true,
+        },
+        orderBy: { name: 'asc' },
+      }).then((data) => {
+        allBusinesses = data;
+      })
+    );
 
     // Appointments (only if not restricted to Dani Bâtiment)
     if (!isDaniOnly) {
@@ -223,6 +243,12 @@ export default async function DashboardPage({
       label: `Journal d’appels (${callRecords.length})`,
       icon: '📞',
       visible: allowedSectionsList.includes('calls'),
+    },
+    {
+      id: 'routing',
+      label: 'Routage & Filtrage',
+      icon: '🔀',
+      visible: isAdmin || allowedSectionsList.includes('routing') || allowedSectionsList.includes('ALL'),
     },
     {
       id: 'users',
@@ -899,6 +925,15 @@ export default async function DashboardPage({
               </table>
             </div>
           </div>
+        )}
+
+        {/* TAB: CALL ROUTING & WHITELIST/BLACKLIST */}
+        {currentTab === 'routing' && (
+          <DashboardRoutingTab
+            initialBusinesses={allBusinesses}
+            userRole={dbUser?.role || 'USER'}
+            userAssignedBusiness={dbUser?.assignedBusiness || 'ALL'}
+          />
         )}
 
         {/* TAB: USERS & PERMISSIONS MANAGEMENT (ADMIN ONLY) */}

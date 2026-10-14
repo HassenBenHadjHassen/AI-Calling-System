@@ -14,6 +14,7 @@ export interface UserAccount {
 
 const ALL_SECTIONS = [
   { id: 'overview', label: 'Vue d’ensemble', icon: '📊', business: 'ALL' },
+  { id: 'routing', label: 'Routage & Filtrage d’appels', icon: '🔀', business: 'ALL' },
   { id: 'calendar', label: 'Planning & Calendrier Interne', icon: '📅', business: 'CABINET_MICHELLE' },
   { id: 'appointments', label: 'Cabinet Michelle — Rendez-vous', icon: '🩺', business: 'CABINET_MICHELLE' },
   { id: 'requests', label: 'Dani Bâtiment — Devis & Chantiers', icon: '🏗️', business: 'DANI_BATIMENT' },

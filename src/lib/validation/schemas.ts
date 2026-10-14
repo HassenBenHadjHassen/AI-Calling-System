@@ -311,4 +311,71 @@ export const DirectPatientSubmissionSchema = z
 export type DirectPatientSubmissionPayload = z.infer<typeof DirectPatientSubmissionSchema>;
 export type DirectPatientSubmissionInput = z.input<typeof DirectPatientSubmissionSchema>;
 
+// ==========================================
+// CALL ROUTING SCHEMAS
+// ==========================================
+
+export const VapiInboundRoutingPayloadSchema = z.object({
+  message: z.object({
+    type: z.string(),
+    call: z
+      .object({
+        id: z.string().optional(),
+        status: z.string().optional(),
+        phoneNumber: z
+          .object({
+            id: z.string().optional(),
+            number: z.string().optional(),
+          })
+          .optional(),
+        customer: z
+          .object({
+            number: z.string().optional(),
+            name: z.string().optional(),
+          })
+          .optional(),
+        assistantId: z.string().optional(),
+      })
+      .optional(),
+    phoneNumber: z
+      .object({
+        id: z.string().optional(),
+        number: z.string().optional(),
+      })
+      .optional(),
+    customer: z
+      .object({
+        number: z.string().optional(),
+        name: z.string().optional(),
+      })
+      .optional(),
+    timestamp: z.number().optional(),
+  }),
+});
+
+export type VapiInboundRoutingPayload = z.infer<typeof VapiInboundRoutingPayloadSchema>;
+
+export const RoutingSettingsUpdateSchema = z.object({
+  routingEnabled: z.boolean().optional(),
+  priorityTransferNumber: z.string().nullable().optional(),
+});
+export type RoutingSettingsUpdateInput = z.infer<typeof RoutingSettingsUpdateSchema>;
+
+export const CreateRoutingRuleSchema = z.object({
+  phoneNumber: z.string().min(1, 'Numéro de téléphone requis'),
+  action: z.enum(['DIRECT', 'BLOCK']),
+  label: z.string().max(255).optional(),
+  active: z.boolean().optional().default(true),
+});
+export type CreateRoutingRuleInput = z.infer<typeof CreateRoutingRuleSchema>;
+
+export const UpdateRoutingRuleSchema = z.object({
+  phoneNumber: z.string().min(1).optional(),
+  action: z.enum(['DIRECT', 'BLOCK']).optional(),
+  label: z.string().max(255).optional(),
+  active: z.boolean().optional(),
+});
+export type UpdateRoutingRuleInput = z.infer<typeof UpdateRoutingRuleSchema>;
+
+
 

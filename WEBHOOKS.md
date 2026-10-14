@@ -13,6 +13,7 @@ Ce document répertorie l'intégralité des endpoints Webhooks, Tool Calls (fonc
 | :--- | :--- | :---: | :--- |
 | **Vapi (Dani Bâtiment)** | Tool Call (Vérif. VIP / Statut) | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/webhooks/vapi/tools/client-vip` |
 | **Vapi (Dani Bâtiment)** | Fin d'appel (Server URL) | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/webhooks/vapi/dani-batiment` |
+| **Vapi (Routage Pré-IA)** | Routage entrant (`assistant-request`) | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/webhooks/vapi/inbound-routing` |
 | **Vapi (Cabinet Michelle)** | Tool Call (Disponibilité Planning) | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/webhooks/vapi/tools/calendar-availability` |
 | **Vapi (Cabinet Michelle)** | **Format A** : Tool Call direct (`submit_patient_request`)<br>**Format B** : Fin d'appel (`Server URL`) | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/webhooks/vapi/patient-intake` |
 | **Twilio SMS** | Réception SMS patient | `POST` | `https://ai-calling-system.hassenbenhadjhassen.com/api/webhooks/twilio/inbound-sms` |

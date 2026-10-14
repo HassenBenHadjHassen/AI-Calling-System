@@ -102,6 +102,11 @@ enum LogLevel {
   ERROR
 }
 
+enum RoutingAction {
+  DIRECT
+  BLOCK
+}
+
 model Business {
   id                  String             @id @default(uuid())
   slug                String             @unique
@@ -111,6 +116,8 @@ model Business {
   inboundPhoneNumber  String?
   outboundPhoneNumber String?
   alertPhoneNumber    String?
+  priorityTransferNumber String?
+  routingEnabled      Boolean            @default(false)
   calendarId          String?
   formUrl             String?
   metadata            Json?
@@ -123,6 +130,7 @@ model Business {
   appointments        Appointment[]
   serviceRequests     ServiceRequest[]
   allowlistEntries    CallerAllowlist[]
+  routingRules        CallerRoutingRule[]
   callRecords         CallRecord[]
   webhookEvents       WebhookEvent[]
   notificationJobs    NotificationJob[]
@@ -322,6 +330,23 @@ model CallerAllowlist {
   @@unique([businessId, phoneNumber])
   @@index([phoneNumber])
   @@map("caller_allowlists")
+}
+
+model CallerRoutingRule {
+  id          String        @id @default(uuid())
+  businessId  String
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  phoneNumber String
+  action      RoutingAction
+  label       String?
+  active      Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([businessId, phoneNumber])
+  @@index([phoneNumber])
+  @@index([businessId, active])
+  @@map("caller_routing_rules")
 }
 
 model WebhookEvent {
