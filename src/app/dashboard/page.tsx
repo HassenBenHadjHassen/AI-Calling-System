@@ -856,7 +856,7 @@ export default async function DashboardPage({
                   ? 'Historique des appels pour le Cabinet Michelle'
                   : isDaniOnly
                   ? 'Historique des appels pour Dani Bâtiment'
-                  : 'Historique des communications enregistrées par les assistants Vapi'}
+                  : 'Historique des communications enregistrées par les assistants vocaux'}
               </p>
             </div>
 

@@ -32,7 +32,7 @@ export default async function DevisGeneralPage({
               Portail Devis &bull; Dani Bâtiment
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              Remplacement 100% natif de JotForm &bull; Enregistrement direct PostgreSQL
+              Validation et suivi des demandes de devis
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default async function DevisGeneralPage({
                     </span>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Visualisation planning, RDV urgents, blocage de créneaux, synchro iCal
+                    Visualisation du planning, rendez-vous urgents et gestion des disponibilités
                   </p>
                 </div>
                 <span className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all text-base">
@@ -129,7 +129,7 @@ export default async function DevisGeneralPage({
           >
             ← Accéder au Tableau de Bord
           </Link>
-          <span className="font-mono text-2xs text-slate-400">PostgreSQL Ready</span>
+          <span className="text-2xs text-slate-400">Enregistrement sécurisé</span>
         </div>
       </div>
     </div>
