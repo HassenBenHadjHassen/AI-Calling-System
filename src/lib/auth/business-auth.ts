@@ -65,12 +65,7 @@ export async function verifyBusinessAccess(
     return { authorized: true, status: 200, user, business };
   }
 
-  // 2. Check section permission if restricted
-  if (user.allowedSections !== 'ALL' && !user.allowedSections?.includes('routing')) {
-    return { authorized: false, status: 403, error: 'Accès non autorisé à la section Routage.' };
-  }
-
-  // 3. Client user must match assigned business
+  // 2. Client users may only manage their assigned business
   const isAssigned =
     user.assignedBusiness === 'ALL' ||
     user.assignedBusiness === business.slug ||
@@ -82,6 +77,18 @@ export async function verifyBusinessAccess(
       status: 403,
       error: 'Vous n’avez pas les droits d’accès pour gérer cet établissement.',
     };
+  }
+
+  // Assigned business accounts can manage routing for their own business.
+  // Cross-business accounts still need the explicit routing section permission.
+  const isAssignedToThisBusiness =
+    user.assignedBusiness === business.slug || user.assignedBusiness === business.id;
+  const hasRoutingPermission =
+    user.allowedSections === 'ALL' ||
+    user.allowedSections?.split(',').map((section) => section.trim()).includes('routing');
+
+  if (!isAssignedToThisBusiness && !hasRoutingPermission) {
+    return { authorized: false, status: 403, error: 'Accès non autorisé à la section Routage.' };
   }
 
   return { authorized: true, status: 200, user, business };

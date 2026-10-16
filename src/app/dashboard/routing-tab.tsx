@@ -459,15 +459,16 @@ export default function DashboardRoutingTab({
             {/* Priority Transfer Number Form */}
             <form onSubmit={handleSavePriorityNumber} className="space-y-3 pt-2 border-t border-slate-100">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <label className="text-xs font-bold text-slate-800">
-                  Ligne de Transfert Prioritaire (Destination Whitelist)
+                <label htmlFor="priority-transfer-number" className="text-xs font-bold text-slate-800">
+                  Numéro de transfert par défaut — {selectedBusiness?.name || 'cet établissement'}
                 </label>
                 <span className="text-2xs text-slate-400 font-medium">Format E.164 (+33...)</span>
               </div>
 
               <div className="flex gap-2.5">
                 <input
-                  type="text"
+                  id="priority-transfer-number"
+                  type="tel"
                   value={priorityNumber}
                   onChange={(e) => setPriorityNumber(e.target.value)}
                   placeholder="Ex: +33612857915 ou 0612857915"
@@ -483,7 +484,7 @@ export default function DashboardRoutingTab({
               </div>
 
               <p className="text-2xs text-slate-500">
-                Lorsque l’appelant est sur liste prioritaire (Whitelist), Vapi transfère l’appel immédiatement vers cette ligne sans démarrer l’IA.
+                Tous les appelants autorisés de {selectedBusiness?.name || 'cet établissement'} sont transférés vers ce numéro. Chaque entreprise conserve son propre numéro.
               </p>
             </form>
           </div>

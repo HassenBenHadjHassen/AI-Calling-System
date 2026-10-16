@@ -246,9 +246,13 @@ export default async function DashboardPage({
     },
     {
       id: 'routing',
-      label: 'Routage & Filtrage',
+      label: 'Routage des appels',
       icon: '🔀',
-      visible: isAdmin || allowedSectionsList.includes('routing') || allowedSectionsList.includes('ALL'),
+      visible:
+        isAdmin ||
+        allowedSectionsList.includes('routing') ||
+        allowedSectionsList.includes('ALL') ||
+        allBusinesses.some((business) => business.id === assignedBusiness || business.slug === assignedBusiness),
     },
     {
       id: 'users',

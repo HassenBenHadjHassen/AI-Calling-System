@@ -14,7 +14,7 @@ export interface UserAccount {
 
 const ALL_SECTIONS = [
   { id: 'overview', label: 'Vue d’ensemble', icon: '📊', business: 'ALL' },
-  { id: 'routing', label: 'Routage & Filtrage d’appels', icon: '🔀', business: 'ALL' },
+  { id: 'routing', label: 'Routage des appels (entreprise assignée)', icon: '🔀', business: 'ALL' },
   { id: 'calendar', label: 'Planning & Calendrier Interne', icon: '📅', business: 'CABINET_MICHELLE' },
   { id: 'appointments', label: 'Cabinet Michelle — Rendez-vous', icon: '🩺', business: 'CABINET_MICHELLE' },
   { id: 'requests', label: 'Dani Bâtiment — Devis & Chantiers', icon: '🏗️', business: 'DANI_BATIMENT' },
@@ -42,7 +42,7 @@ export default function DashboardUsersTab({
     password: '',
     role: 'USER',
     assignedBusiness: 'CABINET_MICHELLE',
-    allowedSections: ['overview', 'calendar', 'appointments', 'calls'],
+    allowedSections: ['overview', 'routing', 'calendar', 'appointments', 'calls'],
   });
 
   // Edit Modal State
@@ -75,19 +75,19 @@ export default function DashboardUsersTab({
       password: '',
       role: 'USER',
       assignedBusiness: 'CABINET_MICHELLE',
-      allowedSections: ['overview', 'calendar', 'appointments', 'calls'],
+      allowedSections: ['overview', 'routing', 'calendar', 'appointments', 'calls'],
     });
     setShowCreateModal(true);
   };
 
   const handleBusinessChangeOnCreate = (biz: string) => {
-    let defaultSections: string[] = ['overview', 'calls'];
+    let defaultSections: string[] = ['overview', 'routing', 'calls'];
     if (biz === 'CABINET_MICHELLE') {
-      defaultSections = ['overview', 'calendar', 'appointments', 'calls'];
+      defaultSections = ['overview', 'routing', 'calendar', 'appointments', 'calls'];
     } else if (biz === 'DANI_BATIMENT') {
-      defaultSections = ['overview', 'requests', 'calls'];
+      defaultSections = ['overview', 'routing', 'requests', 'calls'];
     } else if (biz === 'ALL') {
-      defaultSections = ['overview', 'calendar', 'appointments', 'requests', 'calls', 'users'];
+      defaultSections = ['overview', 'routing', 'calendar', 'appointments', 'requests', 'calls', 'users'];
     }
     setCreateForm((prev) => ({
       ...prev,
@@ -98,6 +98,9 @@ export default function DashboardUsersTab({
 
   const handleToggleSectionCreate = (sectionId: string) => {
     setCreateForm((prev) => {
+      if (sectionId === 'routing' && prev.role !== 'ADMIN' && prev.assignedBusiness !== 'ALL') {
+        return prev;
+      }
       const exists = prev.allowedSections.includes(sectionId);
       const updated = exists
         ? prev.allowedSections.filter((s) => s !== sectionId)
@@ -156,6 +159,9 @@ export default function DashboardUsersTab({
 
   const handleToggleSectionEdit = (sectionId: string) => {
     setEditForm((prev) => {
+      if (sectionId === 'routing' && prev.role !== 'ADMIN' && prev.assignedBusiness !== 'ALL') {
+        return prev;
+      }
       const exists = prev.allowedSections.includes(sectionId);
       const updated = exists
         ? prev.allowedSections.filter((s) => s !== sectionId)
@@ -172,7 +178,11 @@ export default function DashboardUsersTab({
     setSuccess(null);
 
     try {
-      const isAllSections = editForm.allowedSections.length === ALL_SECTIONS.length;
+      const allowedSections = new Set(editForm.allowedSections);
+      if (editForm.role !== 'ADMIN' && editForm.assignedBusiness !== 'ALL') {
+        allowedSections.add('routing');
+      }
+      const isAllSections = allowedSections.size === ALL_SECTIONS.length;
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -181,7 +191,7 @@ export default function DashboardUsersTab({
           name: editForm.name,
           role: editForm.role,
           assignedBusiness: editForm.assignedBusiness,
-          allowedSections: isAllSections ? 'ALL' : editForm.allowedSections.join(','),
+          allowedSections: isAllSections ? 'ALL' : [...allowedSections].join(','),
         }),
       });
 
@@ -469,7 +479,11 @@ export default function DashboardUsersTab({
                 </label>
                 <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                   {ALL_SECTIONS.map((sec) => {
-                    const checked = createForm.allowedSections.includes(sec.id);
+                    const routingRequired =
+                      sec.id === 'routing' &&
+                      createForm.role !== 'ADMIN' &&
+                      createForm.assignedBusiness !== 'ALL';
+                    const checked = routingRequired || createForm.allowedSections.includes(sec.id);
                     return (
                       <label
                         key={sec.id}
@@ -478,11 +492,12 @@ export default function DashboardUsersTab({
                         <input
                           type="checkbox"
                           checked={checked}
+                          disabled={routingRequired}
                           onChange={() => handleToggleSectionCreate(sec.id)}
                           className="rounded text-blue-600 focus:ring-blue-500"
                         />
                         <span>{sec.icon}</span>
-                        <span className="truncate">{sec.label}</span>
+                        <span className="truncate">{sec.label}{routingRequired ? ' · automatique' : ''}</span>
                       </label>
                     );
                   })}
@@ -590,7 +605,11 @@ export default function DashboardUsersTab({
 
                 <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                   {ALL_SECTIONS.map((sec) => {
-                    const checked = editForm.allowedSections.includes(sec.id);
+                    const routingRequired =
+                      sec.id === 'routing' &&
+                      editForm.role !== 'ADMIN' &&
+                      editForm.assignedBusiness !== 'ALL';
+                    const checked = routingRequired || editForm.allowedSections.includes(sec.id);
                     return (
                       <label
                         key={sec.id}
@@ -599,11 +618,12 @@ export default function DashboardUsersTab({
                         <input
                           type="checkbox"
                           checked={checked}
+                          disabled={routingRequired}
                           onChange={() => handleToggleSectionEdit(sec.id)}
                           className="rounded text-blue-600 focus:ring-blue-500"
                         />
                         <span>{sec.icon}</span>
-                        <span className="truncate">{sec.label}</span>
+                        <span className="truncate">{sec.label}{routingRequired ? ' · automatique' : ''}</span>
                       </label>
                     );
                   })}
