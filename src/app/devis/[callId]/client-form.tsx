@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { isRealPhoneNumber } from '@/lib/validation/phone';
 
 interface DevisContext {
   callId: string;
@@ -24,7 +25,7 @@ export default function DevisClientForm({
 }) {
   const [formData, setFormData] = useState({
     name: initialContext?.name || '',
-    phone: initialContext?.phoneNumber || '',
+    phone: isRealPhoneNumber(initialContext?.phoneNumber) ? initialContext!.phoneNumber : '',
     email: initialContext?.email || '',
     address: initialContext?.address || '',
     postalCode: initialContext?.postalCode || '',

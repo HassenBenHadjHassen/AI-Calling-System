@@ -30,12 +30,12 @@ export default function UserNav({
 
   const getBadge = () => {
     if (user.assignedBusiness === 'CABINET_MICHELLE') {
-      return { label: 'Cabinet Michelle', icon: '🩺', color: 'bg-teal-50 text-teal-700 border-teal-200' };
+      return { label: 'Cabinet Michelle', icon: 'CM', color: 'bg-teal-50 text-teal-700 border-teal-200' };
     }
     if (user.assignedBusiness === 'DANI_BATIMENT') {
-      return { label: 'Dani Bâtiment', icon: '🏗️', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+      return { label: 'Dani Bâtiment', icon: 'DB', color: 'bg-amber-50 text-amber-700 border-amber-200' };
     }
-    return { label: 'Super Admin', icon: '👑', color: 'bg-purple-50 text-purple-700 border-purple-200' };
+    return { label: 'Administration', icon: 'AD', color: 'bg-purple-50 text-purple-700 border-purple-200' };
   };
 
   const badge = getBadge();
@@ -43,7 +43,7 @@ export default function UserNav({
   return (
     <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
       <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
-        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs shadow-2xs">
+        <div className="w-8 h-8 rounded-none bg-slate-900 text-white font-bold flex items-center justify-center text-xs shadow-none border border-slate-900">
           {user.name ? user.name.slice(0, 1).toUpperCase() : 'U'}
         </div>
         <div className="hidden sm:block text-left">

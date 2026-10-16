@@ -53,6 +53,9 @@ export function isRealPhoneNumber(phone?: string | null): boolean {
   if (/\{\{|\}\}|customer|undefined|null|nan|unknown/i.test(trimmed)) {
     return false;
   }
+  if (!/^[+\d\s().-]+$/.test(trimmed)) {
+    return false;
+  }
   const digits = trimmed.replace(/\D/g, '');
   return digits.length >= 6;
 }

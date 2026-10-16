@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { logger } from '@/lib/logger';
+import { formatDisplayPhoneNumber, isRealPhoneNumber } from '@/lib/validation/phone';
 
 export const instant = false;
 
@@ -25,6 +26,14 @@ type CallRecordWithContact = Prisma.CallRecordGetPayload<{
 
 function getTwentyFourHoursAgo(): Date {
   return new Date(Date.now() - 24 * 60 * 60 * 1000);
+}
+
+function PhoneNumber({ phone }: { phone?: string | null }) {
+  if (!isRealPhoneNumber(phone)) {
+    return <span className="italic text-slate-400">Numéro non renseigné</span>;
+  }
+
+  return <>{formatDisplayPhoneNumber(phone)}</>;
 }
 
 export default async function DashboardPage({
@@ -217,37 +226,37 @@ export default async function DashboardPage({
     {
       id: 'overview',
       label: 'Vue d’ensemble',
-      icon: '📊',
+      icon: '01',
       visible: allowedSectionsList.includes('overview'),
     },
     {
       id: 'calendar',
       label: 'Planning & Calendrier Interne',
-      icon: '📅',
+      icon: '02',
       visible: !isDaniOnly && allowedSectionsList.includes('calendar'),
     },
     {
       id: 'appointments',
       label: `Cabinet Michelle — Rendez-vous (${appointments.length})`,
-      icon: '🩺',
+      icon: '03',
       visible: !isDaniOnly && allowedSectionsList.includes('appointments'),
     },
     {
       id: 'requests',
       label: `Dani Bâtiment — Devis (${serviceRequests.length})`,
-      icon: '🏗️',
+      icon: '04',
       visible: !isMichelleOnly && allowedSectionsList.includes('requests'),
     },
     {
       id: 'calls',
       label: `Journal d’appels (${callRecords.length})`,
-      icon: '📞',
+      icon: '05',
       visible: allowedSectionsList.includes('calls'),
     },
     {
       id: 'routing',
       label: 'Routage des appels',
-      icon: '🔀',
+      icon: '06',
       visible:
         isAdmin ||
         allowedSectionsList.includes('routing') ||
@@ -257,13 +266,13 @@ export default async function DashboardPage({
     {
       id: 'users',
       label: 'Gestion des Accès & Comptes',
-      icon: '👥',
+      icon: '07',
       visible: isAdmin && allowedSectionsList.includes('users'),
     },
     {
       id: 'logs',
       label: 'Journal & Logs Système',
-      icon: '📜',
+      icon: '08',
       visible: isAdmin || allowedSectionsList.includes('logs'),
     },
   ];
@@ -310,10 +319,8 @@ export default async function DashboardPage({
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm ${
-              isMichelleOnly ? 'bg-teal-600' : isDaniOnly ? 'bg-amber-600' : 'bg-blue-600'
-            }`}>
-              {isMichelleOnly ? '🩺' : isDaniOnly ? '🏗️' : 'AI'}
+            <div className="brand-mark flex items-center justify-center font-bold" aria-hidden="true">
+              A/
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-tight">
@@ -334,10 +341,6 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Assistants Vocaux Actifs
-            </div>
             <UserNav
               user={{
                 name: dbUser?.name || session.user.name,
@@ -353,11 +356,9 @@ export default async function DashboardPage({
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         <section className="dashboard-intro" aria-label="Bienvenue">
           <div>
-            <p className="dashboard-intro-kicker">Espace de pilotage</p>
             <h2>Bonjour, {(dbUser?.name || session.user.name || 'équipe').trim().split(/\s+/)[0]}</h2>
-            <p>Votre activité, vos équipes et vos appels réunis au même endroit.</p>
+            <p>Les conversations qui comptent, dans un espace conçu pour décider vite.</p>
           </div>
-          <div className="dashboard-intro-badge"><span aria-hidden="true" />Suivi opérationnel</div>
         </section>
 
         {/* KPI Cards Row (Adapts dynamically to the assigned business) */}
@@ -368,7 +369,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV Confirmés</span>
-                  <span className="p-2 rounded-xl bg-teal-50 text-teal-600 text-sm">📅</span>
+                  <span className="p-2 rounded-xl bg-teal-50 text-teal-600 text-sm">01</span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-3xl font-extrabold text-slate-900">{confirmedCount}</span>
@@ -384,7 +385,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV En Attente SMS</span>
-                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">💬</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">02</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{pendingAppointmentsCount}</span>
@@ -395,7 +396,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Soins Urgents</span>
-                  <span className="p-2 rounded-xl bg-rose-50 text-rose-600 text-sm">🚨</span>
+                  <span className="p-2 rounded-xl bg-rose-50 text-rose-600 text-sm">03</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-rose-700">{urgentCount}</span>
@@ -406,7 +407,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Appels Soins Reçus</span>
-                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">📞</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">04</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
@@ -420,7 +421,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Devis Reçus & Complétés</span>
-                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">🏗️</span>
+                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">01</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{devisCompletedCount}</span>
@@ -431,7 +432,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Devis En Attente Lien</span>
-                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">⏳</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">02</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{devisPendingCount}</span>
@@ -442,7 +443,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Demandes</span>
-                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">📋</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">03</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{serviceRequests.length}</span>
@@ -453,7 +454,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Appels Chantiers Reçus</span>
-                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">📞</span>
+                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">04</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
@@ -467,7 +468,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV Confirmés</span>
-                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">📅</span>
+                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-sm">01</span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-3xl font-extrabold text-slate-900">{confirmedCount}</span>
@@ -483,7 +484,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RDV En Attente SMS</span>
-                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">💬</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600 text-sm">02</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{pendingAppointmentsCount}</span>
@@ -494,7 +495,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Devis Reçus &bull; Portail</span>
-                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">🏗️</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600 text-sm">03</span>
                 </div>
                 <div className="mt-3 flex items-baseline gap-2">
                   <span className="text-3xl font-extrabold text-slate-900">{devisCompletedCount}</span>
@@ -510,7 +511,7 @@ export default async function DashboardPage({
               <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Appels Traités</span>
-                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">📞</span>
+                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 text-sm">04</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-3xl font-extrabold text-slate-900">{totalCallsCount}</span>
@@ -591,7 +592,7 @@ export default async function DashboardPage({
                             )}
                           </div>
                           <p className="text-xs text-slate-500">
-                            {appt.serviceType || 'Soins'} &bull; {appt.contact?.phoneNumber}
+                            {appt.serviceType || 'Soins'} &bull; <PhoneNumber phone={appt.contact?.phoneNumber} />
                           </p>
                         </div>
 
@@ -659,7 +660,7 @@ export default async function DashboardPage({
                             {req.contact?.name || 'Client'}
                           </span>
                           <p className="text-xs text-slate-500">
-                            {req.serviceType || 'Devis'} &bull; {req.contact?.phoneNumber}
+                            {req.serviceType || 'Devis'} &bull; <PhoneNumber phone={req.contact?.phoneNumber} />
                           </p>
                         </div>
 
@@ -748,7 +749,7 @@ export default async function DashboardPage({
                           {appt.contact?.name || 'Patient Inconnu'}
                         </td>
                         <td className="py-4 px-6 text-slate-600 font-mono text-xs">
-                          {appt.contact?.phoneNumber}
+                          <PhoneNumber phone={appt.contact?.phoneNumber} />
                         </td>
                         <td className="py-4 px-6 text-slate-800">
                           {appt.date} {appt.time && <span className="text-slate-500">à {appt.time}</span>}
@@ -839,7 +840,7 @@ export default async function DashboardPage({
                           {req.contact?.name || 'Client Inconnu'}
                         </td>
                         <td className="py-4 px-6 text-slate-600 font-mono text-xs">
-                          {req.contact?.phoneNumber}
+                          <PhoneNumber phone={req.contact?.phoneNumber} />
                         </td>
                         <td className="py-4 px-6 text-slate-800">
                           <span className="font-medium">{req.serviceType || 'Devis'}</span>
@@ -926,7 +927,7 @@ export default async function DashboardPage({
                           {call.contact?.name || 'Inconnu'}
                         </td>
                         <td className="py-4 px-6 text-slate-600 font-mono text-xs">
-                          {call.callerNumber}
+                          <PhoneNumber phone={call.callerNumber} />
                         </td>
                         <td className="py-4 px-6 text-slate-700 text-xs">
                           {call.summary || 'Appel vocal enregistré'}

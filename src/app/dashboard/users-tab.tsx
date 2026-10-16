@@ -13,13 +13,13 @@ export interface UserAccount {
 }
 
 const ALL_SECTIONS = [
-  { id: 'overview', label: 'Vue d’ensemble', icon: '📊', business: 'ALL' },
-  { id: 'routing', label: 'Routage des appels (entreprise assignée)', icon: '🔀', business: 'ALL' },
-  { id: 'calendar', label: 'Planning & Calendrier Interne', icon: '📅', business: 'CABINET_MICHELLE' },
-  { id: 'appointments', label: 'Cabinet Michelle — Rendez-vous', icon: '🩺', business: 'CABINET_MICHELLE' },
-  { id: 'requests', label: 'Dani Bâtiment — Devis & Chantiers', icon: '🏗️', business: 'DANI_BATIMENT' },
-  { id: 'calls', label: 'Journal d’appels vocaux', icon: '📞', business: 'ALL' },
-  { id: 'users', label: 'Gestion des Comptes & Permissions', icon: '👥', business: 'ALL' },
+  { id: 'overview', label: 'Vue d’ensemble', icon: '01', business: 'ALL' },
+  { id: 'routing', label: 'Routage des appels (entreprise assignée)', icon: '02', business: 'ALL' },
+  { id: 'calendar', label: 'Planning & Calendrier Interne', icon: '03', business: 'CABINET_MICHELLE' },
+  { id: 'appointments', label: 'Cabinet Michelle — Rendez-vous', icon: '04', business: 'CABINET_MICHELLE' },
+  { id: 'requests', label: 'Dani Bâtiment — Devis & Chantiers', icon: '05', business: 'DANI_BATIMENT' },
+  { id: 'calls', label: 'Journal d’appels vocaux', icon: '06', business: 'ALL' },
+  { id: 'users', label: 'Gestion des Comptes & Permissions', icon: '07', business: 'ALL' },
 ];
 
 export default function DashboardUsersTab({

@@ -82,11 +82,11 @@ function LoginForm() {
     <div className="login-shell min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans selection:bg-blue-100 selection:text-blue-900">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         {/* Brand Icon */}
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white font-black text-xl shadow-md shadow-blue-500/20 mb-4">
-          AI
+        <div className="brand-mark inline-flex items-center justify-center font-black text-xl mb-5" aria-hidden="true">
+          A/
         </div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">
-          AI Calling System
+          Ligne de conduite
         </h1>
       </div>
 
@@ -221,7 +221,7 @@ function LoginForm() {
                 onClick={handleDemoFillAdmin}
                 className="w-full py-1.5 px-3 rounded-lg text-2xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition-colors flex items-center justify-between cursor-pointer"
               >
-                <span>👑 Super Admin (Tous les établissements)</span>
+                <span>ADM · Tous les établissements</span>
                 <span className="font-mono text-3xs text-purple-500">admin@moncabinet.fr</span>
               </button>
               <button
@@ -229,7 +229,7 @@ function LoginForm() {
                 onClick={handleDemoFillMichelle}
                 className="w-full py-1.5 px-3 rounded-lg text-2xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 transition-colors flex items-center justify-between cursor-pointer"
               >
-                <span>🩺 Cabinet Michelle (Soins & RDV seuls)</span>
+                <span>CM · Cabinet Michelle</span>
                 <span className="font-mono text-3xs text-teal-500">michelle@moncabinet.fr</span>
               </button>
               <button
@@ -237,7 +237,7 @@ function LoginForm() {
                 onClick={handleDemoFillDani}
                 className="w-full py-1.5 px-3 rounded-lg text-2xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition-colors flex items-center justify-between cursor-pointer"
               >
-                <span>🏗️ Dani Bâtiment (Chantiers & Devis seuls)</span>
+                <span>DB · Dani Bâtiment</span>
                 <span className="font-mono text-3xs text-amber-500">dani@danibatiment.fr</span>
               </button>
             </div>

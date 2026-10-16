@@ -416,16 +416,14 @@ export default function DashboardRoutingTab({
                 type="button"
                 onClick={handleToggleRouting}
                 disabled={isSavingSettings}
-                className={`cursor-pointer px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 ${
-                  routingEnabled
+                className={`cursor-pointer px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 ${routingEnabled
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                }`}
+                  }`}
               >
                 <span
-                  className={`w-2 h-2 rounded-full ${
-                    routingEnabled ? 'bg-white animate-pulse' : 'bg-slate-400'
-                  }`}
+                  className={`w-2 h-2 rounded-full ${routingEnabled ? 'bg-white animate-pulse' : 'bg-slate-400'
+                    }`}
                 />
                 <span>{routingEnabled ? 'Filtrage Actif' : 'Activer le filtrage'}</span>
               </button>
@@ -462,7 +460,7 @@ export default function DashboardRoutingTab({
                 <label htmlFor="priority-transfer-number" className="text-xs font-bold text-slate-800">
                   Numéro de transfert par défaut — {selectedBusiness?.name || 'cet établissement'}
                 </label>
-                <span className="text-2xs text-slate-400 font-medium">Format E.164 (+33...)</span>
+                <span className="text-2xs text-slate-400 font-medium">Format Française (+33...)</span>
               </div>
 
               <div className="flex gap-2.5">
@@ -493,13 +491,13 @@ export default function DashboardRoutingTab({
         {/* Right Column (1/3): Educational Information & Warning Callout */}
         <div className="space-y-4">
           {/* Important Forwarding Loop Warning */}
-          <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 space-y-2 shadow-xs">
+          <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-amber-900 space-y-2 shadow-xs">
             <div className="flex items-center gap-2 font-bold text-xs text-amber-800">
               <span>⚠️</span>
-              <span>Attention aux boucles de transfert</span>
+              <span className="uppercase tracking-wider">Attention aux boucles de transfert</span>
             </div>
-            <p className="text-xs leading-relaxed text-amber-800/90">
-              Veillez à ne pas transférer les appels prioritaires vers un numéro qui renvoie lui-même vers le numéro Vapi de l’établissement. Cela provoquerait une <strong>boucle infinie de redirection</strong>.
+            <p className="text-xs leading-relaxed text-amber-900/90">
+              Veillez à ne pas transférer les appels prioritaires vers un numéro qui renvoie lui-même vers le numéro Vapi de l’établissement{selectedBusiness?.inboundPhoneNumber ? ` (${selectedBusiness.inboundPhoneNumber})` : ''}. Cela provoquerait une <strong>boucle infinie de redirection</strong>.
             </p>
           </div>
 
@@ -580,22 +578,20 @@ export default function DashboardRoutingTab({
             <button
               type="button"
               onClick={() => setActiveTab('ALL')}
-              className={`cursor-pointer px-3 py-1.5 rounded-lg transition-colors ${
-                activeTab === 'ALL'
+              className={`cursor-pointer px-3 py-1.5 rounded-lg transition-colors ${activeTab === 'ALL'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               Tous ({rules.length})
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('DIRECT')}
-              className={`cursor-pointer px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                activeTab === 'DIRECT'
+              className={`cursor-pointer px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${activeTab === 'DIRECT'
                   ? 'bg-white text-emerald-700 shadow-2xs'
                   : 'text-slate-600 hover:text-emerald-700'
-              }`}
+                }`}
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span>Whitelist ({whitelistCount})</span>
@@ -603,11 +599,10 @@ export default function DashboardRoutingTab({
             <button
               type="button"
               onClick={() => setActiveTab('BLOCK')}
-              className={`cursor-pointer px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-                activeTab === 'BLOCK'
+              className={`cursor-pointer px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${activeTab === 'BLOCK'
                   ? 'bg-white text-rose-700 shadow-2xs'
                   : 'text-slate-600 hover:text-rose-700'
-              }`}
+                }`}
             >
               <span className="w-2 h-2 rounded-full bg-rose-500" />
               <span>Blacklist ({blacklistCount})</span>
@@ -665,16 +660,14 @@ export default function DashboardRoutingTab({
 
                       <td className="py-3.5 px-4">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold text-2xs border ${
-                            isDirect
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-bold text-2xs border ${isDirect
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                               : 'bg-rose-50 text-rose-800 border-rose-200'
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              isDirect ? 'bg-emerald-500' : 'bg-rose-500'
-                            }`}
+                            className={`w-1.5 h-1.5 rounded-full ${isDirect ? 'bg-emerald-500' : 'bg-rose-500'
+                              }`}
                           />
                           <span>{isDirect ? 'Whitelist (Transfert Direct)' : 'Blacklist (Bloqué)'}</span>
                         </span>
@@ -688,11 +681,10 @@ export default function DashboardRoutingTab({
                         <button
                           type="button"
                           onClick={() => handleToggleRuleActive(rule)}
-                          className={`cursor-pointer inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-bold border transition-colors ${
-                            rule.active
+                          className={`cursor-pointer inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-2xs font-bold border transition-colors ${rule.active
                               ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                               : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
-                          }`}
+                            }`}
                         >
                           <span>{rule.active ? 'Actif' : 'Désactivé'}</span>
                         </button>
