@@ -113,16 +113,16 @@ export default function DashboardLogsTab({
     stats.total24h > 0 ? ((stats.errors24h / stats.total24h) * 100).toFixed(1) : '0.0';
 
   return (
-    <div className="space-y-6">
+    <div className="system-logs space-y-6">
       {/* Header and Live Status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-md">
+      <div className="logs-header flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-md">
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
               <span>📜</span> Journal Système & Traçabilité Webhooks
             </h2>
             <div
-              className={`flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium ${
+              className={`logs-live-indicator flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium ${
                 autoRefresh
                   ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
                   : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
@@ -196,26 +196,26 @@ export default function DashboardLogsTab({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
+      <div className="logs-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
           <div className="text-xs text-slate-400 font-medium">Logs Générés (24h)</div>
           <div className="text-2xl font-bold text-slate-100 mt-1">{stats.total24h.toLocaleString()}</div>
           <div className="text-[11px] text-slate-500 mt-0.5">En base & fichiers rotation</div>
         </div>
 
-        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
+        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
           <div className="text-xs text-indigo-400 font-medium">Traces Webhooks (24h)</div>
           <div className="text-2xl font-bold text-indigo-300 mt-1">{stats.webhooks24h.toLocaleString()}</div>
           <div className="text-[11px] text-slate-500 mt-0.5">Vapi Voice & Twilio SMS</div>
         </div>
 
-        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
+        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
           <div className="text-xs text-amber-400 font-medium">Avertissements (24h)</div>
           <div className="text-2xl font-bold text-amber-300 mt-1">{stats.warnings24h.toLocaleString()}</div>
           <div className="text-[11px] text-slate-500 mt-0.5">Dédoublonnages ou latences</div>
         </div>
 
-        <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
+        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
           <div className="text-xs text-rose-400 font-medium">Erreurs / Taux d’échec</div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold text-rose-300">{stats.errors24h}</span>
@@ -228,7 +228,7 @@ export default function DashboardLogsTab({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      <div className="logs-filter bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="flex-1 flex flex-col sm:flex-row gap-3">
           {/* Search Box */}
           <div className="relative flex-1">
@@ -307,7 +307,7 @@ export default function DashboardLogsTab({
       </div>
 
       {/* Logs Table / List */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+      <div className="logs-table-wrap bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>

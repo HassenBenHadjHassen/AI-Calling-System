@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     // Case B: Blacklisted caller -> spam rejection error response
     case 'BLOCKED':
       return NextResponse.json(
-        { error: 'Cet appel ne peut pas être pris en charge.' },
+        { error: 'Désolé, nous ne pouvons pas donner suite à votre appel. Au revoir.' },
         { status: 200 }
       );
 

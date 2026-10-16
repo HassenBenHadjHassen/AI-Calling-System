@@ -24,7 +24,7 @@ sequenceDiagram
     Router->>DB: Vérification de routingEnabled et des règles Whitelist / Blacklist
     
     alt Caller is on Blacklist (BLOCK)
-        Router-->>Vapi: { "error": "Cet appel ne peut pas être pris en charge." }
+        Router-->>Vapi: { "error": "Désolé, nous ne pouvons pas donner suite à votre appel. Au revoir." }
         Vapi-->>Caller: Appel raccroché immédiatement (Spam rejeté)
     else Caller is on Whitelist (DIRECT)
         Router-->>Vapi: { "destination": { "type": "number", "number": "+33...", "message": "" } }
@@ -90,7 +90,7 @@ When you set the **Server URL Secret** in the Vapi Phone Number settings, Vapi a
 3. Click **+ Ajouter Blacklist** and enter test phone number `+33600000001` with label "Test Spam".
 4. Call the Vapi phone number from `+33600000001`.
 5. Expected behavior:
-   - The webhook returns HTTP 200 with `{ "error": "Cet appel ne peut pas être pris en charge." }`.
+   - The webhook returns HTTP 200 with `{ "error": "Désolé, nous ne pouvons pas donner suite à votre appel. Au revoir." }`.
    - Vapi terminates the call immediately without spinning up the voice assistant.
    - The caller is disconnected and no assistant charges are incurred.
 

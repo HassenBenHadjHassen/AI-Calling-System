@@ -301,7 +301,7 @@ export default async function DashboardPage({
   const totalCallsCount = callRecords.length;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16">
+    <div className="dashboard-shell min-h-screen bg-slate-50 text-slate-800 font-sans pb-16">
       {/* Top Navigation Bar */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -347,8 +347,17 @@ export default async function DashboardPage({
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+        <section className="dashboard-intro" aria-label="Bienvenue">
+          <div>
+            <p className="dashboard-intro-kicker">Espace de pilotage</p>
+            <h2>Bonjour, {(dbUser?.name || session.user.name || 'équipe').trim().split(/\s+/)[0]}</h2>
+            <p>Votre activité, vos équipes et vos appels réunis au même endroit.</p>
+          </div>
+          <div className="dashboard-intro-badge"><span aria-hidden="true" />Suivi opérationnel</div>
+        </section>
+
         {/* KPI Cards Row (Adapts dynamically to the assigned business) */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <section className="dashboard-kpis grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Michelle-only KPIs */}
           {isMichelleOnly ? (
             <>
@@ -509,7 +518,7 @@ export default async function DashboardPage({
         </section>
 
         {/* Tab Controls (Only shows allowed and scoped tabs) */}
-        <section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2">
+        <section className="dashboard-tabs bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2">
           <nav className="flex flex-wrap gap-2">
             {permittedTabs.map((tab) => {
               const active = currentTab === tab.id;

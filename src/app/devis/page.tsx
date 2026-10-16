@@ -20,7 +20,7 @@ export default async function DevisGeneralPage({
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-amber-50/50 via-slate-50 to-slate-100 text-slate-900 flex flex-col justify-center items-center px-4 py-12 font-sans">
+    <div className="quote-demo-shell min-h-screen bg-linear-to-b from-amber-50/50 via-slate-50 to-slate-100 text-slate-900 flex flex-col justify-center items-center px-4 py-12 font-sans">
       <div className="max-w-xl w-full bg-white border border-slate-200/90 rounded-3xl p-8 shadow-xl shadow-slate-200/50 space-y-8">
         {/* Header */}
         <div className="text-center space-y-3">

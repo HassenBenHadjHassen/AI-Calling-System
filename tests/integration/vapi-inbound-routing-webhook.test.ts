@@ -155,7 +155,7 @@ describe('Vapi Inbound Routing Webhook & API Routes (Integration Tests)', () => 
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data).toEqual({
-        error: 'Cet appel ne peut pas être pris en charge.',
+        error: 'Désolé, nous ne pouvons pas donner suite à votre appel. Au revoir.',
       });
     });
 

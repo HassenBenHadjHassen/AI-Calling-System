@@ -185,7 +185,7 @@ export class CallRoutingService {
       });
       return {
         decision: 'BLOCKED',
-        error: 'Cet appel ne peut pas être pris en charge.',
+        error: 'Désolé, nous ne pouvons pas donner suite à votre appel. Au revoir.',
         businessId: business.id,
         businessSlug: business.slug,
         ruleId: matchingRule.id,

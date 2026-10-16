@@ -79,7 +79,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="login-shell min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans selection:bg-blue-100 selection:text-blue-900">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         {/* Brand Icon */}
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white font-black text-xl shadow-md shadow-blue-500/20 mb-4">

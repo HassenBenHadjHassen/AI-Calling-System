@@ -146,7 +146,7 @@ describe('CallRoutingService (Unit Tests)', () => {
       });
 
       expect(result.decision).toBe('BLOCKED');
-      expect(result.error).toBe('Cet appel ne peut pas être pris en charge.');
+      expect(result.error).toBe('Désolé, nous ne pouvons pas donner suite à votre appel. Au revoir.');
       expect(result.ruleId).toBe('rule_block_1');
     });
 

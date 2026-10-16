@@ -699,7 +699,7 @@ export default function DashboardCalendarTab({
       const formatted = dt.toFormat("cccc d MMMM yyyy");
       return formatted.charAt(0).toUpperCase() + formatted.slice(1);
     }
-    return `Agenda &bull; ${filteredAppointments.length} intervention${filteredAppointments.length > 1 ? 's' : ''}`;
+    return `Agenda • ${filteredAppointments.length} intervention${filteredAppointments.length > 1 ? 's' : ''}`;
   }, [selectedDate, activeView, filteredAppointments.length]);
 
   return (

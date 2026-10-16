@@ -17,7 +17,7 @@ export default async function DevisCallPage({
   const context = await DevisIntakeService.getSubmissionContext(callId);
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-amber-50/40 via-slate-50 to-slate-100 text-slate-900 flex flex-col justify-between selection:bg-amber-100 selection:text-amber-900 font-sans">
+    <div className="quote-shell min-h-screen bg-linear-to-b from-amber-50/40 via-slate-50 to-slate-100 text-slate-900 flex flex-col justify-between selection:bg-amber-100 selection:text-amber-900 font-sans">
       {/* Decorative ambient background glows */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-200/30 rounded-full blur-3xl"></div>
