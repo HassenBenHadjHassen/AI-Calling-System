@@ -115,28 +115,28 @@ export default function DashboardLogsTab({
   return (
     <div className="system-logs space-y-6">
       {/* Header and Live Status */}
-      <div className="logs-header flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 rounded-xl p-5 backdrop-blur-md">
+      <div className="logs-header flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <span>📜</span> Journal Système & Traçabilité Webhooks
             </h2>
             <div
-              className={`logs-live-indicator flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium ${
+              className={`logs-live-indicator flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold ${
                 autoRefresh
-                  ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
-                  : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
               }`}
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  autoRefresh ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'
+                  autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
                 }`}
               />
-              {autoRefresh ? 'Flux en Direct (5s)' : 'En Pause'}
+              {autoRefresh ? 'Actualiser toutes les 5 secondes' : 'En Pause'}
             </div>
           </div>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Inspection en temps réel des appels Vapi, webhooks Twilio, workers PM2 et erreurs applicatives.
           </p>
         </div>
@@ -145,10 +145,10 @@ export default function DashboardLogsTab({
           {/* Toggle Auto Refresh */}
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
               autoRefresh
-                ? 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
-                : 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-500'
+                ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
             }`}
           >
             {autoRefresh ? '⏸️ Suspendre' : '▶️ Reprendre le flux'}
@@ -158,35 +158,35 @@ export default function DashboardLogsTab({
           <button
             onClick={() => fetchLogs()}
             disabled={loading}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition disabled:opacity-50"
+            className="cursor-pointer px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 transition disabled:opacity-50 shadow-2xs"
           >
             🔄 Actualiser
           </button>
 
           {/* Download Logs */}
           <div className="relative group">
-            <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-700/60 text-indigo-200 transition">
+            <button className="cursor-pointer px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 transition shadow-2xs">
               📥 Télécharger (.log)
             </button>
-            <div className="absolute right-0 top-full mt-1 hidden group-hover:block w-48 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-20 py-1 text-xs">
+            <div className="absolute right-0 top-full mt-1 hidden group-hover:block w-52 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 text-xs">
               <a
                 href="/api/admin/logs/download?type=combined"
                 download="combined.log"
-                className="block px-3 py-2 text-slate-300 hover:bg-slate-800"
+                className="block px-3.5 py-2 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
               >
                 combined.log (Complet)
               </a>
               <a
                 href="/api/admin/logs/download?type=webhooks"
                 download="webhooks.log"
-                className="block px-3 py-2 text-slate-300 hover:bg-slate-800"
+                className="block px-3.5 py-2 text-slate-700 hover:bg-slate-50 hover:text-slate-900"
               >
                 webhooks.log (Vapi/Twilio)
               </a>
               <a
                 href="/api/admin/logs/download?type=error"
                 download="error.log"
-                className="block px-3 py-2 text-rose-300 hover:bg-slate-800"
+                className="block px-3.5 py-2 text-rose-700 hover:bg-rose-50"
               >
                 error.log (Erreurs & Avertissements)
               </a>
@@ -197,38 +197,38 @@ export default function DashboardLogsTab({
 
       {/* KPI Cards */}
       <div className="logs-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
-          <div className="text-xs text-slate-400 font-medium">Logs Générés (24h)</div>
-          <div className="text-2xl font-bold text-slate-100 mt-1">{stats.total24h.toLocaleString()}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">En base & fichiers rotation</div>
+        <div className="logs-stat bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <div className="text-2xs uppercase tracking-wider font-bold text-slate-400">Logs Générés (24h)</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.total24h.toLocaleString()}</div>
+          <div className="text-2xs text-slate-500 mt-0.5">En base & fichiers rotation</div>
         </div>
 
-        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
-          <div className="text-xs text-indigo-400 font-medium">Traces Webhooks (24h)</div>
-          <div className="text-2xl font-bold text-indigo-300 mt-1">{stats.webhooks24h.toLocaleString()}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Vapi Voice & Twilio SMS</div>
+        <div className="logs-stat bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <div className="text-2xs uppercase tracking-wider font-bold text-indigo-500">Traces Webhooks (24h)</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.webhooks24h.toLocaleString()}</div>
+          <div className="text-2xs text-slate-500 mt-0.5">Vapi Voice & Twilio SMS</div>
         </div>
 
-        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
-          <div className="text-xs text-amber-400 font-medium">Avertissements (24h)</div>
-          <div className="text-2xl font-bold text-amber-300 mt-1">{stats.warnings24h.toLocaleString()}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Dédoublonnages ou latences</div>
+        <div className="logs-stat bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <div className="text-2xs uppercase tracking-wider font-bold text-amber-500">Avertissements (24h)</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{stats.warnings24h.toLocaleString()}</div>
+          <div className="text-2xs text-slate-500 mt-0.5">Dédoublonnages ou latences</div>
         </div>
 
-        <div className="logs-stat bg-slate-900/40 border border-slate-800/80 rounded-xl p-4">
-          <div className="text-xs text-rose-400 font-medium">Erreurs / Taux d’échec</div>
+        <div className="logs-stat bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+          <div className="text-2xs uppercase tracking-wider font-bold text-rose-500">Erreurs / Taux d’échec</div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-rose-300">{stats.errors24h}</span>
-            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-rose-950/70 text-rose-400 border border-rose-800/50">
+            <span className="text-2xl font-bold text-slate-900">{stats.errors24h}</span>
+            <span className="text-2xs font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
               {errorRate}%
             </span>
           </div>
-          <div className="text-[11px] text-slate-500 mt-0.5">Exceptions capturées</div>
+          <div className="text-2xs text-slate-500 mt-0.5">Exceptions capturées</div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="logs-filter bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+      <div className="logs-filter bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between shadow-xs">
         <div className="flex-1 flex flex-col sm:flex-row gap-3">
           {/* Search Box */}
           <div className="relative flex-1">
@@ -240,7 +240,7 @@ export default function DashboardLogsTab({
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3.5 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {search && (
               <button
@@ -248,7 +248,7 @@ export default function DashboardLogsTab({
                   setSearch('');
                   setPage(1);
                 }}
-                className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-200"
+                className="cursor-pointer absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600"
               >
                 ✕
               </button>
@@ -262,7 +262,7 @@ export default function DashboardLogsTab({
               setSelectedLevel(e.target.value);
               setPage(1);
             }}
-            className="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500"
+            className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="ALL">Tous les niveaux (DEBUG, INFO, WARN, ERROR)</option>
             <option value="ERROR">🔴 ERROR uniquement</option>
@@ -278,7 +278,7 @@ export default function DashboardLogsTab({
               setSelectedModule(e.target.value);
               setPage(1);
             }}
-            className="bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500"
+            className="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="ALL">Tous les modules</option>
             <option value="WEBHOOK_VAPI">Vapi Webhooks</option>
@@ -299,7 +299,7 @@ export default function DashboardLogsTab({
               setSelectedModule('ALL');
               setPage(1);
             }}
-            className="text-xs text-slate-400 hover:text-slate-200 underline self-center whitespace-nowrap"
+            className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-800 underline self-center whitespace-nowrap"
           >
             Réinitialiser filtres
           </button>
@@ -307,23 +307,23 @@ export default function DashboardLogsTab({
       </div>
 
       {/* Logs Table / List */}
-      <div className="logs-table-wrap bg-slate-900/60 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+      <div className="logs-table-wrap bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 font-semibold uppercase tracking-wider">
+              <tr className="border-b border-slate-200/80 bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-2xs">
                 <th className="py-3 px-4 w-32">Horodatage</th>
                 <th className="py-3 px-3 w-24">Niveau</th>
-                <th className="py-3 px-3 w-40">Module</th>
+                <th className="py-3 px-3 w-44">Module</th>
                 <th className="py-3 px-3 w-44">Trace ID</th>
                 <th className="py-3 px-4">Message</th>
                 <th className="py-3 px-3 w-20 text-center">Détails</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
+            <tbody className="divide-y divide-slate-100 font-mono text-xs">
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     {loading ? 'Chargement des événements...' : 'Aucun log ne correspond aux critères sélectionnés.'}
                   </td>
                 </tr>
@@ -342,40 +342,40 @@ export default function DashboardLogsTab({
                     <React.Fragment key={log.id}>
                       <tr
                         onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                        className={`cursor-pointer transition hover:bg-slate-800/50 ${
-                          isExpanded ? 'bg-slate-800/70' : ''
-                        } ${
-                          log.level === 'ERROR'
-                            ? 'bg-rose-950/15'
+                        className={`cursor-pointer transition-colors ${
+                          isExpanded
+                            ? 'bg-slate-100/70'
+                            : log.level === 'ERROR'
+                            ? 'bg-rose-50/60 hover:bg-rose-100/50'
                             : log.level === 'WARN'
-                            ? 'bg-amber-950/10'
-                            : ''
+                            ? 'bg-amber-50/60 hover:bg-amber-100/50'
+                            : 'hover:bg-slate-50/80'
                         }`}
                       >
                         {/* Timestamp */}
-                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap text-xs">
                           <span title={dateObj.toISOString()}>{timeFormatted}</span>
                         </td>
 
                         {/* Level badge */}
                         <td className="py-3 px-3 whitespace-nowrap">
                           {log.level === 'ERROR' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                               ERROR
                             </span>
                           )}
                           {log.level === 'WARN' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                               WARN
                             </span>
                           )}
                           {log.level === 'INFO' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                               INFO
                             </span>
                           )}
                           {log.level === 'DEBUG' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
                               DEBUG
                             </span>
                           )}
@@ -383,7 +383,7 @@ export default function DashboardLogsTab({
 
                         {/* Module */}
                         <td className="py-3 px-3 whitespace-nowrap">
-                          <span className="text-indigo-400 font-semibold">{log.module}</span>
+                          <span className="text-slate-700 font-semibold">{log.module}</span>
                         </td>
 
                         {/* Correlation ID */}
@@ -395,49 +395,52 @@ export default function DashboardLogsTab({
                                 handleFilterCorrelation(log.correlationId!);
                               }}
                               title="Cliquer pour filtrer uniquement cette trace de requête"
-                              className="text-slate-400 hover:text-cyan-300 hover:underline flex items-center gap-1"
+                              className="cursor-pointer text-slate-500 hover:text-slate-900 hover:underline flex items-center gap-1"
                             >
                               <span>🔗</span>
-                              <span className="truncate max-w-[130px]">{log.correlationId}</span>
+                              <span className="truncate max-w-[130px] font-mono text-2xs">{log.correlationId}</span>
                             </button>
                           ) : (
-                            <span className="text-slate-600">—</span>
+                            <span className="text-slate-400">—</span>
                           )}
                         </td>
 
-                        {/* Message */}
-                        <td className="py-3 px-4 text-slate-200">
-                          <div className="line-clamp-2">{log.message}</div>
+                        {/* Message - High contrast for readability */}
+                        <td className="py-3 px-4 text-slate-900 font-medium font-sans">
+                          <div className="line-clamp-2 text-slate-900 text-xs leading-relaxed">{log.message}</div>
                         </td>
 
                         {/* Expand toggle */}
                         <td className="py-3 px-3 text-center text-slate-400">
-                          <span className="text-xs">{isExpanded ? '▲' : '▼'}</span>
+                          <span className="text-2xs">{isExpanded ? '▲' : '▼'}</span>
                         </td>
                       </tr>
 
-                      {/* Expanded row with complete structured details */}
+                      {/* Expanded row with light mode styling matching theme */}
                       {isExpanded && (
-                        <tr className="bg-slate-950/90 border-b border-slate-800">
-                          <td colSpan={6} className="p-4">
-                            <div className="space-y-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
-                                <div className="flex items-center gap-4 text-slate-400 text-xs">
+                        <tr className="bg-slate-50/90 border-y border-slate-200">
+                          <td colSpan={6} className="p-5">
+                            <div className="space-y-4">
+                              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                                <div className="flex flex-wrap items-center gap-4 text-slate-600 text-xs font-sans">
                                   <span>
-                                    <strong>Horodatage ISO:</strong> {log.createdAt}
+                                    <strong className="text-slate-800">Horodatage ISO :</strong>{' '}
+                                    <span className="font-mono text-slate-700">{log.createdAt}</span>
                                   </span>
                                   {log.business && (
                                     <span>
-                                      <strong>Établissement:</strong> {log.business.name}
+                                      <strong className="text-slate-800">Établissement :</strong>{' '}
+                                      <span className="text-slate-700">{log.business.name}</span>
                                     </span>
                                   )}
                                   {log.correlationId && (
                                     <span>
-                                      <strong>Correlation ID:</strong> {log.correlationId}
+                                      <strong className="text-slate-800">Correlation ID :</strong>{' '}
+                                      <span className="font-mono text-slate-700">{log.correlationId}</span>
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div>
                                   <button
                                     onClick={() =>
                                       copyToClipboard(
@@ -445,7 +448,7 @@ export default function DashboardLogsTab({
                                         log.id
                                       )
                                     }
-                                    className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs border border-slate-700"
+                                    className="cursor-pointer px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-300 shadow-2xs transition-colors"
                                   >
                                     {copiedId === log.id ? '✓ Copié !' : '📋 Copier JSON'}
                                   </button>
@@ -455,15 +458,15 @@ export default function DashboardLogsTab({
                               {/* Formatted Metadata & Payload */}
                               {log.metadata && Object.keys(log.metadata).length > 0 ? (
                                 <div>
-                                  <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                                  <div className="text-2xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 font-sans">
                                     Métadonnées & Charge Utile (Payload) :
                                   </div>
-                                  <pre className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-emerald-400 overflow-x-auto max-h-72">
+                                  <pre className="bg-white border border-slate-200/90 rounded-xl p-4 text-xs text-slate-800 font-mono overflow-x-auto max-h-80 shadow-2xs leading-relaxed">
                                     {JSON.stringify(log.metadata, null, 2)}
                                   </pre>
                                 </div>
                               ) : (
-                                <div className="text-xs text-slate-500 italic">
+                                <div className="text-xs text-slate-500 italic font-sans">
                                   Aucune métadonnée additionnelle pour cet événement.
                                 </div>
                               )}
@@ -480,25 +483,25 @@ export default function DashboardLogsTab({
         </div>
 
         {/* Pagination Footer */}
-        <div className="py-3 px-4 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div className="py-3 px-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
           <div>
-            Affichage de <strong>{logs.length}</strong> sur <strong>{totalCount}</strong> événement(s)
+            Affichage de <strong className="text-slate-800">{logs.length}</strong> sur <strong className="text-slate-800">{totalCount}</strong> événement(s)
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 border border-slate-700"
+              className="cursor-pointer px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 disabled:opacity-40 text-slate-700 font-semibold border border-slate-300 shadow-2xs transition-colors"
             >
               ◀ Précédent
             </button>
-            <span className="px-2">
+            <span className="px-2 font-medium">
               Page {page} sur {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 border border-slate-700"
+              className="cursor-pointer px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 disabled:opacity-40 text-slate-700 font-semibold border border-slate-300 shadow-2xs transition-colors"
             >
               Suivant ▶
             </button>

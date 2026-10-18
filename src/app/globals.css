@@ -161,7 +161,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dashboard-shell .system-logs .logs-table-wrap tbody { background: var(--panel); }
 .dashboard-shell .system-logs .logs-table-wrap tbody tr { border-color: #e5e0d7; }
 .dashboard-shell .system-logs .logs-table-wrap tbody tr:hover { background: #faf4e9; }
-.dashboard-shell .system-logs .logs-table-wrap tbody pre { border-color: #dcd6cc; background: #f4f0e8; color: #355947; }
+.dashboard-shell .system-logs .logs-table-wrap tbody tr.bg-slate-50\/90,
+.dashboard-shell .system-logs .logs-table-wrap tbody tr.bg-slate-100\/70,
+.dashboard-shell .system-logs .logs-table-wrap tbody tr.bg-slate-950\/90 { background: #faf7f1 !important; color: var(--ink) !important; }
+.dashboard-shell .system-logs .logs-table-wrap tbody td div.line-clamp-2 { color: var(--ink) !important; font-weight: 500 !important; }
+.dashboard-shell .system-logs .logs-table-wrap tbody pre { border-color: #dcd6cc !important; background: #fffdf9 !important; color: #1e3a2f !important; }
 
 /* Sign-in and public quote flow use the same warm, precise language. */
 .login-shell, .quote-shell, .quote-demo-shell { background-color: var(--paper) !important; background-image: radial-gradient(circle at 92% 7%, rgb(214 83 53 / 16%), transparent 18rem), linear-gradient(rgb(31 36 33 / 3%) 1px, transparent 1px), linear-gradient(90deg, rgb(31 36 33 / 3%) 1px, transparent 1px) !important; background-size: auto, 32px 32px, 32px 32px !important; }
