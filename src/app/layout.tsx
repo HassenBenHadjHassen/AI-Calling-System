@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Calling System - Mission Control",
-  description: "Unified AI Voice & Workflow Management for Cabinet Michelle & Dani Bâtiment",
+  title: {
+    default: 'VoxFlow AI — Standard Téléphonique & Secrétariat Autonome par IA 24/7',
+    template: '%s | VoxFlow AI',
+  },
+  description:
+    'La plateforme d’agents vocaux intelligents pour entreprises, cabinets de santé et artisans. Décrochage instantané, prise de RDV dans vos agendas et envoi de devis par SMS.',
 };
 
 export default function RootLayout({

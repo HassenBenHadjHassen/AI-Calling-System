@@ -57,7 +57,7 @@ export default async function DevisCallPage({
       {/* Footer */}
       <footer className="relative z-10 border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
         <div className="max-w-4xl mx-auto px-4 space-y-1">
-          <p className="font-medium text-slate-600">© {new Date().getFullYear()} Dani Bâtiment &bull; Tous droits réservés.</p>
+          <p className="font-medium text-slate-600">© 2026 Dani Bâtiment &bull; Tous droits réservés.</p>
           <p className="text-[11px] text-slate-400">
             Vos informations sont strictement confidentielles et utilisées uniquement pour l&apos;établissement de votre devis.
           </p>

@@ -341,6 +341,12 @@ export default async function DashboardPage({
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors"
+            >
+              <span>←</span> Site Public
+            </Link>
             <UserNav
               user={{
                 name: dbUser?.name || session.user.name,
