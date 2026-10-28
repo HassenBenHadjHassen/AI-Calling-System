@@ -418,8 +418,28 @@ export default function VoiceSimulator() {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fr-FR';
-      utterance.rate = 1.05;
+      utterance.rate = 1.02;
       utterance.pitch = 1.0;
+
+      // Select the best available natural/HD French voice to match Marin's warm tone
+      const voices = window.speechSynthesis.getVoices();
+      const bestFrVoice =
+        voices.find(
+          (v) =>
+            v.lang.startsWith('fr') &&
+            (v.name.toLowerCase().includes('natural') ||
+              v.name.toLowerCase().includes('online') ||
+              v.name.toLowerCase().includes('denise') ||
+              v.name.toLowerCase().includes('amélie') ||
+              v.name.toLowerCase().includes('amelie') ||
+              v.name.toLowerCase().includes('julie') ||
+              v.name.toLowerCase().includes('google'))
+        ) || voices.find((v) => v.lang.startsWith('fr'));
+
+      if (bestFrVoice) {
+        utterance.voice = bestFrVoice;
+      }
+
       utterance.onend = () => {
         if (callState === 'speaking') setCallState('connected');
       };
