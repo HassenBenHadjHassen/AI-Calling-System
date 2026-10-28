@@ -17,16 +17,16 @@ export default function DemoPage() {
       <main className="pt-32 pb-24">
         {/* Header */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4 pb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Démonstrateur Interactif Prêt
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            🎙️ Démonstration Vocale Interactive
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight">
-            Vivez l&apos;expérience d&apos;un accueil téléphonique par IA
+            Vivez l&apos;expérience d&apos;un accueil téléphonique par IA en direct
           </h1>
           <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Testez la fluidité de nos agents vocaux ci-dessous. Observez comment l&apos;IA comprend chaque phrase, 
-            verrouille les créneaux dans vos agendas et transmet des devis sans délai.
+            Testez la fluidité de nos agents vocaux en temps réel. Parlez à la voix ou écrivez : observez comment l&apos;IA comprend chaque phrase, 
+            verrouille les créneaux dans vos agendas et transmet des devis par SMS sans délai.
           </p>
         </section>
 

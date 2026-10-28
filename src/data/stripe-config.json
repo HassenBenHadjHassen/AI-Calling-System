@@ -1,0 +1,21 @@
+{
+  "stripeSecretKey": "",
+  "stripePublishableKey": "",
+  "stripeWebhookSecret": "",
+  "starterMonthlyPrice": 89,
+  "starterAnnualPrice": 63,
+  "starterMinutes": 200,
+  "proMonthlyPrice": 199,
+  "proAnnualPrice": 149,
+  "proMinutes": 650,
+  "enterpriseMonthlyPrice": 489,
+  "enterpriseAnnualPrice": 389,
+  "enterpriseMinutes": 2000,
+  "stripePriceStarterMonthly": "price_starter_test_monthly",
+  "stripePriceStarterAnnual": "",
+  "stripePriceProMonthly": "",
+  "stripePriceProAnnual": "",
+  "stripePriceEnterpriseMonthly": "",
+  "stripePriceEnterpriseAnnual": "",
+  "lastUpdated": "2026-10-24T17:56:43.204Z"
+}

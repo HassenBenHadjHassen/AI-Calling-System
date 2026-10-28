@@ -1,75 +1,73 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { PlanConfig, STRIPE_PLANS } from '@/lib/stripe/plans';
 
-export default function PricingTable() {
+interface PricingTableProps {
+  initialPlans?: Record<string, PlanConfig>;
+}
+
+export default function PricingTable({ initialPlans }: PricingTableProps) {
   const [annualBilling, setAnnualBilling] = useState(true);
+  const [plansData, setPlansData] = useState<Record<string, PlanConfig>>(initialPlans || STRIPE_PLANS);
+
+  useEffect(() => {
+    // Refresh plans dynamically in case admin changed prices recently
+    fetch('/api/plans')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.plans) {
+          setPlansData(data.plans);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const starterPlan = plansData.starter || STRIPE_PLANS.starter;
+  const proPlan = plansData.pro || STRIPE_PLANS.pro;
+  const enterprisePlan = plansData.enterprise || STRIPE_PLANS.enterprise;
 
   const plans = [
     {
-      name: 'Starter / Artisan',
-      tagline: 'Pour les indépendants, artisans solos et professionnels libéraux.',
-      monthlyPrice: 79,
-      annualPrice: 63,
-      minutes: '200 min / mois',
-      extraMinute: '0,18 € / min',
+      id: 'starter',
+      name: starterPlan.name,
+      tagline: starterPlan.tagline,
+      monthlyPrice: starterPlan.monthlyPrice,
+      annualPrice: starterPlan.annualMonthlyPrice,
+      minutes: `${starterPlan.minutesIncluded} min / mois`,
+      extraMinute: starterPlan.extraMinuteRate,
       popular: false,
-      features: [
-        '1 ligne téléphonique dédiée ou renvoi de votre numéro actuel',
-        '200 minutes d’appels incluses chaque mois',
-        'Accueil téléphonique 24h/24 et 7j/7 sans interruption',
-        'Voix française chaleureuse et naturelle',
-        'Prise de coordonnées & synthèse par email',
-        'Envoi automatique de SMS de confirmation',
-        'Assistance et mise en service incluses',
-      ],
+      features: starterPlan.features,
       ctaText: 'Choisir la formule Starter',
-      ctaHref: '/contact?plan=starter',
+      ctaHref: '/checkout?plan=starter',
     },
     {
-      name: 'Pro / Cabinet',
-      tagline: 'Idéal pour cabinets médicaux, PME et entreprises du bâtiment.',
-      monthlyPrice: 189,
-      annualPrice: 149,
-      minutes: '650 min / mois',
-      extraMinute: '0,14 € / min',
+      id: 'pro',
+      name: proPlan.name,
+      tagline: proPlan.tagline,
+      monthlyPrice: proPlan.monthlyPrice,
+      annualPrice: proPlan.annualMonthlyPrice,
+      minutes: `${proPlan.minutesIncluded} min / mois`,
+      extraMinute: proPlan.extraMinuteRate,
       popular: true,
       badge: 'Le Plus Choisi',
-      features: [
-        'Jusqu’à 3 lignes d’appels simultanées',
-        '650 minutes d’appels incluses chaque mois',
-        'Synchronisation directe avec vos agendas (Google, Outlook, Doctolib)',
-        'Gestion automatique des créneaux et des indisponibilités',
-        'Envoi instantané d’un portail de devis par SMS au client',
-        'Détection des urgences & transfert prioritaire sur votre portable',
-        'Reconnaissance automatique de vos clients prioritaires',
-        'Tableau de bord de suivi des rendez-vous et appels',
-        'Support prioritaire 7j/7',
-      ],
+      features: proPlan.features,
       ctaText: 'Choisir la Formule Pro ➔',
-      ctaHref: '/contact?plan=pro',
+      ctaHref: '/checkout?plan=pro',
     },
     {
-      name: 'Entreprise & Réseau',
-      tagline: 'Pour les réseaux multi-agences, cliniques et structures d’envergure.',
-      monthlyPrice: 489,
-      annualPrice: 389,
-      minutes: '2 000+ min / mois',
-      extraMinute: '0,10 € / min',
+      id: 'enterprise',
+      name: enterprisePlan.name,
+      tagline: enterprisePlan.tagline,
+      monthlyPrice: enterprisePlan.monthlyPrice,
+      annualPrice: enterprisePlan.annualMonthlyPrice,
+      minutes: `${enterprisePlan.minutesIncluded} min / mois`,
+      extraMinute: enterprisePlan.extraMinuteRate,
       popular: false,
-      features: [
-        'Lignes simultanées illimitées & multi-établissements',
-        'Volume de minutes sur-mesure ou illimité',
-        'Scénarios d’accueil 100% personnalisés selon vos processus',
-        'Connexion directe à votre logiciel métier ou CRM existant',
-        'Transferts conditionnels vers plusieurs équipes et astreintes',
-        'Disponibilité contractuelle garantie 99,98%',
-        'Hébergement dédié et conformité stricte des données',
-        'Interlocuteur dédié et formation de votre équipe',
-      ],
-      ctaText: 'Demander une Étude Entreprise',
-      ctaHref: '/contact?plan=entreprise',
+      features: enterprisePlan.features,
+      ctaText: 'Choisir la Formule Entreprise',
+      ctaHref: '/checkout?plan=enterprise',
     },
   ];
 
@@ -170,7 +168,7 @@ export default function PricingTable() {
               {/* Action Button */}
               <div className="pt-8">
                 <Link
-                  href={plan.ctaHref}
+                  href={`/checkout?plan=${plan.id}&interval=${annualBilling ? 'annual' : 'monthly'}`}
                   className={`w-full block text-center py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all ${
                     plan.popular
                       ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md shadow-amber-500/20 hover:-translate-y-0.5'
@@ -186,6 +184,42 @@ export default function PricingTable() {
             </div>
           );
         })}
+      </div>
+
+      {/* Stripe Trust & Payment Badges Bar */}
+      <div className="p-6 rounded-3xl bg-slate-50 border border-slate-200/80 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center text-lg font-black">
+            🔒
+          </div>
+          <div>
+            <h5 className="font-extrabold text-slate-900 text-xs">Paiement & Facturation Sécurisés Stripe</h5>
+            <p className="text-[11px] text-slate-500">Chiffrement SSL 256 bits & authentification 3D Secure 2.0</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-bold text-2xs shadow-2xs">
+            💳 Carte Bancaire
+          </span>
+          <span className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-bold text-2xs shadow-2xs">
+            Visa
+          </span>
+          <span className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-bold text-2xs shadow-2xs">
+            Mastercard
+          </span>
+          <span className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-bold text-2xs shadow-2xs">
+            Apple Pay
+          </span>
+          <span className="px-3 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-bold text-2xs shadow-2xs">
+            Google Pay
+          </span>
+        </div>
+
+        <div className="text-right text-[11px] text-slate-500">
+          <span className="font-semibold text-emerald-700">✓ 14 jours satisfait ou remboursé</span>
+          <span className="block text-slate-400">Résiliation libre en 1 clic</span>
+        </div>
       </div>
     </div>
   );

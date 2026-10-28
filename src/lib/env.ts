@@ -47,15 +47,10 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional().default('sk-mock-openai-key'),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
 
-  // JotForm
-  JOTFORM_FORM_URL: z
-    .string()
-    .default('https://form.jotform.com/260901590611047?callId={callId}'),
-  JOTFORM_WEBHOOK_SECRET: z.string().optional().default(''),
-
   // Provider Overrides (Native vs External)
   CALENDAR_PROVIDER: z.enum(['internal', 'google']).default('internal'),
   FORM_PROVIDER: z.enum(['internal', 'jotform']).default('internal'),
+  JOTFORM_FORM_URL: z.string().optional().default('https://form.jotform.com/260714775432055'),
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().optional().default('ai_calling_system_secure_better_auth_secret_2026_xyz987'),
@@ -63,6 +58,17 @@ const envSchema = z.object({
 
   // Internal Dashboard
   DASHBOARD_PASSWORD: z.string().optional().default('admin123'),
+
+  // Stripe Payments
+  STRIPE_SECRET_KEY: z.string().optional().default(''),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(''),
+  STRIPE_PRICE_STARTER_MONTHLY: z.string().optional().default(''),
+  STRIPE_PRICE_STARTER_ANNUAL: z.string().optional().default(''),
+  STRIPE_PRICE_PRO_MONTHLY: z.string().optional().default(''),
+  STRIPE_PRICE_PRO_ANNUAL: z.string().optional().default(''),
+  STRIPE_PRICE_ENTERPRISE_MONTHLY: z.string().optional().default(''),
+  STRIPE_PRICE_ENTERPRISE_ANNUAL: z.string().optional().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

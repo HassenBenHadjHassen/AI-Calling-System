@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PricingTable from '@/components/PricingTable';
 import RoiCalculator from '@/components/RoiCalculator';
+import { StripeConfigService } from '@/lib/services/stripe-config.service';
 
 export const metadata = {
   title: 'Tarifs & Forfaits — VoxFlow AI',
@@ -11,6 +12,7 @@ export const metadata = {
 };
 
 export default function PricingPage() {
+  const plans = StripeConfigService.getPlans();
   const comparisonRows = [
     {
       feature: "Minutes d'appels incluses par mois",
@@ -100,7 +102,7 @@ export default function PricingPage() {
 
         {/* Pricing Table Section */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-          <PricingTable />
+          <PricingTable initialPlans={plans} />
         </section>
 
         {/* Comparison Matrix Table */}

@@ -5,6 +5,9 @@ import DashboardCalendarTab from './calendar-tab';
 import DashboardRoutingTab, { BusinessRoutingOverview } from './routing-tab';
 import DashboardUsersTab, { UserAccount } from './users-tab';
 import DashboardLogsTab, { SystemLogEntry, LogStats } from './logs-tab';
+import BillingTab from './billing-tab';
+import AdminStripeTab from './admin-stripe-tab';
+import { StripeConfigService } from '@/lib/services/stripe-config.service';
 import UserNav from './user-nav';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
@@ -275,6 +278,18 @@ export default async function DashboardPage({
       icon: '08',
       visible: isAdmin || allowedSectionsList.includes('logs'),
     },
+    {
+      id: 'billing',
+      label: 'Facturation & Stripe',
+      icon: '09',
+      visible: true,
+    },
+    {
+      id: 'stripe-admin',
+      label: 'Tarifs & Abonnements',
+      icon: '10',
+      visible: isAdmin,
+    },
   ];
 
   const permittedTabs = allTabDefinitions.filter((t) => t.visible);
@@ -286,6 +301,8 @@ export default async function DashboardPage({
   if (!isTabPermitted && permittedTabs.length > 0) {
     currentTab = permittedTabs[0].id;
   }
+
+  const stripeConfig = isAdmin ? StripeConfigService.getConfig() : null;
 
   const currentFilter = params.filter || 'all';
 
@@ -964,6 +981,36 @@ export default async function DashboardPage({
         {/* TAB: SYSTEM LOGS & AUDIT TRAIL */}
         {currentTab === 'logs' && (isAdmin || allowedSectionsList.includes('logs')) && (
           <DashboardLogsTab initialLogs={initialLogs} initialStats={initialLogStats} />
+        )}
+
+        {/* TAB: BILLING & STRIPE SUBSCRIPTION */}
+        {currentTab === 'billing' && (
+          <BillingTab userRole={dbUser?.role} assignedBusiness={dbUser?.assignedBusiness} />
+        )}
+
+        {/* TAB: ADMIN PLAN PRICES & QUOTAS */}
+        {currentTab === 'stripe-admin' && isAdmin && (
+          <AdminStripeTab
+            initialConfig={
+              stripeConfig
+                ? {
+                    starterMonthlyPrice: stripeConfig.starterMonthlyPrice,
+                    starterAnnualPrice: stripeConfig.starterAnnualPrice,
+                    starterMinutes: stripeConfig.starterMinutes,
+
+                    proMonthlyPrice: stripeConfig.proMonthlyPrice,
+                    proAnnualPrice: stripeConfig.proAnnualPrice,
+                    proMinutes: stripeConfig.proMinutes,
+
+                    enterpriseMonthlyPrice: stripeConfig.enterpriseMonthlyPrice,
+                    enterpriseAnnualPrice: stripeConfig.enterpriseAnnualPrice,
+                    enterpriseMinutes: stripeConfig.enterpriseMinutes,
+
+                    lastUpdated: stripeConfig.lastUpdated,
+                  }
+                : undefined
+            }
+          />
         )}
       </main>
     </div>
